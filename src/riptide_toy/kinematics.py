@@ -23,6 +23,23 @@ def sample_cm_angle(rng: np.random.Generator, n: int) -> np.ndarray:
     """
     return rng.uniform(0, 2*np.pi, n)
 
+def direction_from_theta_phi(theta: np.ndarray, phi: np.ndarray) -> np.ndarray:
+    """Converte coordinate sferiche in versori cartesiani (convenzione fisica:
+    theta = colatitudine da z, phi = azimut).
+
+    Args:
+        theta: angolo polare, rad, forma (n,) o scalare.
+        phi: angolo azimutale, rad, stessa forma di theta.
+
+    Ritorna:
+        array (..., 3), versori unitari; ultima dimensione = (x, y, z).
+    """
+    sin_theta = np.sin(theta)
+    return np.stack(
+        [sin_theta * np.cos(phi), sin_theta * np.sin(phi), np.cos(theta)],
+        axis=-1,
+    )
+
 def recoil_angle_from_direction(track_hat: np.ndarray,
                                 omega_n_hat: np.ndarray) -> np.ndarray:
     """Angolo tra le direzioni della traccia osservata e una griglia
