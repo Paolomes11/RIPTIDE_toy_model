@@ -9,7 +9,8 @@ outputs/
 *.root
 *.npz
 
-# libro di riferimento: non committare senza chiedere prima (CLAUDE.md, Fonti)
+# libro di riferimento e guida di progetto: non pubblicare su GitHub
+# (rimossi dalla cronologia dei commit il 2026-09-24; solo docs/roadmap.md resta tracciato)
 *.pdf
 
 # editor/OS
