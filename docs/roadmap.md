@@ -28,8 +28,7 @@ v0.2 — 2026-09-24
   marginalizzazione di θ_p. Il codice esistente marginalizza già θ_p internamente
   (`sigma_Ep, sigma_theta, log_prior_theta, chunk_size`, a chunk per stare in RAM).
   Decisione: si mantiene questa versione (ottimizzata) invece di riscriverla; `posterior_A`
-  si adatta alla firma reale. Motivo: priorità a prestazioni e tempo di sviluppo (indicazione
-  esplicita dell'utente).
+  si adatta alla firma reale. Motivo: priorità a prestazioni e tempo di sviluppo.
 - **`sample_cm_angle` / `sample_recoil`**: sono la stessa funzione; nessun tempo di volo
   nello scope del toy. Il riferimento a `sample_recoil` nella tabella prestazioni della guida
   (Sez. 5) va letto come `sample_cm_angle`.
@@ -52,11 +51,11 @@ v0.2 — 2026-09-24
 
 ## Pubblicazione su GitHub
 
-- Su richiesta esplicita dell'utente (2026-09-24): **la guida di progetto locale
-  non va pubblicata su GitHub**. È stato rimosso dalla cronologia dei commit (tutti i branch) e
-  aggiunto a `.gitignore`; resta presente solo in locale, fuori dal tracking git. Stessa
-  esclusione già in vigore per il materiale di riferimento locale (il libro). L'unico
-  file sotto `docs/` che resta tracciato in git è questo roadmap.
+- **la guida di progetto locale non va pubblicata su GitHub** (2026-09-24): è
+  stato rimosso dalla cronologia dei commit (tutti i branch) e aggiunto a `.gitignore`; resta
+  presente solo in locale, fuori dal tracking git. Stessa esclusione già in vigore per
+  il materiale di riferimento locale (il libro). L'unico file sotto `docs/` che resta
+  tracciato in git è questo roadmap.
 
 ## Errata applicate
 
