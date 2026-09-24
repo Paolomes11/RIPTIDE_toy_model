@@ -82,3 +82,51 @@ def loglik_marginal_En(Ep_hat: np.ndarray, theta_p: np.ndarray, En_grid: np.ndar
     joint = joint + log_prior_En[None, None, :]
     joint = np.where(theta_p[:, :, None] <= np.pi / 2, joint, -np.inf)
     return logsumexp(joint, axis=2)
+
+
+def loglik_marginal_En_hierarchical(Ep_hat: np.ndarray, theta_p: np.ndarray,
+                                     En_grid: np.ndarray, sigma_Ep: float,
+                                     log_prior_En_grid: np.ndarray,
+                                     chunk_size: int = 200) -> np.ndarray:
+    """Log-verosimiglianza per evento marginalizzata su En, con un prior su
+    En diverso per ogni candidato iperparametro (Caso C, stadio 2 della
+    griglia a due stadi: Omega_n gia' fissato dal Caso B, qui si
+    marginalizza solo su En dato ciascun candidato (mu_E, sigma_E) --
+    CLAUDE.md Sez. 4, "mai griglia 4D bruta": la griglia e' solo su
+    (mu_E, sigma_E), non su Omega_n.
+
+    A differenza di loglik_marginal_En (Caso B, un solo log_prior_En
+    condiviso da tutti i candidati direzione), qui ogni candidato
+    iperparametro ha la propria pi(En | mu_E, sigma_E)
+    (priors.energy_prior_given_hyperparams): il prior varia lungo l'asse
+    dei candidati, da cui la funzione separata invece di riusare quella
+    del Caso B.
+
+    Args:
+        Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
+        theta_p: angolo di rinculo, rad, forma (n_events,) -- gia' fissato
+            dalla stima di Omega_n dello stadio 1 (non e' una griglia di
+            candidati come nel Caso B).
+        En_grid: griglia su cui marginalizzare En, MeV, forma (n_En,).
+        sigma_Ep: risoluzione del detector su Ep, MeV.
+        log_prior_En_grid: log pi(En | candidato), forma (n_hyper, n_En)
+            (log di priors.energy_prior_given_hyperparams).
+        chunk_size: numero di candidati iperparametro processati per lotto
+            (evita la griglia piena (n_events, n_hyper, n_En) in RAM).
+
+    Ritorna:
+        array (n_events, n_hyper), log-verosimiglianza marginalizzata su En.
+    """
+    n_events = Ep_hat.shape[0]
+    n_hyper = log_prior_En_grid.shape[0]
+
+    Ep_pred = En_grid[None, :] * np.cos(theta_p)[:, None] ** 2  # (n_events, n_En)
+    base = -0.5 * ((Ep_hat[:, None] - Ep_pred) / sigma_Ep) ** 2
+    base = np.where((theta_p <= np.pi / 2)[:, None], base, -np.inf)
+
+    out = np.empty((n_events, n_hyper), dtype=np.float64)
+    for start in range(0, n_hyper, chunk_size):
+        end = min(start + chunk_size, n_hyper)
+        joint = base[:, None, :] + log_prior_En_grid[None, start:end, :]  # (n_events, chunk, n_En)
+        out[:, start:end] = logsumexp(joint, axis=2)
+    return out
