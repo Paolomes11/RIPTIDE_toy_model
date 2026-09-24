@@ -7,6 +7,7 @@ from riptide_toy.validate import (
     bias_curve,
     coverage_curve,
     posterior_angular_resolution,
+    posterior_mean_std,
     pull_histogram,
 )
 
@@ -89,3 +90,14 @@ def test_angular_pull_is_plain_ratio():
     sigma_hat = np.array([0.1, 0.1, 0.05])
     pull = angular_pull(angular_dist, sigma_hat)
     np.testing.assert_allclose(pull, [1.0, 2.0, 0.0])
+
+
+def test_posterior_mean_std_recovers_gaussian_and_book_example_39_1():
+    # riga 14: gaussiana costruita a mano su un asse lineare, con i valori dell'
+    # Es. 39.1 (2.40 +- 0.18 MeV) come media/sigma note: verifica di consistenza interna.
+    grid = np.linspace(0.0, 6.0, 4001)
+    log_post = -0.5 * ((grid - 2.4) / 0.18) ** 2
+    mean, std = posterior_mean_std(log_post[None, :], grid)
+    assert mean.shape == (1,) and std.shape == (1,)
+    assert abs(mean[0] - 2.4) < 1e-6
+    assert abs(std[0] - 0.18) / 0.18 < 0.01

@@ -135,6 +135,31 @@ def posterior_angular_resolution(log_posterior: np.ndarray, omega_hat_grid: np.n
     return np.sqrt(np.sum(weights * angle ** 2, axis=-1))
 
 
+def posterior_mean_std(log_posterior: np.ndarray, grid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Media e deviazione standard pesate su un posterior a griglia per un parametro
+    scalare (Cap. 19, generalizza il calcolo gia' usato inline per gli oracoli
+    Es. 38.1/39.1 e per la voce "risoluzione_caso_A" di docs/roadmap.md; qui
+    fattorizzata perche' riusata per i parametri scalari mu_E, sigma_E del Caso C,
+    riga 14 -- analoga a posterior_angular_resolution ma per un asse lineare invece
+    che sferico). Estensione additiva (CLAUDE.md Sez. 6, checkpoint Caso A).
+
+    Args:
+        log_posterior: log-posterior non normalizzato, forma (n_eventi, n_candidati).
+        grid: valori del parametro sulla griglia, stessa unita' del parametro,
+            forma (n_candidati,).
+
+    Ritorna:
+        (mean, std), due array di forma (n_eventi,): media e deviazione standard
+        pesate, con pesi p = exp(log_posterior - max(log_posterior)) normalizzati
+        per evento.
+    """
+    weights = np.exp(log_posterior - log_posterior.max(axis=-1, keepdims=True))
+    weights /= weights.sum(axis=-1, keepdims=True)
+    mean = np.sum(weights * grid[None, :], axis=-1)
+    var = np.sum(weights * (grid[None, :] - mean[:, None]) ** 2, axis=-1)
+    return mean, np.sqrt(var)
+
+
 def angular_pull(angular_dist: np.ndarray, sigma_hat: np.ndarray) -> np.ndarray:
     """Pull della distanza angolare (Cap. 40 punto 3, estensione (d)). A differenza del
     pull 1D (pull_histogram, gia' verificato N(0,1) se calibrato), la distanza angolare
