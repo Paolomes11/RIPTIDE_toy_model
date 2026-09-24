@@ -14,12 +14,18 @@ def energy_grid(n: int = 500) -> np.ndarray:
     grid.flags.writeable = False
     return grid
 
+# (c) errata: theta e phi erano due linspace indipendenti (stessa lunghezza
+# n_pixel ma nessun accoppiamento), quindi l'indice i non corrispondeva a una
+# singola direzione sulla sfera. Fix: reticolo di Fibonacci (angolo aureo),
+# un indice = una direzione, area solida quasi costante per pixel.
 @lru_cache(maxsize=None)
 def sphere_grid(n_pixel: int = 3000) -> tuple[np.ndarray, np.ndarray]:
     """Return: (theta, phi), twoo arrays of dimension (n_pixel,)
     in radians - the coordinates of the directions for the sphere."""
-    theta = np.linspace(0.0, np.pi, n_pixel)
-    phi = np.linspace(0.0, 2 * np.pi, n_pixel)
+    i = np.arange(n_pixel)
+    golden_angle = np.pi * (3.0 - np.sqrt(5.0))
+    theta = np.arccos(1.0 - 2.0 * (i + 0.5) / n_pixel)
+    phi = np.mod(i * golden_angle, 2 * np.pi)
     theta.flags.writeable = False
     phi.flags.writeable = False
     return (theta, phi)

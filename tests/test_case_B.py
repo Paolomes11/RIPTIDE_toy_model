@@ -1,6 +1,6 @@
 import numpy as np
 
-from riptide_toy import kinematics
+from riptide_toy import grids, kinematics, priors
 
 
 def test_direction_from_theta_phi_unit_norm():
@@ -25,3 +25,22 @@ def test_omega_n_parallel_to_z_reduces_to_case_A():
     angles = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)
     assert angles.shape == (5, 1)
     np.testing.assert_allclose(angles[:, 0], theta_p, atol=1e-10)
+
+
+def test_sphere_grid_is_pixelization_with_equal_area():
+    # fix errata (c): un indice = una direzione, area solida ~costante per
+    # pixel. Punti uniformi sulla sfera hanno cos(theta) ~ Uniform(-1, 1)
+    # (isotropia, Cap. 20): la media deve annullarsi.
+    theta, phi = grids.sphere_grid(2000)
+    assert theta.shape == (2000,)
+    assert phi.shape == (2000,)
+    assert abs(np.cos(theta).mean()) < 0.01
+    assert np.all((phi >= 0.0) & (phi < 2 * np.pi))
+
+
+def test_direction_prior_proper_and_sums_to_one():
+    theta, phi = grids.sphere_grid()
+    p = priors.direction_prior(theta, phi)
+    assert p.shape == theta.shape
+    assert np.all(p > 0.0)
+    assert abs(p.sum() - 1.0) < 1e-10
