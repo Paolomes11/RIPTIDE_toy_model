@@ -1,6 +1,6 @@
 import numpy as np
 
-from riptide_toy import grids, kinematics, priors
+from riptide_toy import grids, kinematics, posterior_B, priors
 
 
 def test_direction_from_theta_phi_unit_norm():
@@ -44,3 +44,39 @@ def test_direction_prior_proper_and_sums_to_one():
     assert p.shape == theta.shape
     assert np.all(p > 0.0)
     assert abs(p.sum() - 1.0) < 1e-10
+
+
+def test_posterior_B_flat_prior_one_event_constant_on_front_hemisphere():
+    # riga 10 (CLAUDE.md Sez. 5, test di limite): 1 evento + prior piatto ->
+    # L_k(Omega_n) ~costante sull'emisfero anteriore. Con En a prior piatto e
+    # proprio (Ep = En*cos^2(theta_p)), l'integrale marginale su En varia con
+    # theta_p come 1/cos^2(theta_p) (Jacobiano del cambio di variabile
+    # En' = En*cos^2(theta_p)): in un cono centrale attorno alla traccia
+    # osservata questa variazione resta modesta (entro il 20% fino a ~30 gradi),
+    # mentre sull'emisfero posteriore (theta_p > pi/2) il rinculo e'
+    # cinematicamente vietato (scattering elastico a masse uguali, CLAUDE.md
+    # Sez. 3: theta_lab <= 90 gradi) -> log-verosimiglianza -inf. Il salto a
+    # -inf, non la variazione residua entro l'emisfero anteriore, e' la
+    # discontinuita' rilevante testata qui.
+    track_hat = np.array([[0.0, 0.0, 1.0]])
+    Ep_hat = np.array([1.0])
+
+    theta_grid, phi_grid = grids.sphere_grid(4000)
+    prior = priors.direction_prior(theta_grid, phi_grid)
+
+    logpost = posterior_B.single_event_posterior(
+        (Ep_hat, track_hat), (theta_grid, phi_grid), prior
+    )
+    assert logpost.shape == (1, theta_grid.shape[0])
+
+    omega_n_hat = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
+    theta_p = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)[0]
+
+    front_central = logpost[0][theta_p < np.deg2rad(30.0)]
+    rear = logpost[0][theta_p > np.pi / 2]
+
+    assert front_central.size > 100
+    assert rear.size > 100
+    weights = np.exp(front_central - front_central.max())
+    assert weights.std() / weights.mean() < 0.2
+    assert np.all(np.isneginf(rear))
