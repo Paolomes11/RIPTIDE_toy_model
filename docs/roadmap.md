@@ -1,15 +1,15 @@
 # Roadmap — riptide-toy
 
-v0.1 — 2026-09-24
+v0.2 — 2026-09-24
 
 ## Stato
 
 | Riga | Modulo | Stato |
 |---|---|---|
-| 1 | `constants` + `grids` | fatto (fix errata a applicato) |
-| 2 | `kinematics` | fatto |
-| 3 | `forward_model` | fatto (firma diversa dalla guida, vedi Deviazioni) |
-| 4 | `posterior_A` | in corso |
+| 1 | `constants` + `grids` | fatto (fix errata a applicato), testato |
+| 2 | `kinematics` | fatto, testato |
+| 3 | `forward_model` | fatto (firma diversa dalla guida, vedi Deviazioni), testato |
+| 4 | `posterior_A` (+ `priors.energy_prior`, `constants.SIGMA_EP/SIGMA_THETA`) | fatto, oracolo Es. 38.1 verde (argmax 1.80 MeV, σ pesata 0.219 MeV vs atteso 1.82±0.21) |
 | 5 | `combine` | da fare |
 | 6 | `validate` | da fare |
 | 7 | `scripts/ch39_fig_repro.py` | da fare |
@@ -44,7 +44,21 @@ v0.1 — 2026-09-24
   come `arccos(uniform(-1,1))`, non uniforme). Nessuna fonte autorevole del progetto conferma
   o smentisce la formula attuale — **aperto**, etichetta (d), non usato ancora da nessun
   modulo a valle: non blocca la riga 4.
+- **`posterior_A.single_event_posterior`**: la guida (Sez. 3) assume `theta_p_hat` già fissato
+  dentro `loglik`. Qui `forward_model.loglik` marginalizza `theta_p` internamente su un prior
+  piatto proprio su `[0, π/2]` (coerente con la deviazione già presa per `forward_model`), e
+  `single_event_posterior` somma il prior su `En` una sola volta sopra il risultato. Verificato
+  contro l'oracolo Es. 38.1 (vedi tabella Stato, riga 4).
+
+## Pubblicazione su GitHub
+
+- Su richiesta esplicita dell'utente (2026-09-24): **la guida di progetto locale
+  non va pubblicata su GitHub**. È stato rimosso dalla cronologia dei commit (tutti i branch) e
+  aggiunto a `.gitignore`; resta presente solo in locale, fuori dal tracking git. Stessa
+  esclusione già in vigore per il materiale di riferimento locale (il libro). L'unico
+  file sotto `docs/` che resta tracciato in git è questo roadmap.
 
 ## Errata applicate
 
 - (a) `grids.py`: `@lru_cache(maxsize=1)` → `maxsize=None`; array resi non scrivibili.
+- (b) `priors.py` (verifica): `np.trapz` deprecato in NumPy ≥ 2.0 → `scipy.integrate.trapezoid`.
