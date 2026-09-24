@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.7 — 2026-09-24
+v0.8 — 2026-09-24
 
 ## Stato
 
@@ -19,7 +19,7 @@ v0.7 — 2026-09-24
 | 10 | `posterior_B` | fatto (`forward_model.loglik_marginal_En` + `posterior_B.single_event_posterior`), testato; limite 1 evento + prior piatto verde |
 | 11 | `combine` su Ω_n (riuso) | fatto, nessuna modifica a `combine.py`; contrazione angolare σ(N=10)→σ(N=100) coerente con 1/√N entro tolleranza larga (singola realizzazione MC) |
 | 12 | `validate` su distanza angolare | fatto (`angular_residual`, `posterior_angular_resolution`, `angular_pull`, additive); verificato su geometria nota + su Caso B simulato (M=30 esperimenti, Ω_n nota): bias medio <20°, pull mediano d'ordine 1 |
-| 13 | `posterior_C` | da fare |
+| 13 | `posterior_C` | fatto (`grids.hyperparameter_grid`, `priors.energy_prior_given_hyperparams`/`hyperparameter_prior`, `forward_model.loglik_marginal_En_hierarchical`, `posterior_C.estimate_shared_direction`/`single_event_posterior`), testato; entrambi i limiti di Sez. 5 verdi (σ_E→∞ ≈ Caso B entro atol=0.01 sulla log-verosimiglianza; σ_E→0 recupera l'energia condivisa vera entro 0.1 MeV) |
 | 14 | `validate` finale su C | da fare |
 
 ## Deviazioni dalla guida (documentate, non silenziose)
@@ -134,6 +134,31 @@ v0.7 — 2026-09-24
   confermando che la riduzione non altera la conclusione qualitativa. Soglie di
   accettazione volutamente larghe (bias medio <20°, pull mediano in [0.2, 3.0]), coerenti
   con l'etichetta (d).
+
+- **Riga 13, `posterior_C` importa anche `combine`**: la guida (Sez. 3, tabella import) elenca
+  per `posterior_C` solo `kinematics, forward_model, priors, grids, posterior_B`. Lo stadio 1
+  (`estimate_shared_direction`) deve combinare gli N eventi su `Ω_n` prima di passare allo
+  stadio 2 sulla griglia `(μ_E, σ_E)` — la griglia a due stadi mandata da CLAUDE.md Sez. 4
+  ("mai griglia 4D bruta") richiede proprio questo. `combine.py` non ha import dal progetto ed
+  è pensato per essere generico, chiamato da qualunque layer superiore (già usato direttamente
+  nei test del Caso B, righe 11/12): l'import diretto in `posterior_C` è quindi una deviazione
+  minima e coerente con l'architettura esistente, non una violazione dello strato.
+- **Riga 13, doppio conteggio del prior nello stadio 1**: `posterior_B.single_event_posterior`
+  somma già il prior sulla direzione una volta per evento (CLAUDE.md Sez. 3). Per riusarlo con
+  `combine.combine_loglik` (che aggiunge il prior una sola volta sull'intero campione, come
+  nelle righe 11/12) va prima sottratto il prior già sommato (`log_posterior_per_event -
+  log(direction_prior)`), altrimenti verrebbe contato N volte invece di 1.
+- **Riga 13, griglia iperparametri `(μ_E, σ_E)`**: `μ_E` copre lo stesso dominio di
+  `energy_grid` (lineare); `σ_E` è spaziata logaritmicamente (`np.geomspace`,
+  `SIGMA_E_MIN, SIGMA_E_MAX = 0.01, 50.0` MeV) perché è un parametro di scala. `SIGMA_E_MIN`
+  è scelto ≪ `SIGMA_EP` (lo scatter fra le energie vere degli eventi diventa indistinguibile
+  dal rumore di misura, limite Caso A); `SIGMA_E_MAX` è scelto ≫ `EN_MAX − EN_MIN` = 5.5 MeV
+  (la gaussiana troncata sul dominio di `energy_grid` è già ~piatta, limite Caso B). Conseguenza:
+  `priors.hyperparameter_prior` è uniforme **per punto della griglia**, non letteralmente piatta
+  in `(μ_E, σ_E)` — con `σ_E` log-spaziata questo equivale a un prior uniforme in
+  `(μ_E, log σ_E)`, la convenzione standard per un parametro di scala (evita di favorire `σ_E`
+  grandi solo perché occupano più "spazio" lineare). Entrambi i limiti sono verificati
+  numericamente in `tests/test_case_C.py` (vedi tabella Stato, riga 13).
 
 ## Pubblicazione su GitHub
 
