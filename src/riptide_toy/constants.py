@@ -10,3 +10,10 @@ EN_MIN, EN_MAX = 0.5, 6.0
 # risoluzioni toy del detector, usate nell'Esempio 38.1 del libro (Cap. 38)
 SIGMA_EP = 0.10     # MeV
 SIGMA_THETA = 0.08  # rad
+
+# griglia iperparametri Caso C: range di sigma_E (MeV) per coprire i due test
+# di limite (CLAUDE.md Sez. 5): sigma_E->0 ~ Caso A, sigma_E->infinito ~ Caso B.
+# SIGMA_E_MIN << SIGMA_EP: lo scatter fra eventi e' indistinguibile dal rumore
+# di misura. SIGMA_E_MAX >> (EN_MAX - EN_MIN): la gaussiana troncata sul
+# dominio di energy_grid e' gia' ~piatta.
+SIGMA_E_MIN, SIGMA_E_MAX = 0.01, 50.0
