@@ -92,3 +92,63 @@ def run_checklist(reconstruction_fn, simulated_truths: np.ndarray, levels: np.nd
         "levels": levels,
         "coverage": coverage,
     }
+
+
+def angular_residual(omega_true_hat: np.ndarray, omega_estimate_hat: np.ndarray) -> np.ndarray:
+    """Distanza angolare fra direzione vera e ricostruita (riga 12: estensione di
+    validate.py per il Caso B, etichetta (d) — non e' nel libro, verificata su dati
+    simulati con Omega_n nota, vedi docs/roadmap.md).
+
+    Args:
+        omega_true_hat: direzione vera, versori, forma (n_eventi, 3).
+        omega_estimate_hat: direzione ricostruita, versori, stessa forma.
+
+    Ritorna:
+        array (n_eventi,), angolo fra le due direzioni, rad, in [0, pi].
+    """
+    cos_angle = np.clip(np.sum(omega_true_hat * omega_estimate_hat, axis=-1), -1.0, 1.0)
+    return np.arccos(cos_angle)
+
+
+def posterior_angular_resolution(log_posterior: np.ndarray, omega_hat_grid: np.ndarray,
+                                  reference_hat: np.ndarray) -> np.ndarray:
+    """Deviazione angolare pesata sul posterior rispetto a una direzione di riferimento
+    per evento: analogo sferico della deviazione standard pesata sulla griglia gia'
+    usata per il Caso A (docs/roadmap.md, voce "risoluzione_caso_A"). Estensione (d).
+
+    Args:
+        log_posterior: log-posterior non normalizzato su Omega_n, forma
+            (n_eventi, n_candidati) (es. combine.combine_loglik).
+        omega_hat_grid: direzioni candidate, versori, forma (n_candidati, 3).
+        reference_hat: direzione di riferimento per evento (verita' nota, o la stima
+            puntuale stessa), versori, forma (n_eventi, 3).
+
+    Ritorna:
+        array (n_eventi,), sqrt(E_p[distanza_angolare^2]) in rad, con pesi
+        p = exp(log_posterior - max(log_posterior)) normalizzati per evento.
+    """
+    weights = np.exp(log_posterior - log_posterior.max(axis=-1, keepdims=True))
+    weights /= weights.sum(axis=-1, keepdims=True)
+
+    cos_angle = np.clip(reference_hat @ omega_hat_grid.T, -1.0, 1.0)
+    angle = np.arccos(cos_angle)
+    return np.sqrt(np.sum(weights * angle ** 2, axis=-1))
+
+
+def angular_pull(angular_dist: np.ndarray, sigma_hat: np.ndarray) -> np.ndarray:
+    """Pull della distanza angolare (Cap. 40 punto 3, estensione (d)). A differenza del
+    pull 1D (pull_histogram, gia' verificato N(0,1) se calibrato), la distanza angolare
+    e' una quantita' non negativa: un ricostruttore calibrato la cui incertezza
+    dichiarata sigma_hat riflette correttamente lo scatter reale produce
+    angular_dist/sigma_hat con scala ~1, non media 0 — da verificare su dati simulati
+    con Omega_n nota (etichetta (d), ipotesi da testare, non un oracolo del libro).
+
+    Args:
+        angular_dist: distanza angolare, rad, forma (n_eventi,) (angular_residual).
+        sigma_hat: incertezza angolare dichiarata per evento, rad, stessa forma
+            (es. posterior_angular_resolution).
+
+    Ritorna:
+        array (n_eventi,), angular_dist / sigma_hat.
+    """
+    return angular_dist / sigma_hat
