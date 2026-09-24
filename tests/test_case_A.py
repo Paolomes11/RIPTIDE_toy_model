@@ -1,6 +1,7 @@
 import numpy as np
+from scipy.integrate import trapezoid
 
-from riptide_toy import forward_model, grids, kinematics
+from riptide_toy import forward_model, grids, kinematics, priors
 from riptide_toy.constants import SEED
 
 
@@ -61,6 +62,15 @@ def test_recoil_angle_from_direction_shape_and_values():
     np.testing.assert_allclose(
         angles[0], [0.0, np.pi / 2, np.pi], atol=1e-10
     )
+
+
+def test_energy_prior_is_proper_and_integrates_to_one():
+    # fix errata (b): scipy.integrate.trapezoid al posto di np.trapz deprecato
+    en_grid = grids.energy_grid()
+    p = priors.energy_prior(en_grid)
+    assert p.shape == en_grid.shape
+    assert np.all(p > 0.0)
+    assert abs(trapezoid(p, en_grid) - 1.0) < 1e-10
 
 
 def test_loglik_roundtrip_argmax_near_truth():
