@@ -1,7 +1,7 @@
 import numpy as np
 from functools import lru_cache
 
-from riptide_toy.constants import EN_MAX, EN_MIN
+from riptide_toy.constants import EN_MAX, EN_MIN, SIGMA_E_MAX, SIGMA_E_MIN
 
 # (a) errata guida: maxsize=1 svuota la cache se si chiama la funzione con
 # argomenti diversi (es. sphere_grid(500) poi sphere_grid()); gli array
@@ -38,3 +38,25 @@ def theta_p_grid(n: int = 500) -> np.ndarray:
     grid = np.linspace(0.0, np.pi / 2, n)
     grid.flags.writeable = False
     return grid
+
+@lru_cache(maxsize=None)
+def hyperparameter_grid(n_mu: int = 60, n_sigma: int = 60) -> tuple[np.ndarray, np.ndarray]:
+    """Return: (mu_grid, sigma_grid), due array 1D di dimensione (n_mu*n_sigma,) --
+    griglia 2D appiattita su (mu_E, sigma_E) per il Caso C (CLAUDE.md Sez. 4: "mai
+    griglia 4D bruta", Omega_n va fissato a parte dal Caso B prima di usare questa
+    griglia). mu_E copre lo stesso dominio di energy_grid; sigma_E e' spaziata
+    logaritmicamente (e' un parametro di scala) per coprire con la stessa griglia
+    sia il limite sigma_E->0 (Caso A) sia sigma_E->infinito (Caso B, Sez. 5).
+
+    Nota: meshgrid con indexing="ij" poi ravel (ordine 'C'): l'indice flat
+    i*n_sigma + j corrisponde a (mu_grid_1d[i], sigma_grid_1d[j]), quindi un
+    array di lunghezza n_mu*n_sigma allineato a questa griglia si puo'
+    ri-plasmare con .reshape(n_mu, n_sigma)."""
+    mu_1d = np.linspace(EN_MIN, EN_MAX, n_mu)
+    sigma_1d = np.geomspace(SIGMA_E_MIN, SIGMA_E_MAX, n_sigma)
+    mu_mesh, sigma_mesh = np.meshgrid(mu_1d, sigma_1d, indexing="ij")
+    mu_grid = mu_mesh.ravel()
+    sigma_grid = sigma_mesh.ravel()
+    mu_grid.flags.writeable = False
+    sigma_grid.flags.writeable = False
+    return (mu_grid, sigma_grid)
