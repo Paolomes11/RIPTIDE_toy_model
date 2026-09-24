@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "riptide-toy"
+version = "0.1.0"
+description = "Toy model Python for the statistical reconstruction of RIPTIDE"
+requires-python = ">=3.10"
+dependencies = [
+"numpy",
+"scipy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-benchmark"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
