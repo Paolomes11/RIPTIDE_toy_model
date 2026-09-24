@@ -1,6 +1,6 @@
 import numpy as np
 
-from riptide_toy import combine, forward_model, grids, kinematics, posterior_B, priors
+from riptide_toy import combine, forward_model, grids, kinematics, posterior_B, priors, validate
 from riptide_toy.constants import SEED, SIGMA_EP
 
 
@@ -139,3 +139,55 @@ def test_combine_reuse_angular_contraction_vs_N():
     predicted_100 = sigma_10 / np.sqrt(10.0)
     assert sigma_100 < sigma_10
     assert 0.4 < sigma_100 / predicted_100 < 2.5
+
+
+def test_angular_bias_and_pull_on_simulated_omega_n():
+    # riga 12 (guida Sez. 4, riga 12): "Bias/pull su distanza angolare", etichetta (d)
+    # (non nel libro; verificato su dati simulati con Omega_n nota, come richiesto dalla
+    # guida). Si ripetono M esperimenti indipendenti (N=20 eventi sintetici ciascuno,
+    # stessa costruzione "onesta" della riga 11), si stima Omega_n col MAP del
+    # posterior combinato, e si confronta la distanza angolare vera (angular_residual)
+    # con l'incertezza dichiarata dal posterior attorno alla propria stima
+    # (posterior_angular_resolution, self-referenziale sul proprio MAP). Non essendo
+    # un oracolo del libro, si verifica solo che il pull risultante (angular_pull) sia
+    # d'ordine 1 (ne' fortemente sovrastimato ne' sottostimato), non una calibrazione
+    # esatta N(0,1)/Rayleigh(1): la distanza angolare non e' gaussiana come nel caso 1D.
+    rng = np.random.default_rng(SEED)
+    n_events = 20
+    n_experiments = 30
+
+    theta_grid, phi_grid = grids.sphere_grid(800)
+    en_grid = grids.energy_grid(100)
+    log_prior_En = np.log(priors.energy_prior(en_grid))
+    log_prior_dir = np.log(priors.direction_prior(theta_grid, phi_grid))
+    omega_n_hat_grid = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
+    omega_n_true = kinematics.direction_from_theta_phi(np.array([0.0]), np.array([0.0]))
+
+    pulls = np.empty(n_experiments)
+    residuals = np.empty(n_experiments)
+    for i in range(n_experiments):
+        theta_p_true = rng.uniform(0.0, np.pi / 2 - 0.05, n_events)
+        phi_true = rng.uniform(0.0, 2 * np.pi, n_events)
+        track_hat = kinematics.direction_from_theta_phi(theta_p_true, phi_true)
+
+        en_true = rng.uniform(1.0, 5.0, n_events)
+        Ep_true = kinematics.proton_energy(en_true, theta_p_true)
+        Ep_hat = Ep_true + rng.normal(0.0, SIGMA_EP, n_events)
+
+        theta_p_candidates = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat_grid)
+        loglik_all = forward_model.loglik_marginal_En(
+            Ep_hat, theta_p_candidates, en_grid, SIGMA_EP, log_prior_En
+        )
+        combined = combine.combine_loglik(loglik_all, log_prior_dir)
+
+        omega_estimate = omega_n_hat_grid[np.argmax(combined):np.argmax(combined) + 1]
+        sigma_hat = validate.posterior_angular_resolution(
+            combined[None, :], omega_n_hat_grid, omega_estimate
+        )
+        residuals[i] = validate.angular_residual(omega_n_true, omega_estimate)[0]
+        pulls[i] = validate.angular_pull(residuals[i:i + 1], sigma_hat)[0]
+
+    # bias: la stima deve mediamente cadere vicino alla verita', non a caso sulla sfera
+    assert np.degrees(residuals.mean()) < 20.0
+    # pull d'ordine 1: ne' sigma_hat inutile (pull >> 1), ne' falsamente stretta (pull << 1)
+    assert 0.2 < np.median(pulls) < 3.0
