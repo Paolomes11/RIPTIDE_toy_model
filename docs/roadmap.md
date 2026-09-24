@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.3 — 2026-09-24
+v0.4 — 2026-09-24
 
 ## Stato
 
@@ -12,8 +12,8 @@ v0.3 — 2026-09-24
 | 4 | `posterior_A` (+ `priors.energy_prior`, `constants.SIGMA_EP/SIGMA_THETA`) | fatto, oracolo Es. 38.1 verde (argmax 1.80 MeV, σ pesata 0.219 MeV vs atteso 1.82±0.21) |
 | 5 | `combine` | fatto, oracolo Es. 39.1 verde (argmax 2.4067 MeV, σ pesata 0.1828 vs atteso 2.40±0.18); `expected_sigma_n(1.0,4)==0.5` |
 | 6 | `validate` | fatto, oracolo Es. 40.1 verde (bias 0.08→0.20 MeV, pull mean 0.90, pull width 1.44, copertura 0.433 vs atteso ~45%) |
-| 7 | `scripts/ch39_fig_repro.py` | da fare |
-| — | **checkpoint Caso A** | non ancora raggiunto |
+| 7 | `scripts/ch39_fig_repro.py` | fatto, Fig. 39.1 riprodotta (`outputs/fig_39_1.png`, ignorato da git); plateau di contrazione sotto shift sistematico 2% visibile in `outputs/fig_39_1_systematic_shift.png` (offset ≈0.05 MeV da N≥1000, sigma continua a scendere a ~0.001 MeV) |
+| — | **checkpoint Caso A** | raggiunto: `combine.py`/`validate.py` congelati (solo funzioni nuove additive da qui in poi) |
 | 8 | `kinematics` 3D | da fare |
 | 9 | `priors` (direction) | da fare |
 | 10 | `posterior_B` | da fare |
@@ -64,6 +64,18 @@ v0.3 — 2026-09-24
   Sez. 5): le tolleranze del test (`test_example_40_1`) sono scelte in proporzione a quanto
   approssimative sono le cifre citate (0.02 MeV su bias, 0.1 su pull mean/width, 0.05 su
   copertura, quest'ultima la meno precisa delle quattro: "~45%" è la cifra più tonda del testo).
+
+- **`scripts/ch39_fig_repro.py`**: il libro (Cap. 39, Esercizio 3) usa N=1,2,10,100 sia per
+  il posterior combinato sia per la curva di contrazione con shift sistematico 2%. A quel
+  range lo shift su Ep (2%, piccolo rispetto a σ_Ep) produce un offset ancora dentro il
+  rumore statistico: a N=100 l'offset osservato (~0.02-0.08 MeV a seconda del run) non è
+  chiaramente separato dal rumore, quindi il plateau richiesto da CLAUDE.md Sez. 6
+  ("il plateau della contrazione è visibile, non converge a zero") non sarebbe dimostrabile
+  con questi soli quattro punti. Si usa quindi un range esteso, `N=1,2,10,100,1000,5000`,
+  solo per la figura del contraction plot con shift; la figura del posterior vs N e del
+  contraction plot senza shift restano su `N=1,2,10,100` come nel libro. Con il range esteso
+  l'offset si stabilizza a ≈0.05 MeV (coerente con la stima analitica 0.02·En_true=0.05 MeV)
+  mentre σ continua a scendere fino a ~0.001 MeV: il plateau è così chiaramente visibile.
 
 ## Pubblicazione su GitHub
 
