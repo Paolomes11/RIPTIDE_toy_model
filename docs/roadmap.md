@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.6 — 2026-09-24
+v0.7 — 2026-09-24
 
 ## Stato
 
@@ -18,7 +18,7 @@ v0.6 — 2026-09-24
 | 9 | `priors` (direction) | fatto (`direction_prior`, fix errata c su `grids.sphere_grid`), testato |
 | 10 | `posterior_B` | fatto (`forward_model.loglik_marginal_En` + `posterior_B.single_event_posterior`), testato; limite 1 evento + prior piatto verde |
 | 11 | `combine` su Ω_n (riuso) | fatto, nessuna modifica a `combine.py`; contrazione angolare σ(N=10)→σ(N=100) coerente con 1/√N entro tolleranza larga (singola realizzazione MC) |
-| 12 | `validate` su distanza angolare | da fare |
+| 12 | `validate` su distanza angolare | fatto (`angular_residual`, `posterior_angular_resolution`, `angular_pull`, additive); verificato su geometria nota + su Caso B simulato (M=30 esperimenti, Ω_n nota): bias medio <20°, pull mediano d'ordine 1 |
 | 13 | `posterior_C` | da fare |
 | 14 | `validate` finale su C | da fare |
 
@@ -112,6 +112,28 @@ v0.6 — 2026-09-24
   compatibile con 1/√N entro una tolleranza larga, dato che si tratta di una singola
   realizzazione Monte Carlo e non di una media d'insieme), coerente con quanto richiesto dalla
   guida per questa riga.
+
+- **Riga 12, `validate.py` su distanza angolare**: la guida (Sez. 4, riga 12) chiede
+  "bias/pull su distanza angolare", senza dare firme né un oracolo numerico (etichetta
+  **(d)**: ipotesi da testare, non un fatto del libro — la distanza angolare non è
+  gaussiana, quindi non ci si aspetta un pull esattamente N(0,1) come nel caso 1D, solo
+  scala ~1 se il ricostruttore è calibrato). Tre funzioni additive in `validate.py`
+  (`combine.py`/`validate.py` restano congelati per le funzioni esistenti, CLAUDE.md
+  Sez. 6): `angular_residual` (distanza angolare fra due versori), `posterior_angular_resolution`
+  (analogo sferico della deviazione standard pesata già usata per `risoluzione_caso_A`,
+  qui attorno a una direzione di riferimento per evento — verità nota, o la stima stessa),
+  `angular_pull` (rapporto puro, senza assunzioni di normalità). Test di integrazione:
+  M=30 esperimenti indipendenti, N=20 eventi sintetici ciascuno (stessa costruzione
+  "onesta" della riga 11), stima di Ω_n via MAP del posterior combinato (`combine.combine_loglik`
+  riusato, nessuna modifica), `sigma_hat` calcolata in modo self-referenziale (attorno
+  alla propria stima MAP, non alla verità — l'unica scelta sensata quando si vuole
+  un'incertezza dichiarata dal posterior senza conoscere la verità in un caso reale).
+  Griglie (`sphere_grid(800)`, `energy_grid(100)`) e M scelti per tenere il test sotto i
+  2s: confrontati con una configurazione più grande (`sphere_grid(1500)`, `energy_grid(150)`,
+  M=200, 18.9s) le statistiche del pull (media/mediana/std) restano dello stesso ordine,
+  confermando che la riduzione non altera la conclusione qualitativa. Soglie di
+  accettazione volutamente larghe (bias medio <20°, pull mediano in [0.2, 3.0]), coerenti
+  con l'etichetta (d).
 
 ## Pubblicazione su GitHub
 
