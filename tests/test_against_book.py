@@ -1,6 +1,7 @@
 import numpy as np
 
 from riptide_toy import grids, posterior_A, priors
+from riptide_toy.combine import combine_loglik, expected_sigma_n
 
 
 def test_example_38_1():
@@ -17,8 +18,28 @@ def test_example_38_1():
 
     # sigma stimata come deviazione standard pesata sulla griglia (CLAUDE.md
     # Sez. 5: tol. 0.01 su sigma; risoluzione_caso_A non e' definita in guida,
-    # decisione presa con l'utente: vedi docs/roadmap.md, sezione Deviazioni).
+    # vedi docs/roadmap.md, sezione Deviazioni).
     w = np.exp(logpost[0] - logpost[0].max())
     mean = np.sum(w * en_grid) / np.sum(w)
     sigma = np.sqrt(np.sum(w * (en_grid - mean) ** 2) / np.sum(w))
     assert abs(sigma - 0.21) < 0.01
+
+
+def test_example_39_1():
+    # oracolo Es. 39.1: due eventi combinati -> En = 2.40 +/- 0.18 MeV
+    en_grid = np.linspace(0.5, 6.0, 2000)
+    ll1 = -0.5 * ((en_grid - 2.70) / 0.45) ** 2
+    ll2 = -0.5 * ((en_grid - 2.35) / 0.20) ** 2
+    combined = combine_loglik(np.stack([ll1, ll2]), log_prior=np.zeros_like(en_grid))
+
+    argmax_En = en_grid[combined.argmax()]
+    assert abs(argmax_En - 2.40) < 0.03
+
+    w = np.exp(combined - combined.max())
+    mean = np.sum(w * en_grid) / np.sum(w)
+    sigma = np.sqrt(np.sum(w * (en_grid - mean) ** 2) / np.sum(w))
+    assert abs(sigma - 0.18) < 0.01
+
+
+def test_expected_sigma_n_example_39_1():
+    assert expected_sigma_n(1.0, 4) == 0.5
