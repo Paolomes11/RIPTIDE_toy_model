@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.4 — 2026-09-24
+v0.5 — 2026-09-24
 
 ## Stato
 
@@ -14,9 +14,9 @@ v0.4 — 2026-09-24
 | 6 | `validate` | fatto, oracolo Es. 40.1 verde (bias 0.08→0.20 MeV, pull mean 0.90, pull width 1.44, copertura 0.433 vs atteso ~45%) |
 | 7 | `scripts/ch39_fig_repro.py` | fatto, Fig. 39.1 riprodotta (`outputs/fig_39_1.png`, ignorato da git); plateau di contrazione sotto shift sistematico 2% visibile in `outputs/fig_39_1_systematic_shift.png` (offset ≈0.05 MeV da N≥1000, sigma continua a scendere a ~0.001 MeV) |
 | — | **checkpoint Caso A** | raggiunto: `combine.py`/`validate.py` congelati (solo funzioni nuove additive da qui in poi) |
-| 8 | `kinematics` 3D | da fare |
-| 9 | `priors` (direction) | da fare |
-| 10 | `posterior_B` | da fare |
+| 8 | `kinematics` 3D | fatto (`direction_from_theta_phi`), testato; limite `Ω_n ∥ z ⇒ Caso A` verde |
+| 9 | `priors` (direction) | fatto (`direction_prior`, fix errata c su `grids.sphere_grid`), testato |
+| 10 | `posterior_B` | fatto (`forward_model.loglik_marginal_En` + `posterior_B.single_event_posterior`), testato; limite 1 evento + prior piatto verde |
 | 11 | `combine` su Ω_n | da fare |
 | 12 | `validate` su distanza angolare | da fare |
 | 13 | `posterior_C` | da fare |
@@ -77,6 +77,22 @@ v0.4 — 2026-09-24
   l'offset si stabilizza a ≈0.05 MeV (coerente con la stima analitica 0.02·En_true=0.05 MeV)
   mentre σ continua a scendere fino a ~0.001 MeV: il plateau è così chiaramente visibile.
 
+- **`posterior_B` / `forward_model.loglik_marginal_En`**: la guida (Sez. 3, Sez. 5) descrive
+  il Caso B come θ_p derivato geometricamente dalla traccia 3D osservata e dal candidato Ω_n
+  (`kinematics.recoil_angle_from_direction`), non come nuisance da marginalizzare su una
+  griglia separata — a differenza del Caso A, dove θ_p è genuinamente ignoto. Questo angolo è
+  invariante all'azimut della traccia attorno al candidato (per costruzione), quindi basta
+  un'unica marginalizzazione su `En_grid`, con broadcasting a due assi (candidati × `En_grid`,
+  come indicato in guida per le prestazioni del Caso B), invece di una griglia a tre assi con
+  una seconda marginalizzazione su θ_p. I candidati con θ_p > π/2 (emisfero posteriore) sono
+  esclusi (log-verosimiglianza −∞): il rinculo è sempre in avanti per scattering elastico a
+  masse uguali (CLAUDE.md Sez. 3, `θ_lab ≤ 90°`). Nota sul test di limite: con prior piatto su
+  `En`, l'integrale marginale su `En` varia con θ_p come `1/cos²θ_p` (Jacobiano del cambio di
+  variabile `En' = En·cos²θ_p`) — non è esattamente costante, solo approssimativamente entro
+  un cono centrale attorno alla direzione osservata; il test verifica questo comportamento
+  qualitativo (nessun picco netto sull'emisfero anteriore, in contrasto con il taglio netto a
+  −∞ sull'emisfero posteriore), non una costanza esatta.
+
 ## Pubblicazione su GitHub
 
 - **la guida di progetto locale non va pubblicata su GitHub** (2026-09-24): è
@@ -89,3 +105,10 @@ v0.4 — 2026-09-24
 
 - (a) `grids.py`: `@lru_cache(maxsize=1)` → `maxsize=None`; array resi non scrivibili.
 - (b) `priors.py` (verifica): `np.trapz` deprecato in NumPy ≥ 2.0 → `scipy.integrate.trapezoid`.
+- (c) `grids.sphere_grid`: la costruzione precedente usava due array `linspace` indipendenti
+  per `theta`/`phi` (stessa lunghezza `n_pixel` ma nessun accoppiamento tra i due) — non era
+  una vera pixelizzazione della sfera, perché l'indice `i` non corrispondeva a un'unica
+  direzione. Sostituita con un reticolo di Fibonacci (angolo aureo): un indice = una
+  direzione, area solida quasi costante per pixel (costruzione numerica standard, non una
+  formula fisica). Verificato con `cos(theta)` a media nulla su punti uniformi (isotropia,
+  Cap. 20).
