@@ -13,12 +13,30 @@ def measure(Ep_true: np.ndarray, theta_p_true: np.ndarray,
     return (Ep_hat, theta_p_hat)
 
 
-def loglik(D, En_grid, theta_p_grid, sigma_Ep, sigma_theta,
-           log_prior_theta, chunk_size=500):
-    """Return: array (n_events, n_En) — log-likelihood for every
-    event in every En, with theta_p already marginalized (weighted
-    from log_prior_theta). DOESN'T give the grid (n_eventi, n_En,
-    n_theta) anymore: the realistic size doesn't fit in the RAM."""
+def loglik(D: tuple[np.ndarray, np.ndarray], En_grid: np.ndarray,
+           theta_p_grid: np.ndarray, sigma_Ep: float, sigma_theta: float,
+           log_prior_theta: np.ndarray, chunk_size: int = 500) -> np.ndarray:
+    """Log-verosimiglianza per ogni evento su ogni En, con theta_p
+    gia' marginalizzato (pesato da log_prior_theta), a chunk di eventi
+    per stare in RAM (evita la griglia piena (n_eventi, n_En, n_theta)).
+
+    Nota: firma diversa da quella della guida (Sez. 3), che non
+    marginalizza theta_p qui dentro. Deviazione mantenuta per
+    prestazioni; posterior_A si adatta a questa firma. Vedi
+    docs/roadmap.md, sezione Deviazioni.
+
+    Args:
+        D: (Ep_hat, theta_p_hat), osservabili, ciascuno forma (n_events,).
+        En_grid: griglia di ipotesi su En, MeV, forma (n_En,).
+        theta_p_grid: griglia su cui marginalizzare theta_p, rad, forma (n_theta,).
+        sigma_Ep: risoluzione del detector su Ep, MeV.
+        sigma_theta: risoluzione del detector su theta_p, rad.
+        log_prior_theta: log-prior su theta_p_grid, forma (n_theta,).
+        chunk_size: numero di eventi processati per lotto.
+
+    Ritorna:
+        array (n_events, n_En), log-verosimiglianza (float32).
+    """
     Ep_hat, theta_p_hat = D
     Ep_hat = Ep_hat.astype(np.float32)
     theta_p_hat = theta_p_hat.astype(np.float32)

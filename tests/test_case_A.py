@@ -1,6 +1,6 @@
 import numpy as np
 
-from riptide_toy import grids, kinematics
+from riptide_toy import forward_model, grids, kinematics
 from riptide_toy.constants import SEED
 
 
@@ -61,3 +61,22 @@ def test_recoil_angle_from_direction_shape_and_values():
     np.testing.assert_allclose(
         angles[0], [0.0, np.pi / 2, np.pi], atol=1e-10
     )
+
+
+def test_loglik_roundtrip_argmax_near_truth():
+    rng = np.random.default_rng(SEED)
+    En_true, theta_true = 2.5, 0.4
+    sigma_Ep, sigma_theta = 0.10, 0.08
+
+    Ep_true = np.array([En_true * np.cos(theta_true) ** 2])
+    theta_p_true = np.array([theta_true])
+    D = forward_model.measure(Ep_true, theta_p_true, sigma_Ep, sigma_theta, rng)
+
+    en_grid = grids.energy_grid()
+    tp_grid = grids.theta_p_grid()
+    log_prior_theta = np.full(tp_grid.shape, -np.log(tp_grid.shape[0]))
+
+    ll = forward_model.loglik(D, en_grid, tp_grid, sigma_Ep, sigma_theta, log_prior_theta)
+    assert ll.shape == (1, en_grid.shape[0])
+    argmax_En = en_grid[np.argmax(ll[0])]
+    assert abs(argmax_En - En_true) < 3 * sigma_Ep
