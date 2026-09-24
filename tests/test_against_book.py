@@ -1,7 +1,9 @@
 import numpy as np
+from scipy.stats import norm
 
 from riptide_toy import grids, posterior_A, priors
 from riptide_toy.combine import combine_loglik, expected_sigma_n
+from riptide_toy.validate import run_checklist
 
 
 def test_example_38_1():
@@ -43,3 +45,44 @@ def test_example_39_1():
 
 def test_expected_sigma_n_example_39_1():
     assert expected_sigma_n(1.0, 4) == 0.5
+
+
+def _faulty_reconstruction_example_40_1(truth: np.ndarray, rng: np.random.Generator):
+    # oracolo Es. 40.1: errore di scala +3% (+0.05 MeV) sul valore vero, incertezze
+    # dichiarate 30% troppo strette rispetto alla risoluzione vera sigma(En)=0.08*En.
+    # Il rumore intrinseco del detector si applica DOPO l'errore di scala, non scalato
+    # con esso: e' l'unica costruzione delle due plausibili che riproduce pull width
+    # ~1.4 (rapporto 1/0.7 = 1.4286, contro 1.03/0.7 = 1.4714 se il rumore fosse
+    # scalato anch'esso). Vedi docs/roadmap.md, sezione Deviazioni.
+    true_sigma = 0.08 * truth
+    noise = rng.normal(0.0, true_sigma, truth.shape[0])
+    estimate = 1.03 * truth + 0.05 + noise
+    sigma_hat = 0.7 * true_sigma
+
+    levels = np.array([0.68])
+    z = norm.ppf(0.5 + levels / 2)
+    half_widths = z[None, :] * sigma_hat[:, None]
+    intervals = np.stack(
+        [estimate[:, None] - half_widths, estimate[:, None] + half_widths], axis=-1
+    )
+    return estimate, sigma_hat, intervals
+
+
+def test_example_40_1():
+    # oracolo Es. 40.1 (ricostruzione "faulty"): bias 0.08->0.20 MeV, pull mean~0.9,
+    # pull width~1.4, copertura nominale 68% -> ~45%. Nel libro questi valori sono
+    # dati con "~"/"≈" (a differenza di Es. 38.1/39.1, senza tolleranza esplicita
+    # sigma - CLAUDE.md Sez. 5): le tolleranze qui sono scelte in base a quanto
+    # strette sono le cifre citate, non desunte da un numero esatto del libro.
+    rng = np.random.default_rng(20260907)
+    truth = rng.uniform(1.0, 5.0, 20_000)
+
+    result = run_checklist(
+        _faulty_reconstruction_example_40_1, truth, levels=np.array([0.68]), rng=rng
+    )
+
+    assert abs(result["bias"][0] - 0.08) < 0.02
+    assert abs(result["bias"][-1] - 0.20) < 0.02
+    assert abs(result["pull_mean"] - 0.9) < 0.1
+    assert abs(result["pull_width"] - 1.4) < 0.1
+    assert abs(result["coverage"][0] - 0.45) < 0.05
