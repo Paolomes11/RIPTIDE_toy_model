@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.5 — 2026-09-24
+v0.6 — 2026-09-24
 
 ## Stato
 
@@ -17,7 +17,7 @@ v0.5 — 2026-09-24
 | 8 | `kinematics` 3D | fatto (`direction_from_theta_phi`), testato; limite `Ω_n ∥ z ⇒ Caso A` verde |
 | 9 | `priors` (direction) | fatto (`direction_prior`, fix errata c su `grids.sphere_grid`), testato |
 | 10 | `posterior_B` | fatto (`forward_model.loglik_marginal_En` + `posterior_B.single_event_posterior`), testato; limite 1 evento + prior piatto verde |
-| 11 | `combine` su Ω_n | da fare |
+| 11 | `combine` su Ω_n (riuso) | fatto, nessuna modifica a `combine.py`; contrazione angolare σ(N=10)→σ(N=100) coerente con 1/√N entro tolleranza larga (singola realizzazione MC) |
 | 12 | `validate` su distanza angolare | da fare |
 | 13 | `posterior_C` | da fare |
 | 14 | `validate` finale su C | da fare |
@@ -42,7 +42,12 @@ v0.5 — 2026-09-24
   corretto per uno scattering isotropo in CM (in tal caso l'angolo polare andrebbe campionato
   come `arccos(uniform(-1,1))`, non uniforme). Nessuna fonte autorevole del progetto conferma
   o smentisce la formula attuale — **aperto**, etichetta (d), non usato ancora da nessun
-  modulo a valle: non blocca la riga 4.
+  modulo a valle: non ha bloccato la riga 4, né la riga 11 (il test di contrazione angolare
+  del Caso B genera `theta_p_true`/`phi_true` sintetici pescandoli direttamente, senza passare
+  da questa funzione, perché il criterio di accettazione della riga 11 è l'andamento
+  qualitativo ~1/√N, non un oracolo numerico legato alla formula di isotropia in CM). Resta
+  aperto per un'eventuale futura generazione di eventi a partire dalla fisica dello scattering
+  vero e proprio (angolo CM → lab), non ancora necessaria in nessun test del progetto.
 - **`posterior_A.single_event_posterior`**: la guida (Sez. 3) assume `theta_p_hat` già fissato
   dentro `loglik`. Qui `forward_model.loglik` marginalizza `theta_p` internamente su un prior
   piatto proprio su `[0, π/2]` (coerente con la deviazione già presa per `forward_model`), e
@@ -92,6 +97,21 @@ v0.5 — 2026-09-24
   un cono centrale attorno alla direzione osservata; il test verifica questo comportamento
   qualitativo (nessun picco netto sull'emisfero anteriore, in contrasto con il taglio netto a
   −∞ sull'emisfero posteriore), non una costanza esatta.
+
+- **Riga 11, dati sintetici per il test di contrazione angolare**: la guida chiede "Contrazione
+  angolare vs N, stesso andamento della Fig. 39.1", senza specificare come generare gli eventi
+  sintetici. Si è scelto di pescare `theta_p_true` e `phi_true` (angolo e azimut del rinculo
+  rispetto a `Omega_n_true`, fissato sull'asse z senza perdita di generalità, come nel test
+  della riga 8) direttamente da distribuzioni uniformi indipendenti, invece di simulare l'intera
+  catena fisica a partire da un angolo di scattering in CM — perché quest'ultima richiederebbe
+  la formula di isotropia di `kinematics.sample_cm_angle`, ancora aperta (vedi sopra). Etichetta
+  **(b)**: dato sintetico "onesto" con assunzioni esplicite, analogo alla generazione diretta
+  già usata nei test di `validate.py` per il Caso A (verità pescata direttamente, non simulata
+  da una catena fisica completa). Il criterio di accettazione verificato è qualitativo (la
+  deviazione standard angolare pesata sul posterior diminuisce da N=10 a N=100 in modo
+  compatibile con 1/√N entro una tolleranza larga, dato che si tratta di una singola
+  realizzazione Monte Carlo e non di una media d'insieme), coerente con quanto richiesto dalla
+  guida per questa riga.
 
 ## Pubblicazione su GitHub
 
