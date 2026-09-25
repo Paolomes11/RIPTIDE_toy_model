@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from riptide_toy import combine, forward_model, grids, kinematics, posterior_C, priors
 from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP
@@ -141,3 +142,23 @@ def test_posterior_C_end_to_end_direction_and_hyperparams():
     combined = combine.combine_loglik(loglik, np.log(hprior))
     best = np.argmax(combined)
     assert abs(mu_grid[best] - mu_E_true) < 0.5
+
+
+def test_estimate_shared_direction_raises_when_no_candidate_is_kinematically_allowed():
+    # R1 (docs/report_caso_C_stadio1.md): se il combinato e' -inf su tutti i
+    # candidati, np.argmax restituiva in silenzio il pixel 0 (polo nord della
+    # griglia, 52-53 gradi dalla verita' nel report). Caso deterministico:
+    # 4 tracce ai vertici di un tetraedro regolare. Sommano a zero e non sono
+    # complanari, quindi nessun Omega_n ha t_k . Omega_n >= 0 per tutte
+    # (sum_k t_k . Omega_n = 0 forzerebbe Omega_n = 0): ogni pixel ha
+    # almeno un evento con theta_p > pi/2.
+    track_hat = np.array([[1.0, 1.0, 1.0], [1.0, -1.0, -1.0],
+                          [-1.0, 1.0, -1.0], [-1.0, -1.0, 1.0]]) / np.sqrt(3.0)
+    Ep_hat = np.full(4, 1.0)
+
+    theta_grid, phi_grid = grids.sphere_grid(800)
+    dprior = priors.direction_prior(theta_grid, phi_grid)
+    with pytest.raises(ValueError, match="-inf su tutti i candidati"):
+        posterior_C.estimate_shared_direction(
+            (Ep_hat, track_hat), theta_grid, phi_grid, dprior
+        )

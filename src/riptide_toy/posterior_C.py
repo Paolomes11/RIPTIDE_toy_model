@@ -29,12 +29,27 @@ def estimate_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
 
     Ritorna:
         array (1, 3), versore MAP di Omega_n sul combinato degli N eventi.
+
+    Solleva:
+        ValueError: se il combinato e' -inf su tutti i candidati (nessun
+            pixel tiene tutti gli eventi con theta_p <= pi/2). Senza questo
+            controllo np.argmax restituirebbe in silenzio il pixel 0 (polo
+            nord della griglia): e' la causa del "pixel a 53 gradi" in
+            docs/report_caso_C_stadio1.md.
     """
     log_posterior_per_event = posterior_B.single_event_posterior(
         D_B, (theta_grid, phi_grid), direction_prior
     )
     raw_loglik = log_posterior_per_event - np.log(direction_prior)[None, :]
     combined = combine.combine_loglik(raw_loglik, np.log(direction_prior))
+
+    if not np.any(np.isfinite(combined)):
+        raise ValueError(
+            "posterior combinato -inf su tutti i candidati Omega_n: nessun "
+            "pixel e' cinematicamente compatibile con tutti gli eventi "
+            "(theta_p <= pi/2); griglia troppo grossolana o tracce senza "
+            "risoluzione angolare"
+        )
 
     omega_n_hat_grid = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
     map_idx = np.argmax(combined)
