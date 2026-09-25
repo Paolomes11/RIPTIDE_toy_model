@@ -129,25 +129,32 @@ def loglik_marginal_En_hierarchical(Ep_hat: np.ndarray, theta_p: np.ndarray,
 
 
 def marginalize_En_hierarchical(base: np.ndarray, log_prior_En_grid: np.ndarray,
-                                chunk_size: int = 200) -> np.ndarray:
+                                chunk_size: int = 200,
+                                event_chunk_size: int = 50) -> np.ndarray:
     """log sum_En exp(base + log pi(En | candidato)) per ogni evento e
-    candidato iperparametro (Caso C), a lotti di candidati.
+    candidato iperparametro (Caso C), a lotti di candidati e di eventi.
 
     Args:
         base: log-verosimiglianza per evento su En_grid, forma (n_events, n_En).
         log_prior_En_grid: log pi(En | candidato), forma (n_hyper, n_En).
         chunk_size: candidati iperparametro per lotto (evita la griglia
             piena (n_events, n_hyper, n_En) in RAM).
+        event_chunk_size: eventi per lotto: il blocco (lotto eventi,
+            chunk_size, n_En) non cresce con N (a N=1000 il lotto su tutti
+            gli eventi superava 4 GB con i temporanei di logsumexp).
 
     Ritorna:
         array (n_events, n_hyper), log-verosimiglianza marginalizzata su En.
     """
     n_events, n_hyper = base.shape[0], log_prior_En_grid.shape[0]
     out = np.empty((n_events, n_hyper), dtype=np.float64)
-    for start in range(0, n_hyper, chunk_size):
-        end = min(start + chunk_size, n_hyper)
-        joint = base[:, None, :] + log_prior_En_grid[None, start:end, :]  # (n_events, chunk, n_En)
-        out[:, start:end] = logsumexp(joint, axis=2)
+    for ev_start in range(0, n_events, event_chunk_size):
+        ev_end = min(ev_start + event_chunk_size, n_events)
+        for start in range(0, n_hyper, chunk_size):
+            end = min(start + chunk_size, n_hyper)
+            joint = (base[ev_start:ev_end, None, :]
+                     + log_prior_En_grid[None, start:end, :])  # (lotto eventi, chunk, n_En)
+            out[ev_start:ev_end, start:end] = logsumexp(joint, axis=2)
     return out
 
 

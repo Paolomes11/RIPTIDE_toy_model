@@ -300,3 +300,12 @@ def test_refined_stages_negligible_mass_at_window_edges():
     best = np.argmax(log_post)
     assert abs(mu_fine[best] - 3.0) < 0.3
     assert 0.2 < sigma_fine[best] < 0.8
+
+
+def test_marginalize_En_hierarchical_independent_of_chunk_sizes():
+    rng = np.random.default_rng(SEED)
+    base = rng.normal(0.0, 3.0, (37, 50))
+    log_prior_En_grid = rng.normal(0.0, 3.0, (23, 50))
+    reference = forward_model.marginalize_En_hierarchical(base, log_prior_En_grid, 1000, 1000)
+    chunked = forward_model.marginalize_En_hierarchical(base, log_prior_En_grid, 7, 5)
+    np.testing.assert_array_equal(chunked, reference)
