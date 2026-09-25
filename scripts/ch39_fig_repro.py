@@ -47,8 +47,9 @@ def main() -> None:
     rng = np.random.default_rng(SEED)
     n_max = max(N_VALUES_SHIFT)
 
-    # theta_p campionato direttamente Uniform(0, pi/2), non tramite
-    # kinematics.sample_cm_angle (formula aperta, vedi docs/roadmap.md).
+    # theta_p campionato direttamente Uniform(0, pi/2), coerente con il
+    # log_prior_theta uniforme usato sotto per il Caso A (non il generatore
+    # fisico kinematics.sample_recoil_events, isotropo in CM).
     theta_p_true = rng.uniform(0.0, np.pi / 2, n_max)
     ep_true = kinematics.proton_energy(EN_TRUE, theta_p_true)
     D = forward_model.measure(ep_true, theta_p_true, SIGMA_EP, SIGMA_THETA, rng)

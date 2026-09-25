@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import stats
 
 from riptide_toy import combine, forward_model, grids, kinematics, posterior_B, priors, validate
 from riptide_toy.constants import SEED, SIGMA_EP
@@ -10,6 +11,70 @@ def test_direction_from_theta_phi_unit_norm():
     v = kinematics.direction_from_theta_phi(theta, phi)
     assert v.shape == (4, 3)
     np.testing.assert_allclose(np.linalg.norm(v, axis=-1), 1.0, atol=1e-12)
+
+
+def test_sample_cm_angle_isotropic_in_solid_angle():
+    rng = np.random.default_rng(SEED)
+    theta_cm = kinematics.sample_cm_angle(rng, 200_000)
+    assert np.all((theta_cm >= 0.0) & (theta_cm <= np.pi))
+    # (a) isotropia: cos(theta_CM) ~ U(-1, 1)
+    assert stats.kstest((np.cos(theta_cm) + 1.0) / 2.0, "uniform").pvalue > 1e-3
+
+
+def test_recoil_angle_from_cm_limits():
+    theta_p = kinematics.recoil_angle_from_cm(np.array([0.0, np.pi / 2, np.pi]))
+    np.testing.assert_allclose(theta_p, [np.pi / 2, np.pi / 4, 0.0], atol=1e-12)
+
+
+def test_perpendicular_basis_orthonormal_including_axis_along_x():
+    axis = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
+                     [-1.0, 0.0, 0.0], [0.6, 0.0, 0.8]])
+    e1, e2 = kinematics.perpendicular_basis(axis)
+    for u, v in ((e1, axis), (e2, axis), (e1, e2)):
+        np.testing.assert_allclose(np.sum(u * v, axis=1), 0.0, atol=1e-12)
+    np.testing.assert_allclose(np.linalg.norm(e1, axis=1), 1.0, atol=1e-12)
+    np.testing.assert_allclose(np.linalg.norm(e2, axis=1), 1.0, atol=1e-12)
+
+
+def test_sample_recoil_events_mean_var_and_track_distribution():
+    # Oracolo guida riga 2: isotropia in CM => Ep ~ U(0, En), media En/2,
+    # varianza En^2/12 (a); equivalente a cos^2(theta_p) ~ U(0, 1).
+    rng = np.random.default_rng(SEED)
+    n = 200_000
+    En = np.full(n, 3.0)
+    omega = kinematics.direction_from_theta_phi(np.array(0.9), np.array(2.1))
+    Ep, track = kinematics.sample_recoil_events(rng, En, omega)
+
+    assert Ep.shape == (n,) and track.shape == (n, 3)
+    assert abs(Ep.mean() - 1.5) < 0.01
+    assert abs(Ep.var() - 9.0 / 12.0) < 0.01
+    np.testing.assert_allclose(np.linalg.norm(track, axis=1), 1.0, atol=1e-12)
+
+    theta_p = kinematics.recoil_angle_from_direction(track, omega[None, :])[:, 0]
+    assert theta_p.max() <= np.pi / 2 + 1e-12
+    np.testing.assert_allclose(Ep, kinematics.proton_energy(En, theta_p), atol=1e-9)
+    assert stats.kstest(np.cos(theta_p) ** 2, "uniform").pvalue > 1e-3
+
+
+def test_smear_direction_polar_deviation_matches_sigma_theta():
+    # (b) errore gaussiano isotropo nel piano tangente: angolo totale di
+    # Rayleigh (media sigma*sqrt(pi/2)); componente polare ~ N(0, sigma)
+    # lontano dai bordi (theta_p in [0.3, 1.2] rad).
+    rng = np.random.default_rng(SEED)
+    n = 200_000
+    sigma = 0.08
+    omega = kinematics.direction_from_theta_phi(np.array(0.9), np.array(2.1))
+    _, track = kinematics.sample_recoil_events(rng, np.full(n, 3.0), omega)
+    smeared = kinematics.smear_direction(rng, track, sigma)
+
+    np.testing.assert_allclose(np.linalg.norm(smeared, axis=1), 1.0, atol=1e-12)
+    total = np.arccos(np.clip(np.sum(smeared * track, axis=1), -1.0, 1.0))
+    assert abs(total.mean() - sigma * np.sqrt(np.pi / 2)) < 1e-3
+
+    theta_true = kinematics.recoil_angle_from_direction(track, omega[None, :])[:, 0]
+    theta_obs = kinematics.recoil_angle_from_direction(smeared, omega[None, :])[:, 0]
+    mid = (theta_true > 0.3) & (theta_true < 1.2)
+    assert abs((theta_obs - theta_true)[mid].std() - sigma) < 2e-3
 
 
 def test_omega_n_parallel_to_z_reduces_to_case_A():
@@ -94,10 +159,11 @@ def test_combine_reuse_angular_contraction_vs_N():
     # Dati sintetici "onesti": Omega_n_true = asse z (nessuna perdita di
     # generalita', come nel test riga 8). theta_p_true e phi_true sono pescati
     # direttamente (non simulati a partire da un angolo di scattering in CM):
-    # la formula di isotropia per kinematics.sample_cm_angle resta una
-    # questione aperta (docs/roadmap.md, sezione Deviazioni) e il criterio di
-    # accettazione di questa riga (andamento qualitativo ~1/sqrt(N), come Fig.
-    # 39.1) non richiede quella formula. Ep_hat ha lo stesso rumore gaussiano
+    # scelta storica, antecedente a kinematics.sample_recoil_events; il
+    # criterio di accettazione di questa riga (andamento qualitativo
+    # ~1/sqrt(N), come Fig. 39.1) non dipende dal generatore. Da rigenerare
+    # col generatore fisico insieme al termine di traccia (piano R3).
+    # Ep_hat ha lo stesso rumore gaussiano
     # di forward_model.measure.
     rng = np.random.default_rng(SEED)
     n_max = 100
