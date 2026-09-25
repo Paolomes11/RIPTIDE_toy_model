@@ -159,6 +159,14 @@ v0.8 — 2026-09-24
   `(μ_E, log σ_E)`, la convenzione standard per un parametro di scala (evita di favorire `σ_E`
   grandi solo perché occupano più "spazio" lineare). Entrambi i limiti sono verificati
   numericamente in `tests/test_case_C.py` (vedi tabella Stato, riga 13).
+- **Prestazioni Caso A, debito aperto (R4, 2026-09-25)**: `forward_model.loglik` marginalizza
+  θ_p su una griglia piena (n_eventi, 500 En, 500 θ): ~5 ms per 1 evento (target guida Sez. 5
+  < 1 ms), ~4.5 s per 1000 eventi (target < 50 ms), quindi `run_checklist` con `posterior_A`
+  su 20 000 eventi ~90 s (target < 1 min) (c). Il costo è intrinseco alla griglia 3D (profilo:
+  `logsumexp` + costruzione dell'array); rientrare nei target richiede un cambio di algoritmo
+  del motore collaudato al checkpoint, rimandato a una fase separata. In
+  `tests/test_performance.py` i due target del Caso A sono `xfail(strict=True)`. Casi B/C e
+  `combine`/`validate`/`sample_recoil_events` nei target (c).
 
 ## Pubblicazione su GitHub
 
