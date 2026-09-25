@@ -41,8 +41,9 @@ def test_proton_energy_known_angles():
 
 
 def test_proton_energy_montecarlo_mean_var():
-    # theta_p ~ Uniform(0, pi/2) campionato direttamente (non tramite
-    # sample_cm_angle: la sua formula e' un TODO aperto, vedi kinematics.py).
+    # theta_p ~ Uniform(0, pi/2) campionato direttamente: verifica solo
+    # l'algebra di proton_energy. Il generatore fisico (isotropo in CM) e'
+    # testato in test_case_B (test_sample_recoil_events_*).
     # E[cos^2(theta)] = 1/2, Var[cos^2(theta)] = 1/8 per theta~U(0, pi/2)
     # (calcolo elementare, non un dato di letteratura).
     rng = np.random.default_rng(SEED)

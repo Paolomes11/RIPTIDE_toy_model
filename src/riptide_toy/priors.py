@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import trapezoid
+from scipy.special import logsumexp
 
 
 def energy_prior(en_grid: np.ndarray) -> np.ndarray:
@@ -65,6 +66,30 @@ def energy_prior_given_hyperparams(en_grid: np.ndarray, mu_E: np.ndarray,
     return density[0] if scalar_input else density
 
 
+def log_energy_prior_given_hyperparams(en_grid: np.ndarray, mu_E: np.ndarray,
+                                        sigma_E: np.ndarray) -> np.ndarray:
+    """log pi(En | mu_E, sigma_E), stessa densita' di
+    energy_prior_given_hyperparams ma calcolata in log: a sigma_E piccolo
+    la gaussiana va in underflow a 0 lontano da mu_E e np.log(0) darebbe
+    -inf con RuntimeWarning; qui resta finita.
+
+    Args:
+        en_grid: griglia di ipotesi su En, MeV, forma (n_En,), uniforme.
+        mu_E: media dell'iperprior, MeV, forma (n_hyper,).
+        sigma_E: deviazione standard dell'iperprior, MeV, forma (n_hyper,).
+
+    Ritorna:
+        array (n_hyper, n_En), log-densita' (1/MeV); exp integra a 1 con
+        la regola trapezoidale su en_grid.
+    """
+    log_unnorm = -0.5 * ((en_grid[None, :] - mu_E[:, None]) / sigma_E[:, None]) ** 2
+    # log dei pesi trapezoidali (griglia uniforme): log int exp(log_unnorm)
+    log_weight = np.full(en_grid.shape, np.log(en_grid[1] - en_grid[0]))
+    log_weight[[0, -1]] -= np.log(2.0)
+    log_norm = logsumexp(log_unnorm + log_weight[None, :], axis=1, keepdims=True)
+    return log_unnorm - log_norm
+
+
 def hyperparameter_prior(mu_grid: np.ndarray, sigma_grid: np.ndarray) -> np.ndarray:
     """Prior su (mu_E, sigma_E): piatta ma propria sulla griglia (Caso C).
 
@@ -83,3 +108,21 @@ def hyperparameter_prior(mu_grid: np.ndarray, sigma_grid: np.ndarray) -> np.ndar
     """
     n_hyper = mu_grid.shape[0]
     return np.full(n_hyper, 1.0 / n_hyper)
+
+
+def hyperparameter_prior_uniform_sigma(mu_grid: np.ndarray, sigma_grid: np.ndarray) -> np.ndarray:
+    """Prior alternativa su (mu_E, sigma_E), uniforme in (mu_E, sigma_E)
+    invece che in (mu_E, log sigma_E): serve solo al test di robustezza al
+    prior (Cap. 40, ultimo punto della checklist, riga 14). Su una griglia
+    con sigma_E spaziata logaritmicamente la cella ha larghezza ~sigma_E,
+    quindi il peso per punto e' proporzionale a sigma_E.
+
+    Args:
+        mu_grid: ipotesi su mu_E, MeV, forma (n_hyper,).
+        sigma_grid: ipotesi su sigma_E, MeV, stessa forma, spaziata
+            logaritmicamente (grids.hyperparameter_grid[_window]).
+
+    Ritorna:
+        array (n_hyper,), pesi proporzionali a sigma_E che sommano a 1.
+    """
+    return sigma_grid / sigma_grid.sum()

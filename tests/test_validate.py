@@ -6,6 +6,8 @@ from riptide_toy.validate import (
     angular_residual,
     bias_curve,
     coverage_curve,
+    credible_interval,
+    credible_region_contains,
     posterior_angular_resolution,
     posterior_mean_std,
     pull_histogram,
@@ -101,3 +103,40 @@ def test_posterior_mean_std_recovers_gaussian_and_book_example_39_1():
     assert mean.shape == (1,) and std.shape == (1,)
     assert abs(mean[0] - 2.4) < 1e-6
     assert abs(std[0] - 0.18) / 0.18 < 0.01
+
+
+def test_credible_interval_gaussian_and_2d_marginal():
+    x = np.linspace(-6.0, 6.0, 2001)
+    log_post = np.stack([norm.logpdf(x, 0.3, 1.0), norm.logpdf(x, -1.0, 0.5)])
+    levels = np.array([0.0, 0.68, 0.95])
+    intervals = credible_interval(log_post, x, levels)
+    assert intervals.shape == (2, 3, 2)
+    z = norm.ppf(0.5 + levels / 2)
+    for k, (mean, sd) in enumerate([(0.3, 1.0), (-1.0, 0.5)]):
+        np.testing.assert_allclose(intervals[k, :, 0], mean - z * sd, atol=2e-3)
+        np.testing.assert_allclose(intervals[k, :, 1], mean + z * sd, atol=2e-3)
+    # griglia 2D appiattita: l'intervallo su un asse e' quello della marginale
+    y = np.linspace(-3.0, 3.0, 31)
+    x_2d, y_2d = np.meshgrid(x, y, indexing="ij")
+    log_post_2d = (norm.logpdf(x_2d, 0.3, 1.0) + norm.logpdf(y_2d, 0.0, 0.7)).ravel()[None, :]
+    np.testing.assert_allclose(credible_interval(log_post_2d, x_2d.ravel(), levels)[0],
+                               intervals[0], atol=1e-9)
+
+
+def test_credible_interval_and_region_calibrated_on_simulated_draws():
+    # posterior gaussiano esatto (sd nota), verita' estratta dal posterior:
+    # la coverage deve essere il livello nominale entro l'errore binomiale.
+    rng = np.random.default_rng(20260907)
+    n_exp, sd = 4000, 0.5
+    x = np.linspace(-5.0, 5.0, 801)
+    centers = rng.normal(0.0, 1.0, n_exp)
+    truth = rng.normal(centers, sd)
+    log_post = norm.logpdf(x[None, :], centers[:, None], sd)
+    levels = np.array([0.68, 0.90, 0.95])
+    _, coverage = coverage_curve(truth, credible_interval(log_post, x, levels), levels)
+    np.testing.assert_allclose(coverage, levels, atol=0.025)
+
+    true_index = np.argmin(np.abs(x[None, :] - truth[:, None]), axis=1)
+    hpd = credible_region_contains(log_post, true_index, levels)
+    assert hpd.shape == (n_exp, 3)
+    np.testing.assert_allclose(hpd.mean(axis=0), levels, atol=0.025)

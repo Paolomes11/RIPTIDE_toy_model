@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.8 — 2026-09-24
+v0.9 — 2026-09-25
 
 ## Stato
 
@@ -20,7 +20,7 @@ v0.8 — 2026-09-24
 | 11 | `combine` su Ω_n (riuso) | fatto, nessuna modifica a `combine.py`; contrazione angolare σ(N=10)→σ(N=100) coerente con 1/√N entro tolleranza larga (singola realizzazione MC) |
 | 12 | `validate` su distanza angolare | fatto (`angular_residual`, `posterior_angular_resolution`, `angular_pull`, additive); verificato su geometria nota + su Caso B simulato (M=30 esperimenti, Ω_n nota): bias medio <20°, pull mediano d'ordine 1 |
 | 13 | `posterior_C` | fatto (`grids.hyperparameter_grid`, `priors.energy_prior_given_hyperparams`/`hyperparameter_prior`, `forward_model.loglik_marginal_En_hierarchical`, `posterior_C.estimate_shared_direction`/`single_event_posterior`), testato; entrambi i limiti di Sez. 5 verdi (σ_E→∞ ≈ Caso B entro atol=0.01 sulla log-verosimiglianza; σ_E→0 recupera l'energia condivisa vera entro 0.1 MeV) |
-| 14 | `validate` finale su C | da fare |
+| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist Cap. 40 completa, esito in `docs/report_caso_C_stadio1.md` §6: Ω_n e σ_E calibrati (c); **aperto**: bias costante di μ_E ≈ −0.02 MeV (plateau, domina da N≳300), causa (d) |
 
 ## Deviazioni dalla guida (documentate, non silenziose)
 
@@ -38,16 +38,12 @@ v0.8 — 2026-09-24
 - **Caso A, nuisance `z`**: CLAUDE.md Sez. 3 elenca `θ_p, z` come nuisance del Caso A, ma né
   la guida né `forward_model.py` usano `z`. `posterior_A` marginalizza solo `θ_p`; `z` è
   fuori scope per ora (nessuna sorgente di dato/osservabile per `z` definita da nessuna fonte).
-- **`kinematics.sample_cm_angle`**: campiona `uniform(0, 2π)`. Da verificare se questo è
-  corretto per uno scattering isotropo in CM (in tal caso l'angolo polare andrebbe campionato
-  come `arccos(uniform(-1,1))`, non uniforme). Nessuna fonte autorevole del progetto conferma
-  o smentisce la formula attuale — **aperto**, etichetta (d), non usato ancora da nessun
-  modulo a valle: non ha bloccato la riga 4, né la riga 11 (il test di contrazione angolare
-  del Caso B genera `theta_p_true`/`phi_true` sintetici pescandoli direttamente, senza passare
-  da questa funzione, perché il criterio di accettazione della riga 11 è l'andamento
-  qualitativo ~1/√N, non un oracolo numerico legato alla formula di isotropia in CM). Resta
-  aperto per un'eventuale futura generazione di eventi a partire dalla fisica dello scattering
-  vero e proprio (angolo CM → lab), non ancora necessaria in nessun test del progetto.
+- **`kinematics.sample_cm_angle`** (chiusa, 2026-09-25): campionava `uniform(0, 2π)`; ora
+  `arccos(uniform(-1, 1))`, isotropo in angolo solido (a). Nuove `recoil_angle_from_cm`
+  (θ_p = (π − θ_CM)/2), `sample_recoil_events` (tracce con densità cosθ_p/π attorno a Ω_n,
+  E_p ~ U(0, E_n)) e `smear_direction` (risoluzione SIGMA_THETA nel piano tangente). I dati
+  sintetici dei test B/C (righe 11, 12, 13) sono rigenerati con questa catena: le note
+  "Riga 11/12, dati sintetici" qui sotto descrivono la costruzione precedente.
 - **`posterior_A.single_event_posterior`**: la guida (Sez. 3) assume `theta_p_hat` già fissato
   dentro `loglik`. Qui `forward_model.loglik` marginalizza `theta_p` internamente su un prior
   piatto proprio su `[0, π/2]` (coerente con la deviazione già presa per `forward_model`), e
@@ -159,14 +155,47 @@ v0.8 — 2026-09-24
   `(μ_E, log σ_E)`, la convenzione standard per un parametro di scala (evita di favorire `σ_E`
   grandi solo perché occupano più "spazio" lineare). Entrambi i limiti sono verificati
   numericamente in `tests/test_case_C.py` (vedi tabella Stato, riga 13).
+- **Prestazioni Caso A, debito aperto (R4, 2026-09-25)**: `forward_model.loglik` marginalizza
+  θ_p su una griglia piena (n_eventi, 500 En, 500 θ): ~5 ms per 1 evento (target guida Sez. 5
+  < 1 ms), ~4.5 s per 1000 eventi (target < 50 ms), quindi `run_checklist` con `posterior_A`
+  su 20 000 eventi ~90 s (target < 1 min) (c). Il costo è intrinseco alla griglia 3D (profilo:
+  `logsumexp` + costruzione dell'array); rientrare nei target richiede un cambio di algoritmo
+  del motore collaudato al checkpoint, rimandato a una fase separata. In
+  `tests/test_performance.py` i due target del Caso A sono `xfail(strict=True)`. Casi B/C e
+  `combine`/`validate`/`sample_recoil_events` nei target (c).
+- **Caso B/C, verosimiglianza con termine di traccia e risoluzione angolare (2026-09-25)**:
+  `posterior_B` e `posterior_C` usano `forward_model.loglik_marginal_En_theta(_hierarchical)`
+  invece del taglio netto θ_p > π/2 ⇒ −∞. Il termine di traccia log(cosθ_p/π) viene
+  dall'isotropia in CM (a); θ_p vero è marginalizzato con un kernel gaussiano 1D sul
+  meridiano, di larghezza SIGMA_THETA (approssimazione O(σ²), (b)). Motivo: col taglio netto
+  e tracce esatte il combinato diventava −∞ ovunque per N grande e `argmax` restituiva il
+  pixel 0 (causa del "pixel a 53°", `docs/report_caso_C_stadio1.md` §6). Le funzioni
+  vecchie (`loglik_marginal_En`, `loglik_marginal_En_hierarchical`) restano come confronto.
+- **Errata guida, test di limite "1 evento + prior piatto" (riga 10)**: con il termine di
+  traccia L_k(Ω_n) non è ~costante sull'emisfero anteriore né −∞ su quello posteriore. Il
+  test confronta con la forma analitica
+  cos/π · [Φ((EN_MAX c − E_p)/s) − Φ((EN_MIN c − E_p)/s)] / c, con c = cos²θ_p, entro 45°,
+  e verifica la forte soppressione (non −∞) oltre π/2 + 5σ_θ.
+- **`posterior_C`, guardia sul combinato**: errore esplicito (`ValueError`) se il combinato è
+  −∞ su tutti i candidati, invece di restituire in silenzio il pixel 0.
+- **`posterior_C`, raffinamento locale (riga 14)**: le griglie globali (sfera, (μ_E, σ_E))
+  hanno passo più largo del posterior a N grande (c). `refine_shared_direction` usa una
+  calotta Fibonacci di `N_DIRECTION_CAP` pixel attorno al MAP di Ω_n; `refine_hyperparameters`
+  usa una finestra fine su (μ_E, log σ_E) entro `WINDOW_DELTA_LOG` dal massimo. Ω_n resta
+  plug-in nello stadio 2 (griglia a due stadi, niente 4D). Lo stimatore puntuale di σ_E è la
+  mediana del posterior marginale in log σ_E (la media pesata è sensibile alle code).
+- **Riga 14, bias aperto su μ_E (d)**: il bias è ≈ −0.02 MeV, costante in N (50–1000). Le cause
+  candidate sono il mismatch fra lo smearing 2D del generatore e il kernel 1D della
+  verosimiglianza, la discretizzazione delle griglie θ/E_n e (poco probabile) Ω_n plug-in.
+  Diagnostica proposta nel report, §6.4.
 
 ## Pubblicazione su GitHub
 
 - **la guida di progetto locale non va pubblicata su GitHub** (2026-09-24): è
   stato rimosso dalla cronologia dei commit (tutti i branch) e aggiunto a `.gitignore`; resta
   presente solo in locale, fuori dal tracking git. Stessa esclusione già in vigore per
-  il materiale di riferimento locale (il libro). L'unico file sotto `docs/` che resta
-  tracciato in git è questo roadmap.
+  il materiale di riferimento locale (il libro). Sotto `docs/` restano tracciati questo
+  roadmap e `docs/report_caso_C_stadio1.md`.
 
 ## Errata applicate
 

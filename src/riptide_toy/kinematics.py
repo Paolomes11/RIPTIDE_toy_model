@@ -9,19 +9,114 @@ def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
     return En * (np.cos(theta_p) ** 2)
 
 def sample_cm_angle(rng: np.random.Generator, n: int) -> np.ndarray:
-    """Return: array of dimension (n,), angles in radians taken
-    isotropicaly in CM.
+    """Angolo polare di scattering del neutrone nel CM, isotropo in angolo
+    solido: cos(theta_CM) ~ Uniform(-1, 1).
 
-    TODO (aperto, non ancora usato da nessun modulo a valle): questa
-    funzione campiona uniform(0, 2*pi). Se e' intesa come l'angolo
-    polare theta_CM di uno scattering isotropo in angolo solido, la
-    formula corretta sarebbe arccos(uniform(-1, 1)), non uniforme.
-    Nessuna fonte autorevole del progetto (guida, libro) conferma o
-    smentisce quale sia l'interpretazione voluta qui: non si inventa,
-    si verifica prima di usarla in un test formale (CLAUDE.md Sez. 1).
-    Vedi docs/roadmap.md, sezione Deviazioni.
+    Args:
+        rng: generatore numpy.
+        n: numero di eventi.
+
+    Ritorna:
+        array (n,), theta_CM in rad, in [0, pi].
     """
-    return rng.uniform(0, 2*np.pi, n)
+    # (a) isotropia in angolo solido: uniforme in cos, non in theta.
+    # Chiude la voce aperta in docs/roadmap.md (prima: uniform(0, 2*pi)).
+    return np.arccos(rng.uniform(-1.0, 1.0, n))
+
+
+def recoil_angle_from_cm(theta_cm: np.ndarray) -> np.ndarray:
+    """Angolo del protone di rinculo in lab dall'angolo del neutrone in CM,
+    theta_p = (pi - theta_CM) / 2.
+
+    Args:
+        theta_cm: angolo di scattering del neutrone nel CM, rad, forma (n,).
+
+    Ritorna:
+        array (n,), theta_p in rad, in [0, pi/2].
+    """
+    # (a) masse uguali: il protone rincula a pi - theta_CM nel CM e l'angolo
+    # in lab e' la meta'. Con cos(theta_CM) uniforme segue Ep ~ U(0, En).
+    return 0.5 * (np.pi - theta_cm)
+
+
+def perpendicular_basis(axis: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Due versori ortonormali perpendicolari a ciascun asse.
+
+    Args:
+        axis: versori, forma (n, 3).
+
+    Ritorna:
+        (e1, e2), ciascuno forma (n, 3); (e1, e2, axis) e' una terna destrorsa.
+    """
+    # asse ausiliario x, o y se axis e' quasi parallelo a x (prodotto
+    # vettoriale mal condizionato)
+    helper = np.where(np.abs(axis[:, :1]) < 0.9, [[1.0, 0.0, 0.0]], [[0.0, 1.0, 0.0]])
+    e1 = np.cross(axis, helper)
+    e1 /= np.linalg.norm(e1, axis=1, keepdims=True)
+    e2 = np.cross(axis, e1)
+    return e1, e2
+
+
+def direction_around_axis(axis: np.ndarray, theta: np.ndarray,
+                          phi: np.ndarray) -> np.ndarray:
+    """Versore a angolo polare theta e azimut phi attorno a un asse dato.
+
+    Args:
+        axis: versori, forma (n, 3).
+        theta: angolo polare rispetto ad axis, rad, forma (n,).
+        phi: azimut attorno ad axis, rad, forma (n,).
+
+    Ritorna:
+        array (n, 3), versori unitari.
+    """
+    e1, e2 = perpendicular_basis(axis)
+    sin_theta = np.sin(theta)[:, None]
+    return (np.cos(theta)[:, None] * axis
+            + sin_theta * np.cos(phi)[:, None] * e1
+            + sin_theta * np.sin(phi)[:, None] * e2)
+
+
+def sample_recoil_events(rng: np.random.Generator, En: np.ndarray,
+                         omega_n_hat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Eventi di rinculo veri per scattering n-p isotropo in CM, con
+    neutroni incidenti lungo omega_n_hat (Caso B/C).
+
+    Args:
+        rng: generatore numpy.
+        En: energia vera del neutrone per evento, MeV, forma (n,).
+        omega_n_hat: direzione del neutrone incidente, versore, forma (3,).
+
+    Ritorna:
+        (Ep_true, track_true): energia del protone in MeV, forma (n,), e
+        direzione vera della traccia, versori, forma (n, 3), sempre con
+        theta_p <= pi/2 rispetto a omega_n_hat.
+    """
+    n = En.shape[0]
+    theta_p = recoil_angle_from_cm(sample_cm_angle(rng, n))
+    phi = rng.uniform(0.0, 2 * np.pi, n)
+    axis = np.broadcast_to(omega_n_hat, (n, 3))
+    return proton_energy(En, theta_p), direction_around_axis(axis, theta_p, phi)
+
+
+def smear_direction(rng: np.random.Generator, track: np.ndarray,
+                    sigma_theta: float) -> np.ndarray:
+    """Risoluzione angolare del detector sulla traccia: spostamento
+    gaussiano isotropo nel piano tangente, sigma_theta per componente.
+
+    Args:
+        rng: generatore numpy.
+        track: direzioni vere, versori, forma (n, 3).
+        sigma_theta: risoluzione angolare per componente, rad.
+
+    Ritorna:
+        array (n, 3), direzioni misurate, versori.
+    """
+    # (b) proiettato su qualunque piano meridiano l'errore e' N(0, sigma_theta):
+    # stesso modello 1D di SIGMA_THETA usato nel Caso A (forward_model.measure).
+    offset = rng.normal(0.0, sigma_theta, (track.shape[0], 2))
+    delta = np.hypot(offset[:, 0], offset[:, 1])
+    alpha = np.arctan2(offset[:, 1], offset[:, 0])
+    return direction_around_axis(track, delta, alpha)
 
 def direction_from_theta_phi(theta: np.ndarray, phi: np.ndarray) -> np.ndarray:
     """Converte coordinate sferiche in versori cartesiani (convenzione fisica:
@@ -54,4 +149,19 @@ def recoil_angle_from_direction(track_hat: np.ndarray,
         (arccos del prodotto scalare, clip per stabilita' numerica).
     """
     cos_theta = track_hat @ omega_n_hat.T
-    return np.arccos(np.clip(cos_theta, -1.0, 1.0))
+    # in place: un solo array (n_events, n_candidates) invece di tre
+    np.clip(cos_theta, -1.0, 1.0, out=cos_theta)
+    return np.arccos(cos_theta, out=cos_theta)
+
+def theta_phi_from_direction(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Inversa di direction_from_theta_phi.
+
+    Args:
+        v: versori, forma (..., 3).
+
+    Ritorna:
+        (theta, phi) in rad, ciascuno forma (...,): theta in [0, pi], phi in [0, 2 pi).
+    """
+    theta = np.arccos(np.clip(v[..., 2], -1.0, 1.0))
+    phi = np.mod(np.arctan2(v[..., 1], v[..., 0]), 2 * np.pi)
+    return theta, phi

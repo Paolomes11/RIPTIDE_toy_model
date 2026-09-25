@@ -4,6 +4,8 @@ Etichette come da convenzione del progetto: **(a)** fatto consolidato · **(b)**
 
 ## 1. Sintesi
 
+> **Aggiornamento 2026-09-25:** la causa vera è un'altra (combinato −∞ ⇒ pixel 0) e l'ipotesi del §4 è smentita; correzioni e checklist della riga 14 sono in §6.
+
 - Il motore dello stadio 2 (`forward_model.loglik_marginal_En_hierarchical`, `priors.energy_prior_given_hyperparams`) è corretto: con la direzione vera il profilo di verosimiglianza in σ_E ha un massimo interno vicino al valore vero **(c)**.
 - Lo stadio 1 (`posterior_C.estimate_shared_direction`, che riusa il Caso B con prior piatto su E_n) produce un massimo a posteriori **sistematicamente sbagliato** quando le energie vere sono concentrate; l'errore non si riduce con N, anzi la frequenza dei fallimenti cresce **(c)**.
 - L'errore di direzione si propaga allo stadio 2 e fa apparire σ_E sempre più grande al crescere di N (fino al limite superiore della griglia) **(c)**.
@@ -90,3 +92,53 @@ Predizioni verificabili di questa ipotesi:
 8. **Completare la riga 14** una volta risolto lo stadio 1: bias, risoluzione, pull, coverage, contrazione ≈1/√N e robustezza al prior per (Ω_n, μ_E, σ_E), con stimatori puntuali scelti in modo coerente per σ_E (la media pesata è sensibile alle code; valutare il MAP marginale o la mediana in log σ).
 9. **Prestazioni**: ridurre la memoria di `posterior_B.single_event_posterior` con elaborazione a blocchi di eventi, poi profilare (riga prestazioni ancora aperta).
 10. **Aggiornare `docs/roadmap.md`** con le deviazioni e l'errata relative allo stadio 1 quando la soluzione è scelta.
+
+## 6. Esito (2026-09-25)
+
+### 6.1 Causa vera: combinato −∞ e pixel 0 (c)
+
+Le predizioni 2 e 3 del §4 **falliscono**: con un prior stretto su E_n e con un modello ben specificato (E_n vero piatto) lo stadio 1 finisce sullo stesso pixel sbagliato. L'ipotesi del §4 è quindi **smentita (c)**.
+
+La causa è il taglio netto `θ_p > π/2 ⇒ −∞` combinato con tracce generate senza risoluzione angolare. Ogni evento ammette solo i pixel del proprio emisfero anteriore, per cui l'insieme ammesso dopo N eventi è l'intersezione di N emisferi. Questo insieme si restringe con N: con 3000 pixel a N=300 restano {4,1,1,0,1,0,0,1} pixel e a N=1000 non ne resta nessuno. Quando il combinato è −∞ ovunque, `np.argmax` restituisce il **pixel 0**, cioè il polo nord della griglia di Fibonacci. Il polo dista 53.05° dalla verità con 800 pixel e 52.32° con 3000, esattamente i valori del §3.5. Il σ_E "gonfiato" del §3.3 ne è la conseguenza diretta (§3.4).
+
+### 6.2 Correzioni
+
+1. **Guardia**: `posterior_C` solleva un errore esplicito se il combinato è −∞ su tutti i candidati, invece di restituire il pixel 0.
+2. **Generatore fisico**: `kinematics.sample_cm_angle` è isotropo in angolo solido; `sample_recoil_events` genera tracce con densità cosθ_p/π e `smear_direction` aggiunge la risoluzione angolare SIGMA_THETA.
+3. **Verosimiglianza con termine di traccia e risoluzione angolare**: `forward_model.loglik_marginal_En_theta` e la sua variante gerarchica marginalizzano θ_p vero con un kernel gaussiano 1D polare, per cui il taglio diventa morbido **(b)**. Sono usate in `posterior_B` e `posterior_C`.
+4. **Raffinamento locale**: `refine_shared_direction` (calotta Fibonacci attorno al MAP di Ω_n) e `refine_hyperparameters` (finestra fine su (μ_E, log σ_E)). Le griglie globali erano più larghe del posterior.
+
+### 6.3 Checklist Cap. 40 dopo le correzioni (riga 14) (c)
+
+Script `scripts/caso_C_checklist.py`, con M esperimenti per N, μ_E ~ U(2.5, 4), σ_E log-U(0.2, 0.6) e Ω_n isotropa. Bias ± errore standard sulla media.
+
+| N | M | bias μ_E (MeV) | bias log σ_E | errore Ω medio |
+|---|---|---|---|---|
+| 50 | 200 | −0.0182 ± 0.0056 | −0.143 ± 0.032 | 2.66° |
+| 150 | 200 | −0.0201 ± 0.0036 | −0.050 ± 0.018 | 1.52° |
+| 300 | 100 | −0.0212 ± 0.0039 | −0.015 ± 0.016 | 1.09° |
+| 1000 | 40 | −0.0191 ± 0.0031 | +0.010 ± 0.008 | 0.58° |
+
+Coverage ai livelli 68/90/95%:
+
+| N | μ_E | log σ_E | Ω (HPD) |
+|---|---|---|---|
+| 50 | .69/.90/.96 | .67/.88/.94 | .85/.96/1.0 |
+| 150 | .66/.88/.94 | .61/.87/.94 | .87/.96/.98 |
+| 300 | .55/.81/.86 | .64/.87/.94 | .84/.97/1.0 |
+| 1000 | .48/.70/.72 | .72/.95/.98 | .85/.98/.98 |
+
+- **Ω_n**: l'errore si contrae come 1/√N (pendenza −0.505, rms·√N ≈ 0.37 costante), senza più il pixel a 53°. Pull rms ≈ 0.79 a N=50/150/300, quindi le incertezze sono leggermente conservative. A N=1000 il pull rms esplode (≈8·10⁴) perché in alcuni esperimenti la risoluzione dichiarata è ≈0. La causa probabile è un posterior concentrato su un solo pixel della calotta, per cui si tratta di un artefatto di discretizzazione **(d)**.
+- **σ_E**: bias verso 0 con N (log σ da −0.14 a +0.01), pull ≈ N(0,1), coverage nominale. La pendenza di contrazione è −0.735, più ripida di −0.5 perché il bias iniziale a N piccolo decade. Il problema del §3.3 è risolto.
+- **μ_E**: bias **costante** di ≈ −0.02 MeV (≈0.6%), indipendente da N e significativo a più di 5σ a ogni N. La risoluzione scende (rms 0.082 → 0.028 MeV) ma la pendenza di contrazione è solo −0.36. Il pull medio passa da −0.25 a −1.05 e la coverage al 68% da 0.69 a 0.48. È il plateau di un sistematico condiviso (Cap. 39) e domina da N ≳ 300.
+- **Robustezza al prior** (N=150, prior uniforme in σ_E invece che in log σ_E): lo spostamento di μ_E è trascurabile (medio −0.009 σ, massimo 0.15 σ). Quello di log σ_E è moderato (medio +0.15 σ, massimo 0.68 σ), con coverage [0.59, 0.89, 0.95]. SIGMA_E_MAX non entra nel risultato.
+
+### 6.4 Aperto: bias di μ_E (d)
+
+Cause candidate, tutte da testare:
+
+1. **Mismatch generatore/verosimiglianza**: il generatore sparpaglia la traccia nel piano tangente in 2D, mentre la verosimiglianza usa un kernel gaussiano 1D sul meridiano, un'approssimazione di ordine O(σ_θ²) **(b)**. Poiché E_p ∝ cos²θ_p, un errore sistematico su θ_p si traduce in uno spostamento di scala su E_n.
+2. **Discretizzazione** della griglia locale in θ o della griglia in E_n.
+3. **Ω_n plug-in** nello stadio 2: poco probabile, perché l'errore su Ω si contrae mentre il bias di μ_E no.
+
+Diagnostica proposta: stadio 2 con Ω_n **vera** e dati generati con smearing polare 1D (coerente con la verosimiglianza). Se il bias sparisce la causa è la 1; altrimenti si passa alla griglia fine (causa 2).
