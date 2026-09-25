@@ -14,6 +14,17 @@ def test_direction_from_theta_phi_unit_norm():
     np.testing.assert_allclose(np.linalg.norm(v, axis=-1), 1.0, atol=1e-12)
 
 
+def test_theta_phi_from_direction_inverts_direction_from_theta_phi():
+    rng = np.random.default_rng(SEED)
+    theta = np.arccos(rng.uniform(-1.0, 1.0, 200))
+    phi = rng.uniform(0.0, 2 * np.pi, 200)
+    theta_back, phi_back = kinematics.theta_phi_from_direction(
+        kinematics.direction_from_theta_phi(theta, phi)
+    )
+    np.testing.assert_allclose(theta_back, theta, atol=1e-12)
+    np.testing.assert_allclose(phi_back, phi, atol=1e-12)
+
+
 def test_sample_cm_angle_isotropic_in_solid_angle():
     rng = np.random.default_rng(SEED)
     theta_cm = kinematics.sample_cm_angle(rng, 200_000)

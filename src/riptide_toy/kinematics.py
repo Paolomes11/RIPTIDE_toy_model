@@ -152,3 +152,16 @@ def recoil_angle_from_direction(track_hat: np.ndarray,
     # in place: un solo array (n_events, n_candidates) invece di tre
     np.clip(cos_theta, -1.0, 1.0, out=cos_theta)
     return np.arccos(cos_theta, out=cos_theta)
+
+def theta_phi_from_direction(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Inversa di direction_from_theta_phi.
+
+    Args:
+        v: versori, forma (..., 3).
+
+    Ritorna:
+        (theta, phi) in rad, ciascuno forma (...,): theta in [0, pi], phi in [0, 2 pi).
+    """
+    theta = np.arccos(np.clip(v[..., 2], -1.0, 1.0))
+    phi = np.mod(np.arctan2(v[..., 1], v[..., 0]), 2 * np.pi)
+    return theta, phi
