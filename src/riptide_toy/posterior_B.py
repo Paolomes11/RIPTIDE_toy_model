@@ -42,4 +42,5 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray],
     loglik = forward_model.loglik_marginal_En_theta(
         Ep_hat, theta_obs, en_grid, SIGMA_EP, SIGMA_THETA, log_prior_En
     )
-    return loglik + np.log(prior)[None, :]
+    loglik += np.log(prior)[None, :]  # in place: nessuna copia (n_events, n_candidates)
+    return loglik

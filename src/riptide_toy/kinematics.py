@@ -149,4 +149,6 @@ def recoil_angle_from_direction(track_hat: np.ndarray,
         (arccos del prodotto scalare, clip per stabilita' numerica).
     """
     cos_theta = track_hat @ omega_n_hat.T
-    return np.arccos(np.clip(cos_theta, -1.0, 1.0))
+    # in place: un solo array (n_events, n_candidates) invece di tre
+    np.clip(cos_theta, -1.0, 1.0, out=cos_theta)
+    return np.arccos(cos_theta, out=cos_theta)

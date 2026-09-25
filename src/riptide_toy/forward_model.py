@@ -235,10 +235,6 @@ def loglik_marginal_En_theta(Ep_hat: np.ndarray, theta_obs: np.ndarray,
     obs_grid = np.linspace(0.0, np.pi, n_theta_obs)
     kernel = log_track_kernel(obs_grid, theta_grid, sigma_theta)  # (n_obs, n_theta)
 
-    position = np.clip(theta_obs / obs_grid[1], 0.0, n_theta_obs - 1 - 1e-9)
-    index = position.astype(np.intp)
-    frac = position - index
-
     n_events = Ep_hat.shape[0]
     out = np.empty(theta_obs.shape, dtype=np.float64)
     for start in range(0, n_events, chunk_size):
@@ -247,9 +243,13 @@ def loglik_marginal_En_theta(Ep_hat: np.ndarray, theta_obs: np.ndarray,
         energy = loglik_marginal_En(Ep_hat[start:end], theta_true, En_grid,
                                     sigma_Ep, log_prior_En)          # (chunk, n_theta)
         h = logsumexp(energy[:, None, :] + kernel[None], axis=2)     # (chunk, n_obs)
-        lo = np.take_along_axis(h, index[start:end], axis=1)
-        hi = np.take_along_axis(h, index[start:end] + 1, axis=1)
-        out[start:end] = lo + frac[start:end] * (hi - lo)
+        # indici di interpolazione per lotto: temporanei (chunk, n_candidates)
+        # invece di (n_events, n_candidates), picco di memoria ~ output
+        position = np.clip(theta_obs[start:end] / obs_grid[1], 0.0, n_theta_obs - 1 - 1e-9)
+        index = position.astype(np.intp)
+        lo = np.take_along_axis(h, index, axis=1)
+        hi = np.take_along_axis(h, index + 1, axis=1)
+        out[start:end] = lo + (position - index) * (hi - lo)
     return out
 
 
