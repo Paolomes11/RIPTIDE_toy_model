@@ -177,3 +177,61 @@ def angular_pull(angular_dist: np.ndarray, sigma_hat: np.ndarray) -> np.ndarray:
         array (n_eventi,), angular_dist / sigma_hat.
     """
     return angular_dist / sigma_hat
+
+
+def credible_interval(log_posterior: np.ndarray, grid: np.ndarray, levels: np.ndarray) -> np.ndarray:
+    """Intervalli credibili a code uguali letti da un posterior a griglia, per
+    un parametro scalare (Cap. 40 punto 4, coverage del Caso C, riga 14).
+    Se grid ha valori ripetuti (es. un asse di una griglia 2D appiattita) il
+    posterior viene prima marginalizzato sommando sui punti con lo stesso
+    valore. Quantili per interpolazione lineare della CDF ai centri delle
+    celle; livello 0 = mediana. Estensione additiva (Sez. 6, checkpoint).
+
+    Args:
+        log_posterior: log-posterior non normalizzato, forma (n_eventi, n_candidati).
+        grid: valori del parametro, forma (n_candidati,), stessa unita' del parametro.
+        levels: livelli nominali in [0, 1), forma (n_livelli,).
+
+    Ritorna:
+        array (n_eventi, n_livelli, 2), [..., 0] estremo inferiore e [..., 1]
+        superiore, stessa unita' di grid; stessa forma attesa da coverage_curve.
+    """
+    values, inverse = np.unique(grid, return_inverse=True)
+    one_hot = np.zeros((grid.shape[0], values.shape[0]))
+    one_hot[np.arange(grid.shape[0]), inverse] = 1.0
+    weights = np.exp(log_posterior - log_posterior.max(axis=-1, keepdims=True))
+    marginal = weights @ one_hot
+    marginal /= marginal.sum(axis=-1, keepdims=True)
+    cdf = np.cumsum(marginal, axis=-1) - 0.5 * marginal
+
+    tail = (1.0 - levels) / 2.0
+    quantiles = np.concatenate([tail, 1.0 - tail])
+    upper_idx = np.clip(np.sum(cdf[:, :, None] < quantiles[None, None, :], axis=1), 1, values.shape[0] - 1)
+    cdf_lo = np.take_along_axis(cdf, upper_idx - 1, axis=1)
+    cdf_hi = np.take_along_axis(cdf, upper_idx, axis=1)
+    frac = np.clip((quantiles[None, :] - cdf_lo) / (cdf_hi - cdf_lo), 0.0, 1.0)
+    q_values = values[upper_idx - 1] + frac * (values[upper_idx] - values[upper_idx - 1])
+    n_levels = levels.shape[0]
+    return np.stack([q_values[:, :n_levels], q_values[:, n_levels:]], axis=-1)
+
+
+def credible_region_contains(log_posterior: np.ndarray, true_index: np.ndarray,
+                             levels: np.ndarray) -> np.ndarray:
+    """Copertura con regioni di massima densita' (HPD) su una griglia di
+    candidati ad area/volume uguale, es. la calotta di Omega_n (Cap. 40 punto
+    4, riga 14): il candidato vero e' nella regione a livello L se la massa
+    dei candidati piu' probabili di lui e' < L. Estensione additiva.
+
+    Args:
+        log_posterior: log-posterior non normalizzato, forma (n_eventi, n_candidati).
+        true_index: indice del candidato piu' vicino alla verita', int, forma (n_eventi,).
+        levels: livelli nominali, forma (n_livelli,).
+
+    Ritorna:
+        array bool (n_eventi, n_livelli), True se la verita' e' coperta.
+    """
+    p = np.exp(log_posterior - log_posterior.max(axis=-1, keepdims=True))
+    p /= p.sum(axis=-1, keepdims=True)
+    p_true = np.take_along_axis(p, true_index[:, None], axis=1)
+    mass_above = np.sum(np.where(p > p_true, p, 0.0), axis=-1)
+    return mass_above[:, None] < levels[None, :]
