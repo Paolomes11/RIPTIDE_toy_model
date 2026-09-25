@@ -2,6 +2,7 @@ import numpy as np
 from scipy.special import logsumexp
 
 from riptide_toy import kinematics
+from riptide_toy.constants import N_THETA_OBS, N_THETA_TRACK
 
 def measure(Ep_true: np.ndarray, theta_p_true: np.ndarray,
             sigma_Ep: float, sigma_theta: float,
@@ -124,9 +125,170 @@ def loglik_marginal_En_hierarchical(Ep_hat: np.ndarray, theta_p: np.ndarray,
     base = -0.5 * ((Ep_hat[:, None] - Ep_pred) / sigma_Ep) ** 2
     base = np.where((theta_p <= np.pi / 2)[:, None], base, -np.inf)
 
+    return marginalize_En_hierarchical(base, log_prior_En_grid, chunk_size)
+
+
+def marginalize_En_hierarchical(base: np.ndarray, log_prior_En_grid: np.ndarray,
+                                chunk_size: int = 200) -> np.ndarray:
+    """log sum_En exp(base + log pi(En | candidato)) per ogni evento e
+    candidato iperparametro (Caso C), a lotti di candidati.
+
+    Args:
+        base: log-verosimiglianza per evento su En_grid, forma (n_events, n_En).
+        log_prior_En_grid: log pi(En | candidato), forma (n_hyper, n_En).
+        chunk_size: candidati iperparametro per lotto (evita la griglia
+            piena (n_events, n_hyper, n_En) in RAM).
+
+    Ritorna:
+        array (n_events, n_hyper), log-verosimiglianza marginalizzata su En.
+    """
+    n_events, n_hyper = base.shape[0], log_prior_En_grid.shape[0]
     out = np.empty((n_events, n_hyper), dtype=np.float64)
     for start in range(0, n_hyper, chunk_size):
         end = min(start + chunk_size, n_hyper)
         joint = base[:, None, :] + log_prior_En_grid[None, start:end, :]  # (n_events, chunk, n_En)
         out[:, start:end] = logsumexp(joint, axis=2)
     return out
+
+
+def log_track_density(theta_p: np.ndarray) -> np.ndarray:
+    """log p(traccia | Omega_n) per scattering isotropo in CM: cos(theta_p)/pi
+    per steradiante sull'emisfero anteriore, 0 su quello posteriore.
+
+    Args:
+        theta_p: angolo fra traccia e Omega_n, rad, forma qualsiasi.
+
+    Ritorna:
+        array della stessa forma, log-densita' per steradiante (-inf per
+        theta_p >= pi/2).
+    """
+    # (a) cos^2(theta_p) ~ U(0, 1) <=> densita' cos(theta_p)/pi su dOmega
+    # (kinematics.sample_recoil_events); si annulla con continuita' a pi/2.
+    with np.errstate(divide="ignore"):
+        return np.log(np.clip(np.cos(theta_p), 0.0, None) / np.pi)
+
+
+def log_track_kernel(theta_obs: np.ndarray, theta_grid: np.ndarray,
+                     sigma_theta: float) -> np.ndarray:
+    """Peso di quadratura in log per marginalizzare theta_p vero data la
+    traccia osservata: p_track(theta) * [N(theta_obs; theta, s) +
+    N(theta_obs; -theta, s)] * peso trapezoidale.
+
+    Approssimazione (b): l'errore della traccia e' gaussiano nel piano
+    tangente (kinematics.smear_direction) e la densita' della traccia varia
+    solo lungo il meridiano per Omega_n, quindi la convoluzione 2D si riduce
+    a una 1D sulla coordinata con segno s del meridiano (s < 0 = oltre il
+    polo: da qui il termine specchiato in -theta). Curvatura della sfera
+    trascurata, errore O(sigma_theta^2).
+
+    Args:
+        theta_obs: angolo osservato fra traccia e Omega_n, rad, forma (n,), >= 0.
+        theta_grid: griglia uniforme su [0, pi/2] per theta vero, rad, forma (m,).
+        sigma_theta: risoluzione angolare per componente, rad.
+
+    Ritorna:
+        array (n, m), log-pesi; exp(...).sum(axis=1) approssima la densita'
+        per steradiante della traccia osservata.
+    """
+    step = theta_grid[1] - theta_grid[0]
+    log_weight = np.full(theta_grid.shape, np.log(step))
+    log_weight[[0, -1]] -= np.log(2.0)
+    z_plus = (theta_obs[:, None] - theta_grid[None, :]) / sigma_theta
+    z_minus = (theta_obs[:, None] + theta_grid[None, :]) / sigma_theta
+    log_gauss = (np.logaddexp(-0.5 * z_plus ** 2, -0.5 * z_minus ** 2)
+                 - np.log(sigma_theta * np.sqrt(2.0 * np.pi)))
+    return log_gauss + (log_track_density(theta_grid) + log_weight)[None, :]
+
+
+def loglik_marginal_En_theta(Ep_hat: np.ndarray, theta_obs: np.ndarray,
+                             En_grid: np.ndarray, sigma_Ep: float, sigma_theta: float,
+                             log_prior_En: np.ndarray, n_theta: int = N_THETA_TRACK,
+                             n_theta_obs: int = N_THETA_OBS,
+                             chunk_size: int = 20) -> np.ndarray:
+    """Log-verosimiglianza di (Ep_hat, traccia) per evento e candidato Omega_n,
+    marginalizzata su En e sul theta_p vero (Caso B), con termine di traccia
+    cos(theta_p)/pi e risoluzione angolare sigma_theta. Sostituisce il
+    taglio netto -inf di loglik_marginal_En a theta_p > pi/2.
+
+    Il termine in En non dipende da Omega_n: si calcola
+    h_k(theta_obs) = log int ds p_track N(theta_obs; s) exp g_k(s) una volta
+    su una griglia uniforme theta_obs in [0, pi] e si interpola linearmente
+    sui candidati (costo indipendente dal numero di candidati).
+
+    Args:
+        Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
+        theta_obs: angolo fra traccia osservata e candidato, rad, forma
+            (n_events, n_candidates) (kinematics.recoil_angle_from_direction).
+        En_grid: griglia su cui marginalizzare En, MeV, forma (n_En,).
+        sigma_Ep: risoluzione su Ep, MeV.
+        sigma_theta: risoluzione angolare della traccia, rad.
+        log_prior_En: log-prior su En_grid, forma (n_En,).
+        n_theta: punti della griglia di theta vero su [0, pi/2].
+        n_theta_obs: punti della griglia di interpolazione su [0, pi].
+        chunk_size: eventi per lotto.
+
+    Ritorna:
+        array (n_events, n_candidates), log-verosimiglianza (a meno di una
+        costante comune), finita per ogni candidato.
+    """
+    theta_grid = np.linspace(0.0, np.pi / 2, n_theta)
+    obs_grid = np.linspace(0.0, np.pi, n_theta_obs)
+    kernel = log_track_kernel(obs_grid, theta_grid, sigma_theta)  # (n_obs, n_theta)
+
+    position = np.clip(theta_obs / obs_grid[1], 0.0, n_theta_obs - 1 - 1e-9)
+    index = position.astype(np.intp)
+    frac = position - index
+
+    n_events = Ep_hat.shape[0]
+    out = np.empty(theta_obs.shape, dtype=np.float64)
+    for start in range(0, n_events, chunk_size):
+        end = min(start + chunk_size, n_events)
+        theta_true = np.broadcast_to(theta_grid, (end - start, n_theta))
+        energy = loglik_marginal_En(Ep_hat[start:end], theta_true, En_grid,
+                                    sigma_Ep, log_prior_En)          # (chunk, n_theta)
+        h = logsumexp(energy[:, None, :] + kernel[None], axis=2)     # (chunk, n_obs)
+        lo = np.take_along_axis(h, index[start:end], axis=1)
+        hi = np.take_along_axis(h, index[start:end] + 1, axis=1)
+        out[start:end] = lo + frac[start:end] * (hi - lo)
+    return out
+
+
+def loglik_marginal_En_theta_hierarchical(Ep_hat: np.ndarray, theta_obs: np.ndarray,
+                                          En_grid: np.ndarray, sigma_Ep: float,
+                                          sigma_theta: float,
+                                          log_prior_En_grid: np.ndarray,
+                                          n_theta: int = N_THETA_TRACK,
+                                          chunk_size: int = 200,
+                                          event_chunk_size: int = 20) -> np.ndarray:
+    """Come loglik_marginal_En_hierarchical (Caso C, stadio 2, Omega_n
+    fissato), ma con termine di traccia e risoluzione angolare: si
+    marginalizza prima il theta_p vero (non dipende dagli iperparametri),
+    poi En con il prior di ciascun candidato (mu_E, sigma_E).
+
+    Args:
+        Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
+        theta_obs: angolo fra traccia osservata e Omega_n fissato, rad,
+            forma (n_events,).
+        En_grid: griglia su cui marginalizzare En, MeV, forma (n_En,).
+        sigma_Ep: risoluzione su Ep, MeV.
+        sigma_theta: risoluzione angolare della traccia, rad.
+        log_prior_En_grid: log pi(En | candidato), forma (n_hyper, n_En).
+        n_theta: punti della griglia di theta vero su [0, pi/2].
+        chunk_size: candidati iperparametro per lotto.
+        event_chunk_size: eventi per lotto nella marginalizzazione di theta
+            (array (lotto, n_theta, n_En) in RAM).
+
+    Ritorna:
+        array (n_events, n_hyper), log-verosimiglianza marginalizzata su
+        theta_p vero ed En (stessa costante comune di loglik_marginal_En_theta).
+    """
+    theta_grid = np.linspace(0.0, np.pi / 2, n_theta)
+    Ep_pred = En_grid[None, :] * np.cos(theta_grid)[:, None] ** 2    # (n_theta, n_En)
+    n_events = Ep_hat.shape[0]
+    base = np.empty((n_events, En_grid.shape[0]), dtype=np.float64)
+    for start in range(0, n_events, event_chunk_size):
+        end = min(start + event_chunk_size, n_events)
+        kernel = log_track_kernel(theta_obs[start:end], theta_grid, sigma_theta)
+        energy = -0.5 * ((Ep_hat[start:end, None, None] - Ep_pred[None]) / sigma_Ep) ** 2
+        base[start:end] = logsumexp(kernel[:, :, None] + energy, axis=1)
+    return marginalize_En_hierarchical(base, log_prior_En_grid, chunk_size)
