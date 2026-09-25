@@ -3,7 +3,7 @@ import pytest
 
 from riptide_toy import (combine, forward_model, grids, kinematics, posterior_B, posterior_C,
                          priors)
-from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP, SIGMA_THETA
+from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_E_MAX, SIGMA_E_MIN, SIGMA_EP, SIGMA_THETA
 
 
 def test_hyperparameter_grid_shape_and_domain():
@@ -216,3 +216,87 @@ def test_estimate_shared_direction_finite_when_no_direction_has_all_tracks_forwa
     )
     assert omega_n_hat.shape == (1, 3)
     np.testing.assert_allclose(np.linalg.norm(omega_n_hat), 1.0)
+
+
+def test_hyperparameter_grid_window_layout_and_clipping():
+    mu_grid, sigma_grid = grids.hyperparameter_grid_window(2.0, 3.0, 0.2, 0.8, 11, 7)
+    assert mu_grid.shape == sigma_grid.shape == (77,)
+    assert not mu_grid.flags.writeable and not sigma_grid.flags.writeable
+    np.testing.assert_allclose(mu_grid.reshape(11, 7)[:, 0], np.linspace(2.0, 3.0, 11))
+    np.testing.assert_allclose(sigma_grid.reshape(11, 7)[0], np.geomspace(0.2, 0.8, 7))
+    # finestra oltre il dominio globale: tagliata a [EN_MIN, EN_MAX] x [SIGMA_E_MIN, SIGMA_E_MAX]
+    mu_wide, sigma_wide = grids.hyperparameter_grid_window(-1.0, 99.0, 1e-5, 1e5, 5, 5)
+    assert mu_wide.min() == EN_MIN and mu_wide.max() == EN_MAX
+    np.testing.assert_allclose([sigma_wide.min(), sigma_wide.max()], [SIGMA_E_MIN, SIGMA_E_MAX])
+
+
+def test_hyperparameter_prior_uniform_sigma_weights_proportional_to_sigma():
+    mu_grid, sigma_grid = grids.hyperparameter_grid(10, 12)
+    p = priors.hyperparameter_prior_uniform_sigma(mu_grid, sigma_grid)
+    assert abs(p.sum() - 1.0) < 1e-12
+    np.testing.assert_allclose(p / sigma_grid, p[0] / sigma_grid[0])
+
+
+def test_direction_cap_grid_within_radius_and_equal_area():
+    center = np.array([0.3, -0.5, 0.8]) / np.linalg.norm([0.3, -0.5, 0.8])
+    radius = 0.2
+    theta, phi = posterior_C.direction_cap_grid(center, radius, 4000)
+    angle = np.arccos(np.clip(kinematics.direction_from_theta_phi(theta, phi) @ center, -1.0, 1.0))
+    assert angle.max() <= radius + 1e-12
+    # area uguale: 1 - cos(angolo) uniforme su [0, 1 - cos(radius)]
+    one_minus_cos = (1.0 - np.cos(angle)) / (1.0 - np.cos(radius))
+    np.testing.assert_allclose(np.sort(one_minus_cos), (np.arange(4000) + 0.5) / 4000, atol=1e-9)
+
+
+def test_hyperparameter_window_contains_region_above_threshold():
+    mu_grid, sigma_grid = grids.hyperparameter_grid(30, 30)
+    log_post = -0.5 * ((mu_grid - 3.0) / 0.2) ** 2 - 0.5 * (np.log(sigma_grid / 0.4) / 0.3) ** 2
+    mu_lo, mu_hi, sigma_lo, sigma_hi = posterior_C.hyperparameter_window(log_post, mu_grid, sigma_grid, 10.0)
+    keep = log_post > log_post.max() - 10.0
+    assert mu_lo < mu_grid[keep].min() and mu_hi > mu_grid[keep].max()
+    assert sigma_lo < sigma_grid[keep].min() and sigma_hi > sigma_grid[keep].max()
+    # fuori dalla finestra la soglia non e' superata
+    outside = (mu_grid < mu_lo) | (mu_grid > mu_hi) | (sigma_grid < sigma_lo) | (sigma_grid > sigma_hi)
+    assert np.all(log_post[outside] <= log_post.max() - 10.0)
+
+
+def case_C_dataset(n_events: int, rng: np.random.Generator
+                   ) -> tuple[tuple[np.ndarray, np.ndarray], np.ndarray]:
+    """Dataset sintetico Caso C (generatore fisico + risoluzioni), verita'
+    Omega_n = (0.9, 2.1), mu_E = 3.0, sigma_E = 0.4 (setup del report).
+
+    Ritorna:
+        ((Ep_hat MeV (n,), track_hat versori (n, 3)), omega_true versore (3,)).
+    """
+    omega_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([2.1]))[0]
+    Ep_true, track = kinematics.sample_recoil_events(rng, rng.normal(3.0, 0.4, n_events), omega_true)
+    track_hat = kinematics.smear_direction(rng, track, SIGMA_THETA)
+    return (rng.normal(Ep_true, SIGMA_EP), track_hat), omega_true
+
+
+def test_refined_stages_negligible_mass_at_window_edges():
+    # Integrazione R6: la calotta e la finestra fine contengono il posterior
+    # (massa ai bordi trascurabile) e il MAP raffinato e' vicino alla verita'.
+    rng = np.random.default_rng(SEED)
+    D_B, omega_true = case_C_dataset(80, rng)
+    theta_grid, phi_grid = grids.sphere_grid(1500)
+    dprior = priors.direction_prior(theta_grid, phi_grid)
+    omega_hat, cap_log_post, cap_theta, cap_phi = posterior_C.refine_shared_direction(
+        D_B, theta_grid, phi_grid, dprior, n_cap=2000
+    )
+    assert omega_hat.shape == (1, 3) and cap_log_post.shape == (2000,)
+    # anello esterno della calotta (ultimo 10% dei pixel, cos(alpha) decrescente)
+    assert np.max(cap_log_post[-200:]) < cap_log_post.max() - 5.0
+    assert np.arccos(np.clip(omega_hat[0] @ omega_true, -1.0, 1.0)) < np.deg2rad(8.0)
+
+    mu_grid, sigma_grid = grids.hyperparameter_grid(30, 30)
+    log_post, mu_fine, sigma_fine = posterior_C.refine_hyperparameters(
+        (*D_B, omega_hat), mu_grid, sigma_grid, priors.hyperparameter_prior, n_mu=20, n_sigma=20
+    )
+    assert log_post.shape == mu_fine.shape == sigma_fine.shape == (400,)
+    grid_2d = log_post.reshape(20, 20)
+    edge = np.concatenate([grid_2d[0], grid_2d[-1], grid_2d[:, 0], grid_2d[:, -1]])
+    assert np.max(edge) < log_post.max() - 5.0
+    best = np.argmax(log_post)
+    assert abs(mu_fine[best] - 3.0) < 0.3
+    assert 0.2 < sigma_fine[best] < 0.8

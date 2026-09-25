@@ -60,3 +60,29 @@ def hyperparameter_grid(n_mu: int = 60, n_sigma: int = 60) -> tuple[np.ndarray, 
     mu_grid.flags.writeable = False
     sigma_grid.flags.writeable = False
     return (mu_grid, sigma_grid)
+
+def hyperparameter_grid_window(mu_lo: float, mu_hi: float, sigma_lo: float, sigma_hi: float,
+                               n_mu: int, n_sigma: int) -> tuple[np.ndarray, np.ndarray]:
+    """Griglia (mu_E, sigma_E) ristretta a una finestra, stessa costruzione di
+    hyperparameter_grid (mu lineare, sigma logaritmica, ravel "ij"): serve al
+    raffinamento locale del Caso C (riga 14), dove la griglia globale ha passo
+    piu' largo del posterior. La finestra e' tagliata al dominio globale
+    [EN_MIN, EN_MAX] x [SIGMA_E_MIN, SIGMA_E_MAX].
+
+    Args:
+        mu_lo, mu_hi: estremi della finestra su mu_E, MeV.
+        sigma_lo, sigma_hi: estremi della finestra su sigma_E, MeV, > 0.
+        n_mu, n_sigma: punti per asse.
+
+    Ritorna:
+        (mu_grid, sigma_grid), MeV, ciascuno forma (n_mu*n_sigma,), non
+        scrivibili; reshape(n_mu, n_sigma) allinea l'asse 0 a mu.
+    """
+    mu_1d = np.linspace(max(mu_lo, EN_MIN), min(mu_hi, EN_MAX), n_mu)
+    sigma_1d = np.geomspace(max(sigma_lo, SIGMA_E_MIN), min(sigma_hi, SIGMA_E_MAX), n_sigma)
+    mu_mesh, sigma_mesh = np.meshgrid(mu_1d, sigma_1d, indexing="ij")
+    mu_grid = mu_mesh.ravel()
+    sigma_grid = sigma_mesh.ravel()
+    mu_grid.flags.writeable = False
+    sigma_grid.flags.writeable = False
+    return (mu_grid, sigma_grid)

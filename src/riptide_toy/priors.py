@@ -108,3 +108,21 @@ def hyperparameter_prior(mu_grid: np.ndarray, sigma_grid: np.ndarray) -> np.ndar
     """
     n_hyper = mu_grid.shape[0]
     return np.full(n_hyper, 1.0 / n_hyper)
+
+
+def hyperparameter_prior_uniform_sigma(mu_grid: np.ndarray, sigma_grid: np.ndarray) -> np.ndarray:
+    """Prior alternativa su (mu_E, sigma_E), uniforme in (mu_E, sigma_E)
+    invece che in (mu_E, log sigma_E): serve solo al test di robustezza al
+    prior (Cap. 40, ultimo punto della checklist, riga 14). Su una griglia
+    con sigma_E spaziata logaritmicamente la cella ha larghezza ~sigma_E,
+    quindi il peso per punto e' proporzionale a sigma_E.
+
+    Args:
+        mu_grid: ipotesi su mu_E, MeV, forma (n_hyper,).
+        sigma_grid: ipotesi su sigma_E, MeV, stessa forma, spaziata
+            logaritmicamente (grids.hyperparameter_grid[_window]).
+
+    Ritorna:
+        array (n_hyper,), pesi proporzionali a sigma_E che sommano a 1.
+    """
+    return sigma_grid / sigma_grid.sum()
