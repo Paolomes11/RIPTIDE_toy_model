@@ -1,7 +1,7 @@
 import numpy as np
 
 from riptide_toy import forward_model, grids, kinematics, priors
-from riptide_toy.constants import SIGMA_EP
+from riptide_toy.constants import SIGMA_EP, SIGMA_THETA
 
 
 def single_event_posterior(D: tuple[np.ndarray, np.ndarray],
@@ -11,10 +11,12 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray],
     per-evento a prior largo (Caso B, CLAUDE.md Sez. 3).
 
     Assunzioni dichiarate: sorgente unica (1) + direzione ~costante,
-    campo lontano (2). Theta_p e' calcolato geometricamente da track_hat
-    e ogni candidato Omega_n (kinematics.recoil_angle_from_direction),
-    non e' una nuisance separata da marginalizzare: e' invariante
-    all'azimut della traccia attorno al candidato per costruzione.
+    campo lontano (2) + scattering isotropo in CM (toy 0.5-6 MeV), che da'
+    il termine di traccia cos(theta_p)/pi. La traccia ha risoluzione
+    angolare SIGMA_THETA: theta_p vero e' marginalizzato attorno
+    all'angolo osservato fra track_hat e ogni candidato
+    (forward_model.loglik_marginal_En_theta, approssimazione (b)), senza
+    taglio netto a pi/2: il posterior e' finito su tutta la sfera.
 
     Args:
         D: (Ep_hat, track_hat), osservabili: energia di rinculo, MeV,
@@ -32,10 +34,12 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray],
     Ep_hat, track_hat = D
     theta_grid, phi_grid = shared_param_grid
     omega_n_hat = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
-    theta_p = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)
+    theta_obs = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)
 
     en_grid = grids.energy_grid()
     log_prior_En = np.log(priors.energy_prior(en_grid))
 
-    loglik = forward_model.loglik_marginal_En(Ep_hat, theta_p, en_grid, SIGMA_EP, log_prior_En)
+    loglik = forward_model.loglik_marginal_En_theta(
+        Ep_hat, theta_obs, en_grid, SIGMA_EP, SIGMA_THETA, log_prior_En
+    )
     return loglik + np.log(prior)[None, :]

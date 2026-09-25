@@ -1,7 +1,7 @@
 import numpy as np
 
 from riptide_toy import combine, forward_model, grids, kinematics, posterior_B, priors
-from riptide_toy.constants import SIGMA_EP
+from riptide_toy.constants import SIGMA_EP, SIGMA_THETA
 
 
 def estimate_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
@@ -31,11 +31,12 @@ def estimate_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
         array (1, 3), versore MAP di Omega_n sul combinato degli N eventi.
 
     Solleva:
-        ValueError: se il combinato e' -inf su tutti i candidati (nessun
-            pixel tiene tutti gli eventi con theta_p <= pi/2). Senza questo
-            controllo np.argmax restituirebbe in silenzio il pixel 0 (polo
-            nord della griglia): e' la causa del "pixel a 53 gradi" in
-            docs/report_caso_C_stadio1.md.
+        ValueError: se il combinato e' -inf su tutti i candidati. Senza
+            questo controllo np.argmax restituirebbe in silenzio il pixel 0
+            (polo nord della griglia): e' la causa del "pixel a 53 gradi" in
+            docs/report_caso_C_stadio1.md, col vecchio taglio netto a
+            theta_p = pi/2. Con la risoluzione angolare di posterior_B il
+            combinato e' finito: il controllo resta come difesa.
     """
     log_posterior_per_event = posterior_B.single_event_posterior(
         D_B, (theta_grid, phi_grid), direction_prior
@@ -66,7 +67,9 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray, np.ndarray],
     e' solo su (mu_E, sigma_E), mai 4D.
 
     Assunzioni dichiarate: sorgente unica (1) + direzione ~costante, campo
-    lontano (2) + energie simili tra loro (3, E_n^(k) ~ N(mu_E, sigma_E)).
+    lontano (2) + energie simili tra loro (3, E_n^(k) ~ N(mu_E, sigma_E)),
+    piu' scattering isotropo in CM (termine di traccia cos(theta_p)/pi) e
+    risoluzione angolare SIGMA_THETA sulla traccia, come in posterior_B.
 
     Nota: a differenza del template generico (D, shared_param_grid, prior)
     di posterior_A/B, qui D include anche omega_n_hat -- il risultato
@@ -89,12 +92,12 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray, np.ndarray],
     """
     Ep_hat, track_hat, omega_n_hat = D
     mu_grid, sigma_grid = shared_param_grid
-    theta_p = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)[:, 0]
+    theta_obs = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)[:, 0]
 
     en_grid = grids.energy_grid()
-    log_prior_En_grid = np.log(priors.energy_prior_given_hyperparams(en_grid, mu_grid, sigma_grid))
+    log_prior_En_grid = priors.log_energy_prior_given_hyperparams(en_grid, mu_grid, sigma_grid)
 
-    loglik = forward_model.loglik_marginal_En_hierarchical(
-        Ep_hat, theta_p, en_grid, SIGMA_EP, log_prior_En_grid
+    loglik = forward_model.loglik_marginal_En_theta_hierarchical(
+        Ep_hat, theta_obs, en_grid, SIGMA_EP, SIGMA_THETA, log_prior_En_grid
     )
     return loglik + np.log(prior)[None, :]

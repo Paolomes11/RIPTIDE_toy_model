@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
 
-from riptide_toy import combine, forward_model, grids, kinematics, posterior_C, priors
-from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP
+from riptide_toy import (combine, forward_model, grids, kinematics, posterior_B, posterior_C,
+                         priors)
+from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP, SIGMA_THETA
 
 
 def test_hyperparameter_grid_shape_and_domain():
@@ -37,6 +38,46 @@ def test_energy_prior_given_hyperparams_integrates_to_one():
     np.testing.assert_allclose(integrals, 1.0, atol=1e-6)
 
 
+def test_log_energy_prior_given_hyperparams_matches_and_stays_finite_at_small_sigma():
+    en_grid = grids.energy_grid(400)
+    mu_grid, sigma_grid = grids.hyperparameter_grid(6, 6)
+    log_density = priors.log_energy_prior_given_hyperparams(en_grid, mu_grid, sigma_grid)
+    density = priors.energy_prior_given_hyperparams(en_grid, mu_grid, sigma_grid)
+    np.testing.assert_allclose(np.exp(log_density), density, rtol=1e-10, atol=1e-300)
+
+    # sigma_E piccolo: la densita' lineare va a 0 (log -> -inf con warning),
+    # la versione log resta finita su tutta la griglia.
+    tiny = priors.log_energy_prior_given_hyperparams(en_grid, np.array([3.0]), np.array([0.01]))
+    assert np.all(np.isfinite(tiny))
+
+
+def test_hierarchical_track_loglik_sigma_E_to_infinity_matches_case_B():
+    # Con risoluzione angolare: la versione gerarchica (Caso C) a sigma_E
+    # enorme deve coincidere con loglik_marginal_En_theta a prior piatto
+    # (Caso B) sullo stesso evento e la stessa direzione.
+    rng = np.random.default_rng(SEED)
+    n_events = 15
+    en_grid = grids.energy_grid(300)
+    omega = np.array([0.0, 0.0, 1.0])
+    Ep_true, track = kinematics.sample_recoil_events(rng, rng.uniform(EN_MIN, EN_MAX, n_events), omega)
+    track_hat = kinematics.smear_direction(rng, track, SIGMA_THETA)
+    Ep_hat = rng.normal(Ep_true, SIGMA_EP)
+    theta_obs = kinematics.recoil_angle_from_direction(track_hat, omega[None, :])[:, 0]
+
+    log_prior_hier = priors.log_energy_prior_given_hyperparams(
+        en_grid, np.array([(EN_MIN + EN_MAX) / 2.0]), np.array([1000.0])
+    )
+    hier = forward_model.loglik_marginal_En_theta_hierarchical(
+        Ep_hat, theta_obs, en_grid, SIGMA_EP, SIGMA_THETA, log_prior_hier
+    )
+    flat = forward_model.loglik_marginal_En_theta(
+        Ep_hat, theta_obs[:, None], en_grid, SIGMA_EP, SIGMA_THETA,
+        np.log(priors.energy_prior(en_grid)),
+    )
+    assert hier.shape == flat.shape == (n_events, 1)
+    np.testing.assert_allclose(hier, flat, atol=0.01)
+
+
 def test_sigma_E_to_infinity_reduces_to_case_B():
     # riga 13 (CLAUDE.md Sez. 5, test di limite): sigma_E -> infinito => Caso B.
     # Con sigma_E grande la gaussiana troncata su en_grid tende alla prior
@@ -53,7 +94,7 @@ def test_sigma_E_to_infinity_reduces_to_case_B():
 
     sigma_E_huge = np.array([1000.0])
     mu_E_mid = np.array([(EN_MIN + EN_MAX) / 2.0])
-    log_prior_hier = np.log(priors.energy_prior_given_hyperparams(en_grid, mu_E_mid, sigma_E_huge))
+    log_prior_hier = priors.log_energy_prior_given_hyperparams(en_grid, mu_E_mid, sigma_E_huge)
     loglik_hier = forward_model.loglik_marginal_En_hierarchical(
         Ep_hat, theta_p, en_grid, SIGMA_EP, log_prior_hier
     )
@@ -85,7 +126,7 @@ def test_sigma_E_to_zero_recovers_shared_true_energy():
     mu_grid, sigma_grid = grids.hyperparameter_grid(60, 60)
     hprior = priors.hyperparameter_prior(mu_grid, sigma_grid)
 
-    log_prior_hier = np.log(priors.energy_prior_given_hyperparams(en_grid, mu_grid, sigma_grid))
+    log_prior_hier = priors.log_energy_prior_given_hyperparams(en_grid, mu_grid, sigma_grid)
     loglik = forward_model.loglik_marginal_En_hierarchical(
         Ep_hat, theta_p, en_grid, SIGMA_EP, log_prior_hier
     )
@@ -111,16 +152,13 @@ def test_posterior_C_end_to_end_direction_and_hyperparams():
     )[0]
     mu_E_true, sigma_E_true = 3.0, 0.3
 
+    # generatore fisico isotropo in CM + risoluzioni SIGMA_EP, SIGMA_THETA
+    # (R3; prima: tracce isotrope in lab tagliate a theta_p <= pi/2, senza
+    # risoluzione angolare -- regime del "pixel a 53 gradi" del report)
     En_k = rng.normal(mu_E_true, sigma_E_true, n_events)
-    track_hat = rng.normal(size=(n_events, 3))
-    track_hat /= np.linalg.norm(track_hat, axis=1, keepdims=True)
-    theta_p_geo = kinematics.recoil_angle_from_direction(track_hat, omega_n_true[None, :])[:, 0]
-
-    mask = theta_p_geo <= np.pi / 2
-    track_hat, theta_p_geo, En_k = track_hat[mask], theta_p_geo[mask], En_k[mask]
-    Ep_true = En_k * np.cos(theta_p_geo) ** 2
+    Ep_true, track_true = kinematics.sample_recoil_events(rng, En_k, omega_n_true)
+    track_hat = kinematics.smear_direction(rng, track_true, SIGMA_THETA)
     Ep_hat = rng.normal(Ep_true, SIGMA_EP)
-    assert len(Ep_hat) > 10
 
     theta_grid, phi_grid = grids.sphere_grid()
     dprior = priors.direction_prior(theta_grid, phi_grid)
@@ -144,21 +182,37 @@ def test_posterior_C_end_to_end_direction_and_hyperparams():
     assert abs(mu_grid[best] - mu_E_true) < 0.5
 
 
-def test_estimate_shared_direction_raises_when_no_candidate_is_kinematically_allowed():
+def test_estimate_shared_direction_raises_when_combined_is_all_neginf(monkeypatch):
     # R1 (docs/report_caso_C_stadio1.md): se il combinato e' -inf su tutti i
     # candidati, np.argmax restituiva in silenzio il pixel 0 (polo nord della
-    # griglia, 52-53 gradi dalla verita' nel report). Caso deterministico:
-    # 4 tracce ai vertici di un tetraedro regolare. Sommano a zero e non sono
-    # complanari, quindi nessun Omega_n ha t_k . Omega_n >= 0 per tutte
-    # (sum_k t_k . Omega_n = 0 forzerebbe Omega_n = 0): ogni pixel ha
-    # almeno un evento con theta_p > pi/2.
+    # griglia, 52-53 gradi dalla verita' nel report). Con la risoluzione
+    # angolare (R3) posterior_B non produce piu' -inf: la guardia si testa
+    # forzando il Caso B a -inf ovunque.
+    theta_grid, phi_grid = grids.sphere_grid(800)
+    dprior = priors.direction_prior(theta_grid, phi_grid)
+    monkeypatch.setattr(
+        posterior_B, "single_event_posterior",
+        lambda D, grid, prior: np.full((D[0].shape[0], grid[0].shape[0]), -np.inf),
+    )
+    with pytest.raises(ValueError, match="-inf su tutti i candidati"):
+        posterior_C.estimate_shared_direction(
+            (np.full(4, 1.0), np.eye(3)[[0, 1, 2, 2]]), theta_grid, phi_grid, dprior
+        )
+
+
+def test_estimate_shared_direction_finite_when_no_direction_has_all_tracks_forward():
+    # Il caso che col taglio netto dava -inf ovunque (R1): 4 tracce ai vertici
+    # di un tetraedro regolare, che sommano a zero, quindi nessun Omega_n ha
+    # t_k . Omega_n >= 0 per tutte. Con la risoluzione angolare il combinato
+    # e' finito e lo stadio 1 restituisce un versore, senza errore.
     track_hat = np.array([[1.0, 1.0, 1.0], [1.0, -1.0, -1.0],
                           [-1.0, 1.0, -1.0], [-1.0, -1.0, 1.0]]) / np.sqrt(3.0)
     Ep_hat = np.full(4, 1.0)
 
     theta_grid, phi_grid = grids.sphere_grid(800)
     dprior = priors.direction_prior(theta_grid, phi_grid)
-    with pytest.raises(ValueError, match="-inf su tutti i candidati"):
-        posterior_C.estimate_shared_direction(
-            (Ep_hat, track_hat), theta_grid, phi_grid, dprior
-        )
+    omega_n_hat = posterior_C.estimate_shared_direction(
+        (Ep_hat, track_hat), theta_grid, phi_grid, dprior
+    )
+    assert omega_n_hat.shape == (1, 3)
+    np.testing.assert_allclose(np.linalg.norm(omega_n_hat), 1.0)
