@@ -249,6 +249,23 @@ def test_direction_cap_grid_within_radius_and_equal_area():
     np.testing.assert_allclose(np.sort(one_minus_cos), (np.arange(4000) + 0.5) / 4000, atol=1e-9)
 
 
+def test_direction_cap_radius_not_degenerate_when_map_self_angle_rounds_above_zero():
+    # Regressione P2 (report §8): a N=1000 resta un solo pixel sopra soglia; se
+    # arccos(best @ best) arrotonda a ~1e-8 invece di 0, il passo non deve
+    # diventare quell'angolo (calotta di raggio ~1e-8, sigma dichiarata 0).
+    omega_grid = kinematics.direction_from_theta_phi(*grids.sphere_grid())
+    # stessa operazione (matrice-vettore) del codice: l'arrotondamento dipende da essa
+    map_idx = next(i for i in range(omega_grid.shape[0]) if (omega_grid @ omega_grid[i])[i] < 1.0)
+    coarse = np.full(omega_grid.shape[0], -1e3)
+    coarse[map_idx] = 0.0
+    radius = posterior_C.direction_cap_radius(coarse, omega_grid, 10.0)
+    angle = np.arccos(np.clip(omega_grid @ omega_grid[map_idx], -1.0, 1.0))
+    assert angle[map_idx] > 0.0  # il caso che rompeva angle > 0
+    nearest = np.min(np.delete(angle, map_idx))
+    np.testing.assert_allclose(radius, angle[map_idx] + 2.0 * nearest, rtol=1e-12)
+    assert radius > np.deg2rad(1.0)
+
+
 def test_hyperparameter_window_contains_region_above_threshold():
     mu_grid, sigma_grid = grids.hyperparameter_grid(30, 30)
     log_post = -0.5 * ((mu_grid - 3.0) / 0.2) ** 2 - 0.5 * (np.log(sigma_grid / 0.4) / 0.3) ** 2

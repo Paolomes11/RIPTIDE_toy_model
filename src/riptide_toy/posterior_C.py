@@ -161,6 +161,29 @@ def direction_cap_grid(center_hat: np.ndarray, radius: float,
     return kinematics.theta_phi_from_direction(v)
 
 
+def direction_cap_radius(coarse: np.ndarray, omega_grid: np.ndarray,
+                         delta_log: float) -> float:
+    """Raggio della calotta di raffinamento: angolo massimo dal MAP dei pixel
+    grossolani con log-posterior > max - delta_log, piu' due passi della griglia
+    grossolana (distanza fra il MAP e il pixel piu' vicino), limitato a pi.
+    Il MAP si esclude per indice e non con angle > 0: arccos(best @ best)
+    arrotondato vale ~1.5e-8 rad, non 0, e darebbe una calotta degenere
+    (docs/report_caso_C_stadio1.md §8).
+
+    Args:
+        coarse: log-posterior combinato sulla griglia grossolana, forma (n_candidates,).
+        omega_grid: candidati Omega_n, versori, forma (n_candidates, 3).
+        delta_log: soglia sul log-posterior che definisce la regione tenuta.
+
+    Ritorna:
+        raggio della calotta, rad, scalare in (0, pi].
+    """
+    map_idx = np.argmax(coarse)
+    angle = np.arccos(np.clip(omega_grid @ omega_grid[map_idx], -1.0, 1.0))
+    step = np.min(np.delete(angle, map_idx))
+    return float(min(np.max(angle[coarse > coarse.max() - delta_log]) + 2.0 * step, np.pi))
+
+
 def direction_log_posterior_from_table(table: np.ndarray, track_hat: np.ndarray,
                                        theta_grid: np.ndarray, phi_grid: np.ndarray,
                                        direction_prior: np.ndarray) -> np.ndarray:
@@ -232,9 +255,7 @@ def refine_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
     check_finite_combined(coarse)
     omega_grid = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
     best = omega_grid[np.argmax(coarse)]
-    angle = np.arccos(np.clip(omega_grid @ best, -1.0, 1.0))
-    step = np.min(angle[angle > 0.0])
-    radius = min(np.max(angle[coarse > coarse.max() - delta_log]) + 2.0 * step, np.pi)
+    radius = direction_cap_radius(coarse, omega_grid, delta_log)
 
     cap_theta, cap_phi = direction_cap_grid(best, radius, n_cap)
     cap_prior = priors.direction_prior(cap_theta, cap_phi)
