@@ -9,9 +9,10 @@ Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapM
          python scripts/caso_C_checklist.py [n_processi]
      (un thread BLAS per processo; picco ~0.6 GB per processo a N=1000; il
      tetto MemoryMax fa uccidere dal kernel solo lo script, non l'editor)
-Produce: outputs/caso_C_contrazione.png, outputs/caso_C_pull.png,
+Produce: outputs/caso_C_checklist_results.pkl, outputs/caso_C_contrazione.png, outputs/caso_C_pull.png,
          outputs/caso_C_coverage.png, e la tabella su stdout.
 """
+import pickle
 import sys
 from multiprocessing import Pool
 from pathlib import Path
@@ -25,7 +26,7 @@ from scipy.stats import norm
 from riptide_toy import grids, kinematics, posterior_C, priors, validate
 from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
 
-# (N eventi, M esperimenti): M scala con 1/N; stima ~25 min su un processo (2026-09-26)
+# (N eventi, M esperimenti): M scala con 1/N; ~10 min con 3 processi (misurato 2026-09-26)
 N_M = [(1000, 40), (300, 100), (150, 200), (50, 200)]
 N_ROBUSTNESS = 150  # N a cui si ripete lo stadio 2 con prior uniforme in sigma_E
 MU_RANGE = (2.5, 4.0)       # MeV
@@ -120,6 +121,11 @@ def main() -> None:
     tasks = [(n, i) for n, m in N_M for i in range(m)]
     with Pool(n_proc) as pool:
         results = pool.map(run_experiment, tasks, chunksize=1)
+    out_dir = Path("outputs")
+    out_dir.mkdir(exist_ok=True)
+    # risultati grezzi per i notebook (07_checklist_caso_C_v2), senza rilanciare il run
+    with open(out_dir / "caso_C_checklist_results.pkl", "wb") as f:
+        pickle.dump({"N_M": N_M, "N_ROBUSTNESS": N_ROBUSTNESS, "LEVELS": LEVELS, "results": results}, f)
 
     n_values = sorted(n for n, _ in N_M)
     table = {n: collect(results, n) for n in n_values}
@@ -172,9 +178,6 @@ def main() -> None:
           f" | log sigma: medio {d_ls.mean():+.3f}, max |.| {np.abs(d_ls).max():.3f}"
           f" | coverage log sigma con prior U: {np.round(ls_cov_lin, 2)}")
     print("  nota: SIGMA_E_MAX non entra: la griglia fine e' ristretta alla finestra locale")
-
-    out_dir = Path("outputs")
-    out_dir.mkdir(exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(5.5, 4))
     for name, curve in rms_curves.items():
