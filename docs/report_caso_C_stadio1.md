@@ -516,6 +516,8 @@ Il punto aperto di §11.3 è stato esaminato con `scripts/caso_C_cov68.py` e nel
 
 ## 13. Punti residui chiusi (v0.14, 2026-09-26)
 
+Figure e tabelle di questa sezione sono riprodotte in `notebooks/10_punti_residui_caso_C_v0.14.ipynb`, che legge solo i pkl in `outputs/`.
+
 I run multi-processo sono stati eseguiti con `OMP_NUM_THREADS=1`, 3 processi e il tetto `systemd-run … MemoryMax=5G`.
 
 ### 13.1 Coverage al 90% di μ_E a N = 300: fluttuazione (c)
@@ -580,10 +582,10 @@ I valori combinati sono questi:
 
 | N (M) | coverage Ω (HPD) 68/90/95 | pull Ω rms | rms Ω (σ dichiarata media) [°] | v0.13: coverage / pull rms |
 |---|---|---|---|---|
-| 50 (200) | 0.70 / 0.88 / 0.93 | 1.05 | 1.97 (1.87) | 0.70 / 0.86 / 0.93, 1.08 |
-| 150 (200) | 0.65 / 0.88 / 0.93 | 1.04 | 1.11 (1.06) | 0.65 / 0.88 / 0.93, 1.05 |
-| 300 (100) | 0.66 / 0.91 / 0.96 | 1.00 | 0.75 (0.75) | 0.66 / 0.91 / 0.95, 1.00 |
-| 1000 (40) | 0.78 / 0.92 / 0.98 | 0.89 | 0.37 (0.41) | 0.78 / 0.93 / 0.97, 0.89 |
+| 50 (200) | 0.705 / 0.875 / 0.930 | 1.05 | 1.97 (1.87) | 0.700 / 0.860 / 0.925, 1.08 |
+| 150 (200) | 0.650 / 0.885 / 0.930 | 1.04 | 1.11 (1.06) | 0.650 / 0.875 / 0.930, 1.05 |
+| 300 (100) | 0.660 / 0.910 / 0.960 | 1.00 | 0.75 (0.75) | 0.660 / 0.910 / 0.950, 1.00 |
+| 1000 (40) | 0.775 / 0.925 / 0.975 | 0.89 | 0.37 (0.41) | 0.775 / 0.925 / 0.975 (identica), 0.89 |
 
 La pendenza di contrazione di Ω è invariata, −0.56. Sui seed della checklist la differenza è entro gli errori binomiali. La prova della correzione è il confronto a coppie sui seed nuovi della tabella precedente.
 
