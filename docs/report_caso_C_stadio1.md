@@ -10,7 +10,7 @@ Etichette come da convenzione del progetto: **(a)** fatto consolidato · **(b)**
 - Lo stadio 1 (`posterior_C.estimate_shared_direction`, che riusa il Caso B con prior piatto su E_n) produce un massimo a posteriori **sistematicamente sbagliato** quando le energie vere sono concentrate; l'errore non si riduce con N, anzi la frequenza dei fallimenti cresce **(c)**.
 - L'errore di direzione si propaga allo stadio 2 e fa apparire σ_E sempre più grande al crescere di N (fino al limite superiore della griglia) **(c)**.
 - La causa proposta (fattore 1/cos²θ_p del prior piatto in E_n, con modello mal specificato) è coerente con i dati ma **non ancora verificata (d)**.
-- Il checklist Cap. 40 sulla riga 14 non può essere formalizzato in modo onesto per σ_E finché lo stadio 1 non è risolto. Per μ_E i risultati preliminari sono sani **(c)**, ma condizionati a N piccolo.
+- La checklist di validazione sulla riga 14 non può essere formalizzato in modo onesto per σ_E finché lo stadio 1 non è risolto. Per μ_E i risultati preliminari sono sani **(c)**, ma condizionati a N piccolo.
 
 ## 2. Setup dei diagnostici
 
@@ -108,7 +108,7 @@ La causa è il taglio netto `θ_p > π/2 ⇒ −∞` combinato con tracce genera
 3. **Verosimiglianza con termine di traccia e risoluzione angolare**: `forward_model.loglik_marginal_En_theta` e la sua variante gerarchica marginalizzano θ_p vero con un kernel gaussiano 1D polare, per cui il taglio diventa morbido **(b)**. Sono usate in `posterior_B` e `posterior_C`.
 4. **Raffinamento locale**: `refine_shared_direction` (calotta Fibonacci attorno al MAP di Ω_n) e `refine_hyperparameters` (finestra fine su (μ_E, log σ_E)). Le griglie globali erano più larghe del posterior.
 
-### 6.3 Checklist Cap. 40 dopo le correzioni (riga 14) (c)
+### 6.3 Checklist di validazione dopo le correzioni (riga 14) (c)
 
 Script `scripts/caso_C_checklist.py`, con M esperimenti per N, μ_E ~ U(2.5, 4), σ_E log-U(0.2, 0.6) e Ω_n isotropa. Bias ± errore standard sulla media.
 
@@ -130,7 +130,7 @@ Coverage ai livelli 68/90/95%:
 
 - **Ω_n**: l'errore si contrae come 1/√N (pendenza −0.505, rms·√N ≈ 0.37 costante), senza più il pixel a 53°. Pull rms ≈ 0.79 a N=50/150/300, quindi le incertezze sono leggermente conservative. A N=1000 il pull rms esplode (≈8·10⁴) perché in alcuni esperimenti la risoluzione dichiarata è ≈0. La causa probabile è un posterior concentrato su un solo pixel della calotta, per cui si tratta di un artefatto di discretizzazione **(d)**.
 - **σ_E**: bias verso 0 con N (log σ da −0.14 a +0.01), pull ≈ N(0,1), coverage nominale. La pendenza di contrazione è −0.735, più ripida di −0.5 perché il bias iniziale a N piccolo decade. Il problema del §3.3 è risolto.
-- **μ_E**: bias **costante** di ≈ −0.02 MeV (≈0.6%), indipendente da N e significativo a più di 5σ a ogni N. La risoluzione scende (rms 0.082 → 0.028 MeV) ma la pendenza di contrazione è solo −0.36. Il pull medio passa da −0.25 a −1.05 e la coverage al 68% da 0.69 a 0.48. È il plateau di un sistematico condiviso (Cap. 39) e domina da N ≳ 300.
+- **μ_E**: bias **costante** di ≈ −0.02 MeV (≈0.6%), indipendente da N e significativo a più di 5σ a ogni N. La risoluzione scende (rms 0.082 → 0.028 MeV) ma la pendenza di contrazione è solo −0.36. Il pull medio passa da −0.25 a −1.05 e la coverage al 68% da 0.69 a 0.48. È il plateau di un sistematico condiviso e domina da N ≳ 300.
 - **Robustezza al prior** (N=150, prior uniforme in σ_E invece che in log σ_E): lo spostamento di μ_E è trascurabile (medio −0.009 σ, massimo 0.15 σ). Quello di log σ_E è moderato (medio +0.15 σ, massimo 0.68 σ), con coverage [0.59, 0.89, 0.95]. SIGMA_E_MAX non entra nel risultato.
 
 ### 6.4 Aperto: bias di μ_E (d)
@@ -270,7 +270,7 @@ Nota: a N=1000 la coverage 68% di μ_E vale 0.55 in entrambe le varianti, pur co
 
 Il prior plug-in usa i dati due volte (stadio 2 → stadio 1′). L'effetto atteso è O(1/N) sull'incertezza di Ω e non è visibile nei pull sopra. Etichetta (b): approssimazione empirical-Bayes, validata MC (c) nei regimi N=150 e N=1000.
 
-## 9. Checklist Cap. 40 completa dopo le correzioni P1–P3 (v0.10, 2026-09-26) (c)
+## 9. Checklist di validazione completa dopo le correzioni P1–P3 (v0.10, 2026-09-26) (c)
 
 Run completo di `scripts/caso_C_checklist.py`: kernel sferico (§7), raggio della calotta corretto (§8.1), stadio 1 iterato (§8.3). Setup e M come in §6.3; circa 10 minuti con 3 processi. I risultati grezzi sono in `outputs/caso_C_checklist_results.pkl`; tabelle, confronto con la v0.9 e figure sono nel notebook `notebooks/07_checklist_caso_C_v2.ipynb`.
 
@@ -442,7 +442,7 @@ log p(μ_E, σ_E | D) = log π(μ_E, σ_E) + log Σ_j exp Σ_k log L_k(μ_E, σ_
 - è proprio e non informativo sulla scala;
 - l'effetto sparisce con N;
 - la coverage di log σ_E resta entro gli errori binomiali a N = 50;
-- la robustezza al prior è già un punto della checklist (Cap. 40).
+- la robustezza al prior è già un punto della checklist di validazione.
 
 Chi riporta σ̂_E a N ≲ 150 deve dichiarare il prior usato.
 
