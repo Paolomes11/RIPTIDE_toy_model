@@ -247,7 +247,8 @@ Emersi dalla revisione dei doc contro CLAUDE.md, guida, test e notebook. Il Caso
    con E_n concentrata (report §8.2, §10.1). Manca la verifica con E_n distribuita come il suo prior.
 3. **Test del Caso B con Ω_n vera sul polo (c).** `tests/test_case_B.py` usa Ω_n vera = asse z, a
    ≈ √(2/n) dal pixel 0 di `grids.sphere_grid` (≈2.9° con 800 pixel): il vecchio fallimento
-   "combinato −∞ ⇒ pixel 0" non li farebbe fallire. Da spostare su una direzione generica.
+   "combinato −∞ ⇒ pixel 0" non li farebbe fallire. **Chiuso il 2026-09-26**: Ω_n vera = (0.9, 2.1)
+   come nel Caso C, test verdi.
 4. **Assunzioni 1 e 3 non messe alla prova (d).** Nessun test con contaminazione da una seconda
    sorgente (assunzione 1), con spettro non gaussiano (assunzione 3) o con prior diversi su E_n e Ω_n
    (la robustezza al prior copre solo σ_E a N = 150).
