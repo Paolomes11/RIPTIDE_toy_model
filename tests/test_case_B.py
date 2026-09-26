@@ -257,14 +257,15 @@ def test_combine_reuse_angular_contraction_vs_N():
     # che incorpora gia' il prior — stesso schema del Caso A: il prior va
     # passato una sola volta a combine_loglik).
     #
-    # Dati sintetici: Omega_n_true = asse z (nessuna perdita di generalita',
-    # come nel test riga 8), generatore fisico isotropo in CM e risoluzioni
+    # Dati sintetici: Omega_n_true generica (0.9, 2.1), come nel Caso C: sull'asse z
+    # la verita' cadrebbe accanto al pixel 0 della griglia di Fibonacci e il test
+    # non vedrebbe un combinato degenere (argmax = 0). Generatore fisico isotropo in CM e risoluzioni
     # SIGMA_EP, SIGMA_THETA (simulate_case_B_events). Rigenerati in R3 insieme
     # al termine di traccia: prima theta_p ~ U(0, pi/2 - 0.05) e tracce esatte.
     rng = np.random.default_rng(SEED)
     n_max = 100
 
-    omega_n_true = kinematics.direction_from_theta_phi(np.array([0.0]), np.array([0.0]))
+    omega_n_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([2.1]))
     en_true = rng.uniform(1.0, 5.0, n_max)
     Ep_hat, track_hat = simulate_case_B_events(rng, omega_n_true[0], en_true)
 
@@ -318,7 +319,8 @@ def test_angular_bias_and_pull_on_simulated_omega_n():
     log_prior_En = np.log(priors.energy_prior(en_grid))
     log_prior_dir = np.log(priors.direction_prior(theta_grid, phi_grid))
     omega_n_hat_grid = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
-    omega_n_true = kinematics.direction_from_theta_phi(np.array([0.0]), np.array([0.0]))
+    # Omega_n generica, lontana dal pixel 0 (vedi test di contrazione sopra)
+    omega_n_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([2.1]))
 
     pulls = np.empty(n_experiments)
     residuals = np.empty(n_experiments)
