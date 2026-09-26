@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.9 — 2026-09-25
+v0.10 — 2026-09-26
 
 ## Stato
 
@@ -20,7 +20,7 @@ v0.9 — 2026-09-25
 | 11 | `combine` su Ω_n (riuso) | fatto, nessuna modifica a `combine.py`; contrazione angolare σ(N=10)→σ(N=100) coerente con 1/√N entro tolleranza larga (singola realizzazione MC) |
 | 12 | `validate` su distanza angolare | fatto (`angular_residual`, `posterior_angular_resolution`, `angular_pull`, additive); verificato su geometria nota + su Caso B simulato (M=30 esperimenti, Ω_n nota): bias medio <20°, pull mediano d'ordine 1 |
 | 13 | `posterior_C` | fatto (`grids.hyperparameter_grid`, `priors.energy_prior_given_hyperparams`/`hyperparameter_prior`, `forward_model.loglik_marginal_En_hierarchical`, `posterior_C.estimate_shared_direction`/`single_event_posterior`), testato; entrambi i limiti di Sez. 5 verdi (σ_E→∞ ≈ Caso B entro atol=0.01 sulla log-verosimiglianza; σ_E→0 recupera l'energia condivisa vera entro 0.1 MeV) |
-| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist Cap. 40 completa, esito in `docs/report_caso_C_stadio1.md` §6: Ω_n e σ_E calibrati (c); **aperto**: bias costante di μ_E ≈ −0.02 MeV (plateau, domina da N≳300), causa (d) |
+| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist Cap. 40 v0.10 completa (`docs/report_caso_C_stadio1.md` §9, notebook 07): μ_E calibrato a ogni N (bias −0.02 MeV chiuso dal kernel sferico), Ω_n calibrato a N ≥ 150 e ~40% più preciso (stadio 1 iterato), σ_E calibrato a N ≥ 150 (c); **aperto**: a N = 50 bias di log σ_E −0.27 e coverage 90% 0.82, causa (d); coverage 68% di μ_E a N = 1000 da ricontrollare con M ≥ 100 |
 
 ## Deviazioni dalla guida (documentate, non silenziose)
 
@@ -189,10 +189,26 @@ v0.9 — 2026-09-25
   usa una finestra fine su (μ_E, log σ_E) entro `WINDOW_DELTA_LOG` dal massimo. Ω_n resta
   plug-in nello stadio 2 (griglia a due stadi, niente 4D). Lo stimatore puntuale di σ_E è la
   mediana del posterior marginale in log σ_E (la media pesata è sensibile alle code).
-- **Riga 14, bias aperto su μ_E (d)**: il bias è ≈ −0.02 MeV, costante in N (50–1000). Le cause
-  candidate sono il mismatch fra lo smearing 2D del generatore e il kernel 1D della
-  verosimiglianza, la discretizzazione delle griglie θ/E_n e (poco probabile) Ω_n plug-in.
-  Diagnostica proposta nel report, §6.4.
+- **Motore Caso C con prodotto di matrici (2026-09-26)**: `forward_model.log_matmul_exp`
+  calcola il log-sum-exp di somme separabili come GEMM BLAS e ricalcola in modo esatto solo le
+  celle in underflow; `track_energy_table`/`hierarchical_base` calcolano una volta le tabelle
+  che non dipendono dai candidati e i `refine_*` le riusano. Un esperimento a N = 300 passa da
+  18.8 s a 2.2 s, con log-posterior invariato entro 3·10⁻¹³ (c); la checklist completa da
+  ~45 min (6 processi) a ~10 min (3 processi).
+- **Kernel di traccia esatto sulla sfera (2026-09-26, chiude il bias di μ_E)**:
+  `forward_model.log_track_kernel_sphere` (errore von Mises–Fisher, κ = 1/σ_θ², integrato
+  sull'azimut con `scipy.special.ive`) sostituisce il kernel gaussiano 1D in
+  `track_energy_table` e `hierarchical_base`. Il kernel piatto trascurava la curvatura e dava
+  ΔE_n/E_n ≈ −σ_θ² (a); diagnosi con σ_θ = 0.04/0.08/0.16 in report §7 (c). Il generatore
+  resta gaussiano nel piano tangente (differenza O(σ⁴)); il vecchio kernel resta come
+  confronto.
+- **Raggio della calotta (2026-09-26)**: `posterior_C.direction_cap_radius` esclude il MAP per
+  indice invece di filtrare `angle > 0`, perché `arccos(best @ best)` può valere ~1.5·10⁻⁸
+  (report §8.1). Il raffinamento adattivo previsto dal piano non è servito.
+- **Stadio 1 iterato, empirical Bayes (2026-09-26)**: dopo lo stadio 2, lo stadio 1 si rifà
+  con prior N(μ̂_E, σ̂_E) su E_n (`posterior_C.refine_shared_direction_hierarchical`), poi si
+  rifà lo stadio 2. Resta a due stadi, niente 4D. Usa i dati due volte (b); a N = 50 peggiora
+  σ_E (report §9, (d)).
 
 ## Pubblicazione su GitHub
 

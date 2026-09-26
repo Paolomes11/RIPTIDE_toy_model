@@ -269,3 +269,33 @@ Validazione sugli stessi seed della checklist:
 Nota: a N=1000 la coverage 68% di μ_E vale 0.55 in entrambe le varianti, pur con larghezza del pull 1.0. Con M=40 l'errore binomiale è ±0.07, quindi lo scarto è di ~1.7σ. Va ricontrollata nella checklist completa (d).
 
 Il prior plug-in usa i dati due volte (stadio 2 → stadio 1′). L'effetto atteso è O(1/N) sull'incertezza di Ω e non è visibile nei pull sopra. Etichetta (b): approssimazione empirical-Bayes, validata MC (c) nei regimi N=150 e N=1000.
+
+## 9. Checklist Cap. 40 completa dopo le correzioni P1–P3 (v0.10, 2026-09-26) (c)
+
+Run completo di `scripts/caso_C_checklist.py`: kernel sferico (§7), raggio della calotta corretto (§8.1), stadio 1 iterato (§8.3). Setup e M come in §6.3; circa 10 minuti con 3 processi. I risultati grezzi sono in `outputs/caso_C_checklist_results.pkl`; tabelle, confronto con la v0.9 e figure sono nel notebook `notebooks/07_checklist_caso_C_v2.ipynb`.
+
+| N (M) | bias μ_E [MeV] | bias log σ_E | pull μ_E (media/larghezza) | pull Ω rms | coverage μ_E 68/90/95 | coverage log σ_E 68/90/95 | coverage Ω (HPD) 68/90/95 |
+|---|---|---|---|---|---|---|---|
+| 50 (200) | +0.0015 ± 0.0057 | −0.27 ± 0.04 | −0.02 / 1.01 | 1.08 | 0.65 / 0.89 / 0.95 | 0.61 / 0.82 / 0.91 | 0.70 / 0.86 / 0.93 |
+| 150 (200) | −0.0001 ± 0.0036 | −0.08 ± 0.02 | +0.01 / 0.97 | 1.05 | 0.70 / 0.92 / 0.95 | 0.60 / 0.87 / 0.94 | 0.65 / 0.88 / 0.93 |
+| 300 (100) | −0.0013 ± 0.0039 | −0.03 ± 0.02 | −0.04 / 1.14 | 1.00 | 0.66 / 0.87 / 0.91 | 0.64 / 0.87 / 0.92 | 0.66 / 0.91 / 0.95 |
+| 1000 (40) | +0.0016 ± 0.0032 | +0.00 ± 0.01 | +0.06 / 1.01 | 0.89 | 0.57 / 0.95 / 1.00 | 0.70 / 0.97 / 1.00 | 0.78 / 0.93 / 0.97 |
+
+Contrazione (pendenza log-log; rms·√N a N = 50, 150, 300, 1000):
+
+- μ_E: −0.46; 0.57, 0.62, 0.68, 0.64. Nella v0.9 era −0.36 e rms·√N cresceva fino a 0.87: il plateau è sparito.
+- Ω_n: −0.56; 0.24, 0.24, 0.23, 0.20 rad (v0.9: circa 0.37).
+- log σ_E: −0.81, come nella v0.9, perché a N piccolo domina il prior.
+
+Robustezza al prior a N = 150: invariata rispetto a §6.3.
+
+**Esito.**
+
+- **μ_E**: calibrato a ogni N; P1 chiuso.
+- **Ω_n**: calibrato a N ≥ 150, errore rms circa −40%, σ finita a N = 1000; P2 chiuso, P3 chiuso a N ≥ 150.
+- **Regressione a N = 50 su log σ_E**: bias −0.27 (v0.9 −0.14) e coverage al 90% 0.82 (−3.8 errori binomiali; v0.9 0.88). Ω_n è lievemente sovra-confidente al 90% e al 95%.
+  - Ipotesi (d): uso doppio dei dati nel prior plug-in (§8.3), effetto O(1/N) che svanisce da N ≈ 150.
+  - La correlazione per esperimento fra il residuo di log σ_E e il pull di Ω non è significativa (Spearman −0.13, p = 0.07): il test non conferma e non esclude il meccanismo.
+  - Test diretto da fare: N = 50 con stadio 1 a prior largo contro iterato.
+- **Coverage 68% di μ_E a N = 1000**: 0.57 con M = 40 (−1.5 errori binomiali), ma 0.95 e 1.00 al 90% e al 95% e larghezza del pull 1.01: compatibile con una fluttuazione (d). Da ricontrollare con M ≥ 100.
+- I numeri a N = 1000 differiscono di 1–2 esperimenti su 40 da quelli di §8.3 (coverage 68%: μ_E 0.57 contro 0.55, Ω 0.78 contro 0.72). La causa non è stata indagata; fanno fede quelli di questo run.
