@@ -21,6 +21,8 @@ Etichette come da convenzione del progetto: **(a)** fatto consolidato · **(b)**
 | Memoria di `posterior_B` (§3.6) | chiuso: elaborazione a blocchi | §13.5 |
 | Spiegazione (d) di §11.1 | resta (d), su una funzione non usata nella pipeline | §11.1 |
 
+Punti aperti fuori dal Caso C (calibrazione dei Casi A e B, test delle assunzioni 1 e 3): `docs/roadmap.md`, sezione "Punti aperti" (v0.15).
+
 **Sintesi iniziale (2026-09-25), superata e conservata per la storia:**
 
 > **Aggiornamento 2026-09-25:** la causa vera è un'altra (combinato −∞ ⇒ pixel 0) e l'ipotesi del §4 è smentita; correzioni e checklist della riga 14 sono in §6.
