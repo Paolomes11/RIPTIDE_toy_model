@@ -377,3 +377,81 @@ Contrazione, robustezza al prior e pull di Ω sono invariati rispetto a §9:
   - bias residuo di log σ_E a N piccolo: −0.15 a N = 50, −0.055 a N = 150. Ipotesi: l'incertezza di Ω̂_0, circa 3° a N = 50, non è propagata nello stadio 2. Rimedio da provare: marginalizzare lo stadio 2 su alcuni pixel della calotta, pesati con la posterior di Ω;
   - rms di log σ_E maggiore della σ dichiarata a N = 150–300 (0.27 contro 0.19; 0.17 contro 0.11), con pull e coverage nominali, già presente nella v0.9;
   - a N = 300 la coverage al 90% di μ_E vale 0.84 (−2 errori binomiali; v0.10 0.87), con larghezza del pull 1.14 in entrambe le versioni. Da tenere d'occhio.
+
+## 11. Bias di log σ_E a N piccolo: effetto del prior largo (v0.12, 2026-09-26)
+
+Il bias residuo di log σ_E lasciato aperto in §10.3 (−0.15 a N = 50, −0.055 a N = 150) è stato messo alla prova con due test. Entrambi usano gli stessi seed della checklist (`spawn_key=(N, i)`) e lo stadio 1 a prior largo della v0.11. Gli script sono diagnostiche nello scratchpad, non incluse nel repo, girate con 3 processi.
+
+### 11.1 Correzione 2: stadio 2 marginalizzato su Ω_n (c, scartata)
+
+`posterior_C.refine_hyperparameters_marginal_direction` (commit `9cecac3`, funzione additiva) calcola il marginale esatto del posterior congiunto:
+
+log p(μ_E, σ_E | D) = log π(μ_E, σ_E) + log Σ_j exp Σ_k log L_k(μ_E, σ_E, Ω_j) + cost.
+
+- La somma su Ω_j è una quadratura su `N_DIRECTION_MARGINAL = 100` pixel ad area uguale. I pixel coprono la calotta dello stadio 1 in cui il log-posterior supera max − `WINDOW_DELTA_LOG`.
+- Il prior su Ω_n è uniforme, quindi il peso di ogni pixel è costante.
+- La finestra fine su (μ_E, σ_E) è quella dello stadio 2 su Ω̂_0 ed è comune a tutti i pixel.
+- Test in `tests/test_case_C.py`:
+  - con una calotta puntiforme il marginale coincide con il condizionato;
+  - il marginale non è più stretto del condizionato.
+
+| | N = 50, condizionato su Ω̂_0 | N = 50, marginalizzato | N = 150, condizionato | N = 150, marginalizzato |
+|---|---|---|---|---|
+| bias log σ_E (mediana) | −0.154 ± 0.033 | −0.234 ± 0.036 | −0.055 ± 0.019 | −0.073 ± 0.019 |
+| rms log σ_E | 0.485 | 0.562 | 0.272 | 0.281 |
+| coverage log σ_E 68/90/95 | 0.665 / 0.885 / 0.93 | 0.64 / 0.86 / 0.91 | 0.60 / 0.87 / 0.945 | 0.61 / 0.875 / 0.94 |
+| bias μ_E [MeV] | +0.002 ± 0.006 | +0.002 ± 0.006 | +0.001 ± 0.004 | +0.000 ± 0.004 |
+| tempo dello stadio 2 per esperimento | 0.5 s | 15.7 s | 1.1 s | 43 s |
+
+**Esito.**
+
+- Marginalizzare su Ω_n **peggiora** il bias. La mediana di log σ_E scende in circa 2/3 degli esperimenti, e il costo sale di circa 30–40 volte. L'ipotesi di §10.3, "incertezza di Ω non propagata", è falsificata (c).
+- Spiegazione possibile (d): la verosimiglianza congiunta favorisce le direzioni in cui le E_n ricostruite sono più concentrate. Marginalizzare sposta quindi massa verso σ_E piccola, e questo è compatibile con un modello corretto.
+- La funzione resta nel codice come documentazione del test, ma **non è usata** dalla checklist.
+
+### 11.2 Test della causa: prior uguale al generatore (c)
+
+**Test.** Lo stadio 2 su Ω̂_0 è stato ricalcolato con due prior:
+
+- il prior di default (`priors.hyperparameter_prior`): uniforme in (μ_E, log σ_E) su tutta la griglia, cioè μ_E ∈ [`EN_MIN`, `EN_MAX`] e σ_E ∈ [`SIGMA_E_MIN`, `SIGMA_E_MAX`] = [0.01, 50] MeV;
+- un prior uguale al generatore della checklist: μ_E ~ U(2.5, 4.0), σ_E log-uniforme in [0.2, 0.6] MeV.
+
+**Perché è un test decisivo.** Con il prior del generatore, le verità sono estratte dal prior stesso. Se il modello è giusto, E[media a posteriori − verità] = 0 esattamente. Con il prior di default si ritrovano esattamente i numeri della checklist v0.11.
+
+| N (M) | prior | bias log σ_E (mediana) | bias log σ_E (media) | rms / σ dichiarata media | coverage log σ_E 68/90/95 | bias μ_E [MeV] | coverage μ_E 68/90/95 |
+|---|---|---|---|---|---|---|---|
+| 50 (200) | default | −0.154 ± 0.033 | −0.214 ± 0.036 | 0.551 / 0.416 | 0.665 / 0.885 / 0.93 | +0.002 ± 0.006 | 0.675 / 0.91 / 0.96 |
+| | generatore | **+0.018 ± 0.014** | **+0.020 ± 0.014** | 0.195 / 0.190 | 0.73 / 0.905 / 0.96 | −0.005 ± 0.005 | 0.715 / 0.94 / 0.975 |
+| 150 (200) | default | −0.055 ± 0.019 | −0.072 ± 0.021 | 0.308 / 0.190 | 0.60 / 0.87 / 0.945 | +0.001 ± 0.004 | 0.695 / 0.915 / 0.955 |
+| | generatore | **+0.006 ± 0.010** | **+0.007 ± 0.010** | 0.135 / 0.118 | 0.60 / 0.92 / 0.975 | −0.001 ± 0.004 | 0.705 / 0.92 / 0.95 |
+| 300 (100) | default | −0.017 ± 0.017 | −0.021 ± 0.018 | 0.185 / 0.111 | 0.64 / 0.87 / 0.94 | −0.001 ± 0.004 | 0.66 / 0.84 / 0.91 |
+| | generatore | **+0.004 ± 0.010** | **+0.005 ± 0.010** | 0.102 / 0.091 | 0.60 / 0.84 / 0.94 | −0.002 ± 0.004 | 0.66 / 0.84 / 0.92 |
+
+**Meccanismo (c).**
+
+- A N piccolo σ_E spesso non è risolta dal basso. Nel 30% degli esperimenti a N = 50 (61 su 200) il posterior ha un plateau verso σ_E → 0 che arriva fino a `SIGMA_E_MIN = 0.01` MeV; il MAP resta interno. A N = 150 succede nell'8% dei casi.
+- Il prior log-uniforme su [0.01, 50] mette in quel plateau molta massa, che il generatore (σ_E ∈ [0.2, 0.6]) non usa mai. La mediana di log σ_E viene quindi trascinata verso il basso, soprattutto quando σ_E vera è piccola. Col prior di default il bias medio per terzile di σ_E vera a N = 50 vale −0.35 / −0.20 / −0.09.
+- Il bias scende con N come ci si aspetta da un effetto del prior: −0.15 → −0.055 → −0.017.
+- Col prior del generatore, il bias per terzile vale +0.18 / −0.01 / −0.11. È il restringimento verso il centro del prior, che in media si compensa.
+- Anche l'"rms di log σ_E maggiore della σ dichiarata" di §10.3 era un effetto del prior: col prior del generatore rms e σ dichiarata coincidono entro circa il 15% (0.135 contro 0.118 a N = 150).
+
+### 11.3 Decisione ed esito
+
+**Decisione:** si **tiene il prior largo** come default. Il bias di log σ_E a N piccolo viene dichiarato come **effetto del prior (c)**, non come errore del modello. Le ragioni:
+
+- è proprio e non informativo sulla scala;
+- l'effetto sparisce con N;
+- la coverage di log σ_E resta entro gli errori binomiali a N = 50;
+- la robustezza al prior è già un punto della checklist (Cap. 40).
+
+Chi riporta σ̂_E a N ≲ 150 deve dichiarare il prior usato.
+
+**Chiuso (c):**
+
+- bias residuo di log σ_E a N piccolo;
+- rms di log σ_E maggiore della σ dichiarata.
+
+**Ancora aperto (d)**, invariato con entrambi i prior:
+
+- coverage al 68% di log σ_E bassa a N = 150–300 (0.60–0.64, tra 1 e 2.4 errori binomiali), mentre 90% e 95% sono nominali;
+- coverage al 90% di μ_E a N = 300 pari a 0.84 (circa −1.6 errori binomiali con M = 100).
