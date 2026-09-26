@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from scipy.special import logsumexp
 
 from riptide_toy import (combine, forward_model, grids, kinematics, posterior_B, posterior_C,
                          priors)
@@ -308,4 +309,49 @@ def test_marginalize_En_hierarchical_independent_of_chunk_sizes():
     log_prior_En_grid = rng.normal(0.0, 3.0, (23, 50))
     reference = forward_model.marginalize_En_hierarchical(base, log_prior_En_grid, 1000, 1000)
     chunked = forward_model.marginalize_En_hierarchical(base, log_prior_En_grid, 7, 5)
-    np.testing.assert_array_equal(chunked, reference)
+    # prodotto di matrici: BLAS somma in ordine diverso a seconda della forma,
+    # quindi uguaglianza solo a precisione macchina (non bit a bit)
+    np.testing.assert_allclose(chunked, reference, rtol=1e-12, atol=0.0)
+
+
+def test_log_matmul_exp_matches_logsumexp_including_underflow():
+    rng = np.random.default_rng(SEED)
+    a = rng.normal(0.0, 3.0, (30, 40))
+    b = rng.normal(0.0, 3.0, (20, 40))
+    a[0] = -2000.0 + np.arange(40) * 50.0  # righe con dinamica enorme: ripiego logsumexp
+    b[1] = -np.inf
+    b[1, 5] = -700.0
+    expected = logsumexp(a[:, None, :] + b[None, :, :], axis=2)
+    np.testing.assert_allclose(forward_model.log_matmul_exp(a, b), expected, rtol=1e-12)
+
+
+def test_logsumexp_axis_matches_scipy_including_all_neginf_slices():
+    rng = np.random.default_rng(SEED)
+    x = rng.normal(0.0, 30.0, (6, 7, 9))
+    x[0, 2, :] = -np.inf
+    x[1, :, 3] = -np.inf
+    for axis in range(3):
+        np.testing.assert_allclose(forward_model.logsumexp_axis(x, axis), logsumexp(x, axis=axis),
+                                   rtol=1e-12)
+
+
+def test_table_reuse_matches_direct_posteriors():
+    # le varianti "from_table"/"from_base" usate da refine_* devono dare lo
+    # stesso posterior delle funzioni dirette (ricalcolo completo)
+    rng = np.random.default_rng(SEED)
+    (Ep_hat, track_hat), omega_true = case_C_dataset(15, rng)
+    theta_grid, phi_grid = grids.sphere_grid(500)
+    prior = priors.direction_prior(theta_grid, phi_grid)
+    direct = posterior_C.shared_direction_log_posterior((Ep_hat, track_hat), theta_grid, phi_grid, prior)
+    table = posterior_C.case_B_track_table(Ep_hat)
+    reused = posterior_C.direction_log_posterior_from_table(table, track_hat, theta_grid, phi_grid, prior)
+    np.testing.assert_allclose(reused, direct, rtol=1e-12)
+
+    mu_grid, sigma_grid = grids.hyperparameter_grid(8, 8)
+    hyper_prior = priors.hyperparameter_prior(mu_grid, sigma_grid)
+    D = (Ep_hat, track_hat, omega_true[None, :])
+    direct = posterior_C.shared_hyperparameter_log_posterior(D, mu_grid, sigma_grid, hyper_prior)
+    theta_obs = kinematics.recoil_angle_from_direction(track_hat, omega_true[None, :])[:, 0]
+    base = forward_model.hierarchical_base(Ep_hat, theta_obs, grids.energy_grid(), SIGMA_EP, SIGMA_THETA)
+    reused = posterior_C.hyperparameter_log_posterior_from_base(base, mu_grid, sigma_grid, hyper_prior)
+    np.testing.assert_allclose(reused, direct, rtol=1e-12)

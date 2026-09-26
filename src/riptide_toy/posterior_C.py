@@ -161,6 +161,44 @@ def direction_cap_grid(center_hat: np.ndarray, radius: float,
     return kinematics.theta_phi_from_direction(v)
 
 
+def direction_log_posterior_from_table(table: np.ndarray, track_hat: np.ndarray,
+                                       theta_grid: np.ndarray, phi_grid: np.ndarray,
+                                       direction_prior: np.ndarray) -> np.ndarray:
+    """Come shared_direction_log_posterior, ma dalla tabella del Caso B gia'
+    calcolata (forward_model.track_energy_table, prior largo su En come in
+    posterior_B): la tabella non dipende dai candidati e si riusa fra griglia
+    grossolana e calotta. Assunzioni: 1 + 2.
+
+    Args:
+        table: forma (n_events, n_theta_obs), da forward_model.track_energy_table.
+        track_hat: direzione 3D della traccia, versori, forma (n_events, 3).
+        theta_grid, phi_grid: candidati Omega_n, rad, forma (n_candidates,).
+        direction_prior: prior proprio sui candidati, forma (n_candidates,).
+
+    Ritorna:
+        array (n_candidates,), log-posterior combinato non normalizzato.
+    """
+    omega_n_hat = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
+    theta_obs = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)
+    loglik = forward_model.interpolate_track_table(table, theta_obs)
+    return combine.combine_loglik(loglik, np.log(direction_prior))
+
+
+def case_B_track_table(Ep_hat: np.ndarray) -> np.ndarray:
+    """Tabella del Caso B per lo stadio 1 (prior largo su En, risoluzioni
+    SIGMA_EP e SIGMA_THETA, come posterior_B.single_event_posterior).
+
+    Args:
+        Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
+
+    Ritorna:
+        array (n_events, N_THETA_OBS), vedi forward_model.track_energy_table.
+    """
+    en_grid = grids.energy_grid()
+    log_prior_En = np.log(priors.energy_prior(en_grid))
+    return forward_model.track_energy_table(Ep_hat, en_grid, SIGMA_EP, SIGMA_THETA, log_prior_En)
+
+
 def refine_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
                             theta_grid: np.ndarray, phi_grid: np.ndarray,
                             direction_prior: np.ndarray,
@@ -187,7 +225,10 @@ def refine_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
          cap_log_post (n_cap,) log-posterior combinato non normalizzato,
          cap_theta, cap_phi (n_cap,) rad).
     """
-    coarse = shared_direction_log_posterior(D_B, theta_grid, phi_grid, direction_prior)
+    Ep_hat, track_hat = D_B
+    table = case_B_track_table(Ep_hat)  # una volta: griglia grossolana e calotta
+    coarse = direction_log_posterior_from_table(table, track_hat, theta_grid, phi_grid,
+                                                direction_prior)
     check_finite_combined(coarse)
     omega_grid = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
     best = omega_grid[np.argmax(coarse)]
@@ -197,7 +238,8 @@ def refine_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
 
     cap_theta, cap_phi = direction_cap_grid(best, radius, n_cap)
     cap_prior = priors.direction_prior(cap_theta, cap_phi)
-    cap_log_post = shared_direction_log_posterior(D_B, cap_theta, cap_phi, cap_prior)
+    cap_log_post = direction_log_posterior_from_table(table, track_hat, cap_theta, cap_phi,
+                                                      cap_prior)
     check_finite_combined(cap_log_post)
     cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
     map_idx = np.argmax(cap_log_post)
@@ -222,6 +264,28 @@ def shared_hyperparameter_log_posterior(D: tuple[np.ndarray, np.ndarray, np.ndar
     """
     per_event = single_event_posterior(D, (mu_grid, sigma_grid), prior)
     return combine.combine_loglik(per_event - np.log(prior)[None, :], np.log(prior))
+
+
+def hyperparameter_log_posterior_from_base(base: np.ndarray, mu_grid: np.ndarray,
+                                           sigma_grid: np.ndarray,
+                                           prior: np.ndarray) -> np.ndarray:
+    """Come shared_hyperparameter_log_posterior, ma dalla tabella per evento
+    su En gia' calcolata (forward_model.hierarchical_base): non dipende dagli
+    iperparametri e si riusa fra griglia globale e fine. Assunzioni: 1 + 2 + 3.
+
+    Args:
+        base: forma (n_events, n_En) su grids.energy_grid(), da hierarchical_base.
+        mu_grid, sigma_grid: ipotesi su (mu_E, sigma_E), MeV, forma (n_hyper,).
+        prior: prior proprio sulla griglia, forma (n_hyper,).
+
+    Ritorna:
+        array (n_hyper,), log-posterior combinato non normalizzato.
+    """
+    log_prior_En_grid = priors.log_energy_prior_given_hyperparams(
+        grids.energy_grid(), mu_grid, sigma_grid
+    )
+    loglik = forward_model.marginalize_En_hierarchical(base, log_prior_En_grid)
+    return combine.combine_loglik(loglik, np.log(prior))
 
 
 def hyperparameter_window(log_post: np.ndarray, mu_grid: np.ndarray, sigma_grid: np.ndarray,
@@ -271,11 +335,16 @@ def refine_hyperparameters(D: tuple[np.ndarray, np.ndarray, np.ndarray],
         (log_post_fine (n_mu*n_sigma,) log-posterior combinato non normalizzato,
          mu_fine, sigma_fine (n_mu*n_sigma,) MeV, layout di grids.hyperparameter_grid_window).
     """
-    coarse = shared_hyperparameter_log_posterior(D, mu_grid, sigma_grid, prior_fn(mu_grid, sigma_grid))
+    Ep_hat, track_hat, omega_n_hat = D
+    theta_obs = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)[:, 0]
+    base = forward_model.hierarchical_base(Ep_hat, theta_obs, grids.energy_grid(),
+                                           SIGMA_EP, SIGMA_THETA)  # una volta: due griglie
+    coarse = hyperparameter_log_posterior_from_base(base, mu_grid, sigma_grid,
+                                                    prior_fn(mu_grid, sigma_grid))
     mu_fine, sigma_fine = grids.hyperparameter_grid_window(
         *hyperparameter_window(coarse, mu_grid, sigma_grid, delta_log), n_mu, n_sigma
     )
-    log_post_fine = shared_hyperparameter_log_posterior(
-        D, mu_fine, sigma_fine, prior_fn(mu_fine, sigma_fine)
+    log_post_fine = hyperparameter_log_posterior_from_base(
+        base, mu_fine, sigma_fine, prior_fn(mu_fine, sigma_fine)
     )
     return log_post_fine, mu_fine, sigma_fine
