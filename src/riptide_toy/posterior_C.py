@@ -445,6 +445,30 @@ def refine_hyperparameters(D: tuple[np.ndarray, np.ndarray, np.ndarray],
     return log_post_fine, mu_fine, sigma_fine
 
 
+def predictive_energy_moments(log_post: np.ndarray, mu_grid: np.ndarray,
+                              sigma_grid: np.ndarray) -> tuple[float, float]:
+    """Media e deviazione standard di E_n sotto la predittiva a posteriori
+    dello stadio 2, E_n ~ N(mu_E, sigma_E) mediata su p(mu_E, sigma_E | D):
+
+        E[E_n] = E[mu_E],  Var[E_n] = E[sigma_E**2] + Var[mu_E].
+
+    Prior dello stadio 1' (report §13, punto B): il plug-in con sigma_hat
+    ignora l'incertezza su (mu_E, sigma_E) e a N=50 rende Omega_n sovra-
+    confidente di ~4%; la predittiva ne tiene conto. Assunzioni: 1 + 2 + 3.
+
+    Args:
+        log_post: log-posterior non normalizzato su (mu_E, sigma_E), forma (m,).
+        mu_grid, sigma_grid: nodi della griglia, MeV, forma (m,).
+
+    Ritorna:
+        (media, deviazione standard) di E_n, MeV, scalari.
+    """
+    w = np.exp(log_post - log_post.max())
+    w /= w.sum()
+    mean = float(w @ mu_grid)
+    return mean, float(np.sqrt(w @ (sigma_grid ** 2 + mu_grid ** 2) - mean ** 2))
+
+
 def refine_hyperparameters_marginal_direction(
         D_B: tuple[np.ndarray, np.ndarray], omega_hat: np.ndarray,
         cap_log_post: np.ndarray, cap_theta: np.ndarray, cap_phi: np.ndarray,

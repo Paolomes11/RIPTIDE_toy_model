@@ -402,6 +402,18 @@ def test_hierarchical_track_table_reduces_to_case_B_when_sigma_E_large():
                                posterior_C.case_B_track_table(D_B[0]), rtol=1e-8, atol=1e-8)
 
 
+def test_predictive_energy_moments_mixture_and_point_mass():
+    # Due nodi equiprobabili: media (2+4)/2 = 3, Var = E[sigma^2] + Var[mu] = (0.09+0.25)/2 + 1.
+    mean, sd = posterior_C.predictive_energy_moments(np.log([0.5, 0.5]), np.array([2.0, 4.0]),
+                                                     np.array([0.3, 0.5]))
+    assert mean == pytest.approx(3.0)
+    assert sd == pytest.approx(np.sqrt(0.17 + 1.0))
+    # Posterior concentrato su un nodo => predittiva = plug-in N(mu, sigma).
+    mean, sd = posterior_C.predictive_energy_moments(np.array([0.0, -np.inf]), np.array([2.0, 4.0]),
+                                                     np.array([0.3, 0.5]))
+    assert (mean, sd) == pytest.approx((2.0, 0.3))
+
+
 def test_refine_shared_direction_hierarchical_near_truth_and_narrower():
     # Stadio 1 iterato (report §8.2): con il prior gerarchico plug-in il posterior
     # su Omega_n e' piu' stretto di quello col prior largo e resta vicino alla verita'.
