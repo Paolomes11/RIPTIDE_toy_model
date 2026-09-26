@@ -3,7 +3,7 @@ import numpy as np
 
 def combine_loglik(loglik_matrix: np.ndarray, log_prior: np.ndarray) -> np.ndarray:
     """Combina il log-posterior di piu' eventi sullo stesso parametro condiviso
-    (Cap. 22/39): somma sull'asse eventi, prior contato una sola volta.
+    (eventi condizionatamente indipendenti): somma sull'asse eventi, prior contato una sola volta.
 
     Args:
         loglik_matrix: log-verosimiglianza per evento, forma (n_eventi, n_punti_griglia).
@@ -16,7 +16,7 @@ def combine_loglik(loglik_matrix: np.ndarray, log_prior: np.ndarray) -> np.ndarr
 
 
 def expected_sigma_n(sigma_1: float, n: int) -> float:
-    """Contrazione attesa della risoluzione con N eventi indipendenti (Cap. 39).
+    """Contrazione attesa della risoluzione con N eventi indipendenti, sigma_1/sqrt(N).
 
     Args:
         sigma_1: risoluzione (sigma) di un singolo evento.

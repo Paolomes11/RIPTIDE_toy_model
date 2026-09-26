@@ -2,7 +2,7 @@ import numpy as np
 
 
 def bias_curve(truth: np.ndarray, estimate: np.ndarray, n_bins: int = 20) -> tuple[np.ndarray, np.ndarray]:
-    """Bias medio di una ricostruzione in funzione del valore vero, a bin (Cap. 40 punto 1).
+    """Bias medio di una ricostruzione in funzione del valore vero, a bin (checklist di validazione, punto 1).
 
     Args:
         truth: valore vero per evento, forma (n_eventi,).
@@ -27,7 +27,7 @@ def bias_curve(truth: np.ndarray, estimate: np.ndarray, n_bins: int = 20) -> tup
 
 
 def pull_histogram(truth: np.ndarray, estimate: np.ndarray, sigma_hat: np.ndarray) -> np.ndarray:
-    """Pull di una ricostruzione, atteso N(0, 1) se calibrata (Cap. 40 punto 3).
+    """Pull di una ricostruzione, atteso N(0, 1) se calibrata (checklist di validazione, punto 3).
 
     Args:
         truth: valore vero per evento, forma (n_eventi,).
@@ -41,7 +41,7 @@ def pull_histogram(truth: np.ndarray, estimate: np.ndarray, sigma_hat: np.ndarra
 
 
 def coverage_curve(truth: np.ndarray, intervals: np.ndarray, levels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Copertura empirica di intervalli credibili a piu' livelli nominali (Cap. 40 punto 4).
+    """Copertura empirica di intervalli credibili a piu' livelli nominali (checklist di validazione, punto 4).
 
     Nota: la guida (Sez. 3) non da' un type hint per `intervals`. Si sceglie qui la
     forma piu' generica possibile (estremi espliciti, non necessariamente simmetrici
@@ -64,7 +64,7 @@ def coverage_curve(truth: np.ndarray, intervals: np.ndarray, levels: np.ndarray)
 
 def run_checklist(reconstruction_fn, simulated_truths: np.ndarray, levels: np.ndarray,
                    n_bins: int = 20, **kwargs) -> dict:
-    """Esegue la checklist Cap. 40 (punti 1, 3, 4 in ordine) su una ricostruzione.
+    """Esegue la checklist di validazione (punti 1, 3, 4 in ordine) su una ricostruzione.
 
     Args:
         reconstruction_fn: callable(simulated_truths, **kwargs) -> (estimate, sigma_hat,
@@ -96,7 +96,7 @@ def run_checklist(reconstruction_fn, simulated_truths: np.ndarray, levels: np.nd
 
 def angular_residual(omega_true_hat: np.ndarray, omega_estimate_hat: np.ndarray) -> np.ndarray:
     """Distanza angolare fra direzione vera e ricostruita (riga 12: estensione di
-    validate.py per il Caso B, etichetta (d) — non e' nel libro, verificata su dati
+    validate.py per il Caso B, etichetta (d) — nessun valore di riferimento, verificata su dati
     simulati con Omega_n nota, vedi docs/roadmap.md).
 
     Args:
@@ -137,8 +137,8 @@ def posterior_angular_resolution(log_posterior: np.ndarray, omega_hat_grid: np.n
 
 def posterior_mean_std(log_posterior: np.ndarray, grid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Media e deviazione standard pesate su un posterior a griglia per un parametro
-    scalare (Cap. 19, generalizza il calcolo gia' usato inline per gli oracoli
-    Es. 38.1/39.1 e per la voce "risoluzione_caso_A" di docs/roadmap.md; qui
+    scalare (momenti del posterior; generalizza il calcolo gia' usato inline per
+    i casi di riferimento R1/R2 e per la voce "risoluzione_caso_A" di docs/roadmap.md; qui
     fattorizzata perche' riusata per i parametri scalari mu_E, sigma_E del Caso C,
     riga 14 -- analoga a posterior_angular_resolution ma per un asse lineare invece
     che sferico). Estensione additiva (CLAUDE.md Sez. 6, checkpoint Caso A).
@@ -161,12 +161,12 @@ def posterior_mean_std(log_posterior: np.ndarray, grid: np.ndarray) -> tuple[np.
 
 
 def angular_pull(angular_dist: np.ndarray, sigma_hat: np.ndarray) -> np.ndarray:
-    """Pull della distanza angolare (Cap. 40 punto 3, estensione (d)). A differenza del
+    """Pull della distanza angolare (checklist di validazione punto 3, estensione (d)). A differenza del
     pull 1D (pull_histogram, gia' verificato N(0,1) se calibrato), la distanza angolare
     e' una quantita' non negativa: un ricostruttore calibrato la cui incertezza
     dichiarata sigma_hat riflette correttamente lo scatter reale produce
     angular_dist/sigma_hat con scala ~1, non media 0 — da verificare su dati simulati
-    con Omega_n nota (etichetta (d), ipotesi da testare, non un oracolo del libro).
+    con Omega_n nota (etichetta (d), ipotesi da testare, non un caso di riferimento).
 
     Args:
         angular_dist: distanza angolare, rad, forma (n_eventi,) (angular_residual).
@@ -181,7 +181,7 @@ def angular_pull(angular_dist: np.ndarray, sigma_hat: np.ndarray) -> np.ndarray:
 
 def credible_interval(log_posterior: np.ndarray, grid: np.ndarray, levels: np.ndarray) -> np.ndarray:
     """Intervalli credibili a code uguali letti da un posterior a griglia, per
-    un parametro scalare (Cap. 40 punto 4, coverage del Caso C, riga 14).
+    un parametro scalare (checklist di validazione punto 4, coverage del Caso C, riga 14).
     Se grid ha valori ripetuti (es. un asse di una griglia 2D appiattita) il
     posterior viene prima marginalizzato sommando sui punti con lo stesso
     valore. Quantili per interpolazione lineare della CDF ai centri delle
@@ -218,8 +218,8 @@ def credible_interval(log_posterior: np.ndarray, grid: np.ndarray, levels: np.nd
 def credible_region_contains(log_posterior: np.ndarray, true_index: np.ndarray,
                              levels: np.ndarray) -> np.ndarray:
     """Copertura con regioni di massima densita' (HPD) su una griglia di
-    candidati ad area/volume uguale, es. la calotta di Omega_n (Cap. 40 punto
-    4, riga 14): il candidato vero e' nella regione a livello L se la massa
+    candidati ad area/volume uguale, es. la calotta di Omega_n (checklist di
+    validazione punto 4, riga 14): il candidato vero e' nella regione a livello L se la massa
     dei candidati piu' probabili di lui e' < L. Estensione additiva.
 
     Args:

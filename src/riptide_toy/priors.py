@@ -5,8 +5,8 @@ from scipy.special import logsumexp
 
 def energy_prior(en_grid: np.ndarray) -> np.ndarray:
     """Prior su En: piatta ma propria, limitata al dominio di en_grid
-    (Cap. 38, Es. 38.1: "a flat prior"). Mai flat impropria su un
-    dominio illimitato (Cap. 38): qui e' propria perche' en_grid ha
+    (caso di riferimento R1: prior piatto). Mai flat impropria su un
+    dominio illimitato: qui e' propria perche' en_grid ha
     estremi finiti.
 
     Args:
@@ -41,8 +41,8 @@ def energy_prior_given_hyperparams(en_grid: np.ndarray, mu_E: np.ndarray,
                                     sigma_E: np.ndarray) -> np.ndarray:
     """pi(En | mu_E, sigma_E): gaussiana troncata al dominio di en_grid e
     rinormalizzata (Caso C, prior gerarchico sull'energia condivisa,
-    CLAUDE.md Sez. 3: "E_n^(k) ~ N(mu_E, sigma_E)"). Mai flat impropria
-    (Cap. 38): la normalizzazione e' sul dominio finito di en_grid, non su
+    CLAUDE.md Sez. 3: "E_n^(k) ~ N(mu_E, sigma_E)"). Mai flat impropria:
+    la normalizzazione e' sul dominio finito di en_grid, non su
     tutta la retta reale, quindi resta propria anche per sigma_E grande
     rispetto al dominio (limite Caso B).
 
@@ -113,7 +113,7 @@ def hyperparameter_prior(mu_grid: np.ndarray, sigma_grid: np.ndarray) -> np.ndar
 def hyperparameter_prior_uniform_sigma(mu_grid: np.ndarray, sigma_grid: np.ndarray) -> np.ndarray:
     """Prior alternativa su (mu_E, sigma_E), uniforme in (mu_E, sigma_E)
     invece che in (mu_E, log sigma_E): serve solo al test di robustezza al
-    prior (Cap. 40, ultimo punto della checklist, riga 14). Su una griglia
+    prior (ultimo punto della checklist di validazione, riga 14). Su una griglia
     con sigma_E spaziata logaritmicamente la cella ha larghezza ~sigma_E,
     quindi il peso per punto e' proporzionale a sigma_E.
 
