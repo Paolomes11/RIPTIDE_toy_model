@@ -1,4 +1,4 @@
-"""Riga 14: checklist Cap. 40 sul Caso C (stadio 1 + stadio 2 raffinati).
+"""Riga 14: checklist Cap. 40 sul Caso C (stadio 1 iterato + stadio 2 raffinati).
 
 Ordine della checklist (CLAUDE.md Sez. 7): bias -> risoluzione -> pull ->
 coverage -> contrazione ~1/sqrt(N) -> robustezza al prior.
@@ -25,7 +25,7 @@ from scipy.stats import norm
 from riptide_toy import grids, kinematics, posterior_C, priors, validate
 from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
 
-# (N eventi, M esperimenti): M scala con 1/N; ~45 min con 6 processi
+# (N eventi, M esperimenti): M scala con 1/N; stima ~25 min su un processo (2026-09-26)
 N_M = [(1000, 40), (300, 100), (150, 200), (50, 200)]
 N_ROBUSTNESS = 150  # N a cui si ripete lo stadio 2 con prior uniforme in sigma_E
 MU_RANGE = (2.5, 4.0)       # MeV
@@ -53,8 +53,18 @@ def run_experiment(task: tuple[int, int]) -> dict:
     D_B = (rng.normal(Ep_true, SIGMA_EP), kinematics.smear_direction(rng, track, SIGMA_THETA))
 
     theta_grid, phi_grid = grids.sphere_grid()
-    omega_hat, cap_log_post, cap_theta, cap_phi = posterior_C.refine_shared_direction(
-        D_B, theta_grid, phi_grid, priors.direction_prior(theta_grid, phi_grid)
+    direction_prior = priors.direction_prior(theta_grid, phi_grid)
+    mu_grid, sigma_grid = grids.hyperparameter_grid()
+    # Stadio 1 iterato (report §8.3): prior largo su En -> stadio 2 -> stadio 1'
+    # con prior plug-in N(mu_hat, sigma_hat) su En
+    omega_0 = posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, direction_prior)[0]
+    log_post, mu_fine, sigma_fine = posterior_C.refine_hyperparameters(
+        (*D_B, omega_0), mu_grid, sigma_grid, priors.hyperparameter_prior
+    )
+    mu_hat = validate.posterior_mean_std(log_post[None, :], mu_fine)[0][0]
+    ls_hat = validate.posterior_mean_std(log_post[None, :], np.log(sigma_fine))[0][0]
+    omega_hat, cap_log_post, cap_theta, cap_phi = posterior_C.refine_shared_direction_hierarchical(
+        D_B, theta_grid, phi_grid, direction_prior, mu_hat, np.exp(ls_hat)
     )
     cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
     cap_pixel = np.sqrt(2 * np.pi * (1.0 - np.min(cap_grid @ omega_hat[0])) / cap_grid.shape[0])
@@ -70,7 +80,6 @@ def run_experiment(task: tuple[int, int]) -> dict:
         "omega_sigma": validate.posterior_angular_resolution(cap_log_post[None, :], cap_grid, omega_hat)[0],
         "omega_covered": omega_covered,
     }
-    mu_grid, sigma_grid = grids.hyperparameter_grid()
     D = (*D_B, omega_hat)
     prior_fns = {"logU": priors.hyperparameter_prior}
     if n_events == N_ROBUSTNESS:

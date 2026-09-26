@@ -243,3 +243,29 @@ Diagnosi: stadio 1 sugli stessi seed a N=150 (M=200), cambiando solo il prior su
 | vero N(μ_E, σ_E) | 1.04 ± 0.05 | 1.05 | 0.66 | 1.11° | 1.06° |
 
 La sovra-copertura è dovuta al nuisance E_n mal specificato: ogni evento viene marginalizzato su un E_n ammesso in [0.5, 6] MeV, mentre i dati hanno E_n ≈ μ_E ± σ_E. Con il prior giusto Ω è calibrato (pull rms ≈ 1, coverage nominale) ed è più preciso del 36% in errore rms. Questo coincide con l'opzione 2 del §5.
+
+### 8.3 Rimedio: stadio 1 iterato con prior plug-in su E_n (c)
+
+Procedura (empirical Bayes, resta a due stadi, niente griglia 4D):
+
+1. stadio 1 con prior largo su E_n, che dà Ω̂⁽⁰⁾;
+2. stadio 2, che dà μ̂_E (media a posteriori) e σ̂_E = exp(E[log σ_E]);
+3. stadio 1′ con prior N(μ̂_E, σ̂_E) su E_n (`posterior_C.refine_shared_direction_hierarchical`), che dà Ω̂;
+4. stadio 2′ con Ω̂.
+
+Validazione sugli stessi seed della checklist:
+
+| N, M | stadio 1 | pull rms Ω | coverage 68% Ω | errore rms Ω | bias μ_E [MeV] | pull μ_E (media/larghezza) | bias log σ_E |
+|---|---|---|---|---|---|---|---|
+| 150, 200 | largo | 0.78 | 0.86 | 1.73° | +0.0007 ± 0.0037 | +0.03 / 0.98 | −0.07 |
+| 150, 200 | iterato | 1.05 | 0.62 | 1.11° | −0.0001 ± 0.0036 | +0.01 / 0.97 | −0.10 |
+| 1000, 40 | largo | 0.71 | 0.90 | 0.62° | +0.0017 ± 0.0032 | +0.07 / 1.00 | +0.01 |
+| 1000, 40 | iterato | 0.89 | 0.72 | 0.37° | +0.0016 ± 0.0032 | +0.06 / 1.01 | +0.00 |
+
+- A N=150 l'iterazione riproduce l'oracolo del §8.2 (pull 1.04, coverage 0.66, errore 1.11°) senza conoscere μ_E e σ_E veri.
+- A N=1000 l'errore su Ω scende del 40% e il pull torna vicino a 1.
+- μ_E e σ_E praticamente non cambiano: lo stadio 2 era già poco sensibile a errori su Ω di ~1°.
+
+Nota: a N=1000 la coverage 68% di μ_E vale 0.55 in entrambe le varianti, pur con larghezza del pull 1.0. Con M=40 l'errore binomiale è ±0.07, quindi lo scarto è di ~1.7σ. Va ricontrollata nella checklist completa (d).
+
+Il prior plug-in usa i dati due volte (stadio 2 → stadio 1′). L'effetto atteso è O(1/N) sull'incertezza di Ω e non è visibile nei pull sopra. Etichetta (b): approssimazione empirical-Bayes, validata MC (c) nei regimi N=150 e N=1000.
