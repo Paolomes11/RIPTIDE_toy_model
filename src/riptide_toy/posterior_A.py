@@ -7,7 +7,7 @@ from riptide_toy.constants import SIGMA_EP, SIGMA_THETA
 def single_event_posterior(D: tuple[np.ndarray, np.ndarray], shared_param_grid: np.ndarray,
                             prior: np.ndarray) -> np.ndarray:
     """Log-posterior non normalizzato su En, per uno o piu' eventi, con
-    theta_p marginalizzato come nuisance (Caso A, Cap. 38).
+    theta_p marginalizzato come nuisance (Caso A).
 
     Nota: diverge dalla guida (Sez. 3), che assume theta_p_hat gia'
     fissato dentro loglik. Qui forward_model.loglik marginalizza

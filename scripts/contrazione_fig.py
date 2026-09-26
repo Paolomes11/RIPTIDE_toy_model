@@ -1,7 +1,7 @@
-"""Riproduce la Fig. 39.1 del libro (Cap. 39, Esercizio 3) e lo shift sistematico 2%.
+"""Figura di contrazione del posterior combinato vs N (Caso A) e shift sistematico 2%.
 
-Uso: python scripts/ch39_fig_repro.py
-Produce: outputs/fig_39_1.png, outputs/fig_39_1_systematic_shift.png
+Uso: python scripts/contrazione_fig.py
+Produce: outputs/contrazione_N.png, outputs/contrazione_shift_sistematico.png
 """
 from pathlib import Path
 
@@ -15,8 +15,8 @@ from riptide_toy import forward_model, grids, kinematics, priors
 from riptide_toy.combine import combine_loglik, expected_sigma_n
 from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
 
-EN_TRUE = 2.5  # MeV, energia condivisa della Fig. 39.1
-N_VALUES = [1, 2, 10, 100]  # stesso range della Fig. 39.1 del libro
+EN_TRUE = 2.5  # MeV, energia condivisa degli eventi simulati
+N_VALUES = [1, 2, 10, 100]  # range della figura di contrazione
 
 # il plateau di contrazione sotto sistematico non e' ancora visibile a N=100 (lo shift
 # in Ep e' piccolo rispetto a sigma_Ep, quindi a N=100 e' ancora sotto il rumore
@@ -88,11 +88,11 @@ def main() -> None:
     axes[1].legend()
 
     fig.tight_layout()
-    fig.savefig(outputs_dir / "fig_39_1.png", dpi=150)
+    fig.savefig(outputs_dir / "contrazione_N.png", dpi=150)
     plt.close(fig)
 
     # shift sistematico 2% su ogni evento (stesso D_theta, Ep osservato scalato):
-    # comune a tutti gli eventi, non si mediazza via con N (Cap. 39, "common mistakes").
+    # comune a tutti gli eventi, non si mediazza via con N: un sistematico condiviso produce un plateau.
     ep_true_shifted = 1.02 * ep_true
     D_shifted = forward_model.measure(ep_true_shifted, theta_p_true, SIGMA_EP, SIGMA_THETA, rng)
     ll_matrix_shifted = forward_model.loglik(
@@ -113,15 +113,15 @@ def main() -> None:
     ax2.set_title("shift sistematico 2%: l'offset non converge a zero")
     ax2.legend()
     fig2.tight_layout()
-    fig2.savefig(outputs_dir / "fig_39_1_systematic_shift.png", dpi=150)
+    fig2.savefig(outputs_dir / "contrazione_shift_sistematico.png", dpi=150)
     plt.close(fig2)
 
     print(f"(c) senza sistematico: sigma(N={N_VALUES}) = {sigmas}")
     print(f"(c) senza sistematico: |offset|(N={N_VALUES}) = {offsets}")
     print(f"(c) con shift 2%: sigma(N={N_VALUES_SHIFT}) = {sigmas_shifted}")
     print(f"(c) con shift 2%: |offset|(N={N_VALUES_SHIFT}) = {offsets_shifted}")
-    print(f"scritto: {outputs_dir / 'fig_39_1.png'}")
-    print(f"scritto: {outputs_dir / 'fig_39_1_systematic_shift.png'}")
+    print(f"scritto: {outputs_dir / 'contrazione_N.png'}")
+    print(f"scritto: {outputs_dir / 'contrazione_shift_sistematico.png'}")
 
 
 if __name__ == "__main__":

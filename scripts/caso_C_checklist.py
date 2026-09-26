@@ -1,4 +1,4 @@
-"""Riga 14: checklist Cap. 40 sul Caso C (stadio 2 su omega_0, Omega_n da stadio 1 iterato).
+"""Riga 14: checklist di validazione sul Caso C (stadio 2 su omega_0, Omega_n da stadio 1 iterato).
 
 Ordine della checklist (CLAUDE.md Sez. 7): bias -> risoluzione -> pull ->
 coverage -> contrazione ~1/sqrt(N) -> robustezza al prior.
@@ -122,7 +122,7 @@ def main() -> None:
 
     n_values = sorted(n for n, _ in N_M)
     table = {n: collect(results, n) for n in n_values}
-    print("Caso C, checklist Cap. 40 (riga 14); mu, sigma in MeV, Omega in gradi")
+    print("Caso C, checklist di validazione (riga 14); mu, sigma in MeV, Omega in gradi")
     print("stime: mu = media posteriore, sigma = mediana posteriore di log sigma_E, Omega = MAP sulla calotta")
     for n in n_values:
         t = table[n]
