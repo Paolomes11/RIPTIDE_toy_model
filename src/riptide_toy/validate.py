@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import numpy as np
 
 
@@ -62,8 +64,9 @@ def coverage_curve(truth: np.ndarray, intervals: np.ndarray, levels: np.ndarray)
     return levels, covered.mean(axis=0)
 
 
-def run_checklist(reconstruction_fn, simulated_truths: np.ndarray, levels: np.ndarray,
-                   n_bins: int = 20, **kwargs) -> dict:
+def run_checklist(reconstruction_fn: Callable[..., tuple[np.ndarray, np.ndarray, np.ndarray]],
+                  simulated_truths: np.ndarray, levels: np.ndarray,
+                  n_bins: int = 20, **kwargs) -> dict:
     """Esegue la checklist di validazione (punti 1, 3, 4 in ordine) su una ricostruzione.
 
     Args:

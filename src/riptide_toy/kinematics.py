@@ -3,9 +3,15 @@ import numpy as np
 from riptide_toy.constants import M_NEUTRON, M_PROTON
 
 def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
-    """Ep = En * cos(theta_p)**2.
-    Return: array of the same dimensionas En/theta_p (broadvasting numpy)
-    scatter energy in MeV."""
+    """Energia del protone di rinculo, Ep = En * cos(theta_p)**2.
+
+    Args:
+        En: energia del neutrone incidente, MeV, forma (n,) o scalare.
+        theta_p: angolo di rinculo in lab, rad, stessa forma di En.
+
+    Ritorna:
+        Ep in MeV, stessa forma degli input (broadcasting numpy).
+    """
     return En * (np.cos(theta_p) ** 2)
 
 def sample_cm_angle(rng: np.random.Generator, n: int) -> np.ndarray:
