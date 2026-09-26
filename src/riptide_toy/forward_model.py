@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.special import logsumexp
+from scipy.special import ive, logsumexp
 
 from riptide_toy import kinematics
 from riptide_toy.constants import N_THETA_OBS, N_THETA_TRACK
@@ -242,7 +242,9 @@ def log_track_kernel(theta_obs: np.ndarray, theta_grid: np.ndarray,
     solo lungo il meridiano per Omega_n, quindi la convoluzione 2D si riduce
     a una 1D sulla coordinata con segno s del meridiano (s < 0 = oltre il
     polo: da qui il termine specchiato in -theta). Curvatura della sfera
-    trascurata, errore O(sigma_theta^2).
+    trascurata, errore O(sigma_theta^2): produce un bias di mu_E
+    ~ -sigma_theta^2 mu_E nel Caso C. Sostituito nel motore da
+    log_track_kernel_sphere; resta come confronto.
 
     Args:
         theta_obs: angolo osservato fra traccia e Omega_n, rad, forma (n,), >= 0.
@@ -261,6 +263,47 @@ def log_track_kernel(theta_obs: np.ndarray, theta_grid: np.ndarray,
     log_gauss = (np.logaddexp(-0.5 * z_plus ** 2, -0.5 * z_minus ** 2)
                  - np.log(sigma_theta * np.sqrt(2.0 * np.pi)))
     return log_gauss + (log_track_density(theta_grid) + log_weight)[None, :]
+
+
+def log_track_kernel_sphere(theta_obs: np.ndarray, theta_grid: np.ndarray,
+                            sigma_theta: float) -> np.ndarray:
+    """Come log_track_kernel, ma con la convoluzione esatta sulla sfera:
+    errore della traccia von Mises-Fisher di concentrazione
+    kappa = 1/sigma_theta^2 (la gaussiana 2D nel piano tangente di
+    kinematics.smear_direction a meno di O(sigma_theta^4)), integrato
+    sull'azimut del theta vero attorno a Omega_n (a):
+
+        K = kappa/(1 - e^{-2 kappa}) sin(theta) exp(kappa (cos(theta_obs - theta) - 1))
+            * I0e(kappa sin(theta_obs) sin(theta)),
+
+    per steradiante della traccia osservata e per unita' di theta. Per
+    kappa sin(theta_obs) sin(theta) >> 1 si riduce a log_track_kernel per
+    sqrt(sin(theta)/sin(theta_obs)): la curvatura trascurata nel kernel 1D,
+    che spostava theta_p vero verso l'alto di ~sigma^2 cot(theta)/2 e
+    produceva il bias di mu_E ~ -sigma_theta^2 mu_E (docs/report_caso_C_stadio1.md
+    §7, verificato con MC). Il passaggio oltre il polo e' gia' dentro I0:
+    nessun termine specchiato.
+
+    Args:
+        theta_obs: angolo osservato fra traccia e Omega_n, rad, forma (n,), in [0, pi].
+        theta_grid: griglia uniforme su [0, pi/2] per theta vero, rad, forma (m,).
+        sigma_theta: risoluzione angolare per componente, rad.
+
+    Ritorna:
+        array (n, m), log-pesi; exp(...).sum(axis=1) approssima la densita'
+        per steradiante della traccia osservata.
+    """
+    kappa = 1.0 / sigma_theta ** 2
+    step = theta_grid[1] - theta_grid[0]
+    log_weight = np.full(theta_grid.shape, np.log(step))
+    log_weight[[0, -1]] -= np.log(2.0)
+    t_obs, t_true = theta_obs[:, None], theta_grid[None, :]
+    # cos(d) - 1 = -2 sin^2(d/2): nessuna cancellazione per d << 1 (kappa grande)
+    log_vmf = -2.0 * kappa * np.sin(0.5 * (t_obs - t_true)) ** 2
+    with np.errstate(divide="ignore"):
+        log_norm = np.log(kappa) - np.log1p(-np.exp(-2.0 * kappa)) + np.log(np.sin(theta_grid))
+        log_bessel = np.log(ive(0, kappa * np.sin(t_obs) * np.sin(t_true)))
+    return log_vmf + log_bessel + (log_norm + log_track_density(theta_grid) + log_weight)[None, :]
 
 
 def track_energy_table(Ep_hat: np.ndarray, En_grid: np.ndarray, sigma_Ep: float,
@@ -288,7 +331,7 @@ def track_energy_table(Ep_hat: np.ndarray, En_grid: np.ndarray, sigma_Ep: float,
     """
     theta_grid = np.linspace(0.0, np.pi / 2, n_theta)
     obs_grid = np.linspace(0.0, np.pi, n_theta_obs)
-    kernel = log_track_kernel(obs_grid, theta_grid, sigma_theta)  # (n_obs, n_theta)
+    kernel = log_track_kernel_sphere(obs_grid, theta_grid, sigma_theta)  # (n_obs, n_theta)
 
     n_events = Ep_hat.shape[0]
     table = np.empty((n_events, n_theta_obs), dtype=np.float64)
@@ -394,7 +437,7 @@ def hierarchical_base(Ep_hat: np.ndarray, theta_obs: np.ndarray, En_grid: np.nda
     base = np.empty((n_events, En_grid.shape[0]), dtype=np.float64)
     for start in range(0, n_events, event_chunk_size):
         end = min(start + event_chunk_size, n_events)
-        kernel = log_track_kernel(theta_obs[start:end], theta_grid, sigma_theta)
+        kernel = log_track_kernel_sphere(theta_obs[start:end], theta_grid, sigma_theta)
         energy = -0.5 * ((Ep_hat[start:end, None, None] - Ep_pred[None]) / sigma_Ep) ** 2
         base[start:end] = logsumexp_axis(kernel[:, :, None] + energy, axis=1)
     return base

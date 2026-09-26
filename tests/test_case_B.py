@@ -141,6 +141,44 @@ def test_log_track_kernel_normalized_per_steradian():
     assert abs(total - 1.0) < 0.01
 
 
+def test_log_track_kernel_sphere_normalized_and_exact_first_moment():
+    # (a) vMF: E[cos theta_obs] = E[cos theta_p] * (coth k - 1/k), k = 1/sigma^2
+    # (teorema di addizione), E[cos theta_p] = 2/3 per cos(theta_p)/pi.
+    # Il kernel piatto sbaglia questo momento di ~sigma^2/3 (la curvatura
+    # all'origine del bias di mu_E, report Caso C §7).
+    obs = np.linspace(0.0, np.pi, 4001)
+    theta = np.linspace(0.0, np.pi / 2, 400)
+    density = np.exp(forward_model.log_track_kernel_sphere(obs, theta, SIGMA_THETA)).sum(axis=1)
+    total = trapezoid(density * 2 * np.pi * np.sin(obs), obs)
+    mean_cos = trapezoid(density * np.cos(obs) * 2 * np.pi * np.sin(obs), obs)
+    kappa = 1.0 / SIGMA_THETA ** 2
+    assert abs(total - 1.0) < 1e-4
+    assert abs(mean_cos - 2.0 / 3.0 * (1.0 / np.tanh(kappa) - 1.0 / kappa)) < 1e-4
+
+
+def test_log_track_kernel_sphere_matches_smear_direction_monte_carlo():
+    rng = np.random.default_rng(SEED)
+    _, track = kinematics.sample_recoil_events(rng, np.full(400_000, 3.0), np.array([0.0, 0.0, 1.0]))
+    cos_obs = kinematics.smear_direction(rng, track, SIGMA_THETA)[:, 2]
+    obs = np.linspace(0.0, np.pi, 4001)
+    theta = np.linspace(0.0, np.pi / 2, 400)
+    density = np.exp(forward_model.log_track_kernel_sphere(obs, theta, SIGMA_THETA)).sum(axis=1)
+    mean_cos = trapezoid(density * np.cos(obs) * 2 * np.pi * np.sin(obs), obs)
+    assert abs(cos_obs.mean() - mean_cos) < 4.0 * cos_obs.std() / np.sqrt(cos_obs.size)
+
+
+def test_log_track_kernel_sphere_reduces_to_flat_times_curvature_factor():
+    # kappa sin(theta_obs) sin(theta) >> 1: I0e(z) ~ 1/sqrt(2 pi z), quindi
+    # sfera / piatto -> sqrt(sin(theta)/sin(theta_obs)) vicino al picco
+    theta = np.linspace(0.0, np.pi / 2, 400)
+    obs = np.array([0.6, 1.0])
+    near = np.abs(obs[:, None] - theta[None, :]) < 2.0 * SIGMA_THETA
+    ratio = np.exp(forward_model.log_track_kernel_sphere(obs, theta, SIGMA_THETA)
+                   - forward_model.log_track_kernel(obs, theta, SIGMA_THETA))
+    expected = np.sqrt(np.sin(theta)[None, :] / np.sin(obs)[:, None])
+    np.testing.assert_allclose(ratio[near], expected[near], rtol=2e-2)
+
+
 def test_loglik_marginal_En_theta_sigma_to_zero_is_sharp_cut_plus_track_term():
     # Limite sigma_theta -> 0: si ritrova il vecchio loglik_marginal_En (taglio
     # netto) piu' log(cos(theta_p)/pi), dove Ep/cos^2 resta dentro il dominio

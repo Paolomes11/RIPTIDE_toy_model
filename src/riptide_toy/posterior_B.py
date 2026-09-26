@@ -15,7 +15,7 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray],
     il termine di traccia cos(theta_p)/pi. La traccia ha risoluzione
     angolare SIGMA_THETA: theta_p vero e' marginalizzato attorno
     all'angolo osservato fra track_hat e ogni candidato
-    (forward_model.loglik_marginal_En_theta, approssimazione (b)), senza
+    (forward_model.loglik_marginal_En_theta, kernel vMF esatto sulla sfera), senza
     taglio netto a pi/2: il posterior e' finito su tutta la sfera.
 
     Args:
