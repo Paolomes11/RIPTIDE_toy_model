@@ -222,6 +222,55 @@ def case_B_track_table(Ep_hat: np.ndarray) -> np.ndarray:
     return forward_model.track_energy_table(Ep_hat, en_grid, SIGMA_EP, SIGMA_THETA, log_prior_En)
 
 
+def hierarchical_track_table(Ep_hat: np.ndarray, mu_E: float, sigma_E: float) -> np.ndarray:
+    """Tabella dello stadio 1 con prior su En gerarchico plug-in
+    N(mu_E, sigma_E) troncata (stime dello stadio 2) invece del prior largo del
+    Caso B: con il prior largo la direzione e' conservativa e meno precisa
+    (docs/report_caso_C_stadio1.md §8.2). Empirical Bayes: l'incertezza su
+    (mu_E, sigma_E) non e' propagata, la checklist dice se basta.
+
+    Args:
+        Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
+        mu_E: stima puntuale di mu_E, MeV, scalare.
+        sigma_E: stima puntuale di sigma_E, MeV, scalare > 0.
+
+    Ritorna:
+        array (n_events, N_THETA_OBS), vedi forward_model.track_energy_table.
+    """
+    en_grid = grids.energy_grid()
+    log_prior_En = priors.log_energy_prior_given_hyperparams(
+        en_grid, np.array([mu_E]), np.array([sigma_E]))[0]
+    return forward_model.track_energy_table(Ep_hat, en_grid, SIGMA_EP, SIGMA_THETA, log_prior_En)
+
+
+def refine_shared_direction_hierarchical(D_B: tuple[np.ndarray, np.ndarray],
+                                         theta_grid: np.ndarray, phi_grid: np.ndarray,
+                                         direction_prior: np.ndarray,
+                                         mu_E: float, sigma_E: float,
+                                         delta_log: float = WINDOW_DELTA_LOG,
+                                         n_cap: int = N_DIRECTION_CAP
+                                         ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Stadio 1 iterato: come refine_shared_direction ma con il prior su En
+    N(mu_E, sigma_E) dalle stime dello stadio 2 (una sola iterazione; resta a
+    due stadi, niente griglia 4D, CLAUDE.md Sez. 4). Assunzioni: 1 + 2 + 3.
+
+    Args:
+        D_B: (Ep_hat, track_hat), come in estimate_shared_direction.
+        theta_grid, phi_grid: griglia grossolana, rad, forma (n_candidates,).
+        direction_prior: prior sulla griglia grossolana, forma (n_candidates,).
+        mu_E, sigma_E: stime puntuali dello stadio 2, MeV, scalari.
+        delta_log: soglia sul log-posterior che definisce la regione tenuta.
+        n_cap: pixel della calotta fine.
+
+    Ritorna:
+        come refine_shared_direction.
+    """
+    Ep_hat, track_hat = D_B
+    return refine_direction_from_table(hierarchical_track_table(Ep_hat, mu_E, sigma_E),
+                                       track_hat, theta_grid, phi_grid, direction_prior,
+                                       delta_log, n_cap)
+
+
 def refine_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
                             theta_grid: np.ndarray, phi_grid: np.ndarray,
                             direction_prior: np.ndarray,
@@ -249,7 +298,32 @@ def refine_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
          cap_theta, cap_phi (n_cap,) rad).
     """
     Ep_hat, track_hat = D_B
-    table = case_B_track_table(Ep_hat)  # una volta: griglia grossolana e calotta
+    return refine_direction_from_table(case_B_track_table(Ep_hat), track_hat, theta_grid,
+                                       phi_grid, direction_prior, delta_log, n_cap)
+
+
+def refine_direction_from_table(table: np.ndarray, track_hat: np.ndarray,
+                                theta_grid: np.ndarray, phi_grid: np.ndarray,
+                                direction_prior: np.ndarray,
+                                delta_log: float = WINDOW_DELTA_LOG,
+                                n_cap: int = N_DIRECTION_CAP
+                                ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Griglia grossolana + calotta fine di refine_shared_direction, da una
+    tabella gia' calcolata (una volta per entrambe le griglie): la tabella
+    fissa il prior su En (largo del Caso B, o gerarchico plug-in).
+    Assunzioni: 1 + 2 (+ 3 se la tabella usa il prior gerarchico).
+
+    Args:
+        table: forma (n_events, n_theta_obs), da forward_model.track_energy_table.
+        track_hat: direzione 3D della traccia, versori, forma (n_events, 3).
+        theta_grid, phi_grid: griglia grossolana, rad, forma (n_candidates,).
+        direction_prior: prior sulla griglia grossolana, forma (n_candidates,).
+        delta_log: soglia sul log-posterior che definisce la regione tenuta.
+        n_cap: pixel della calotta fine.
+
+    Ritorna:
+        come refine_shared_direction.
+    """
     coarse = direction_log_posterior_from_table(table, track_hat, theta_grid, phi_grid,
                                                 direction_prior)
     check_finite_combined(coarse)

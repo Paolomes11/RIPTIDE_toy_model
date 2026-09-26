@@ -3,7 +3,7 @@ import pytest
 from scipy.special import logsumexp
 
 from riptide_toy import (combine, forward_model, grids, kinematics, posterior_B, posterior_C,
-                         priors)
+                         priors, validate)
 from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_E_MAX, SIGMA_E_MIN, SIGMA_EP, SIGMA_THETA
 
 
@@ -372,3 +372,30 @@ def test_table_reuse_matches_direct_posteriors():
     base = forward_model.hierarchical_base(Ep_hat, theta_obs, grids.energy_grid(), SIGMA_EP, SIGMA_THETA)
     reused = posterior_C.hyperparameter_log_posterior_from_base(base, mu_grid, sigma_grid, hyper_prior)
     np.testing.assert_allclose(reused, direct, rtol=1e-12)
+
+
+def test_hierarchical_track_table_reduces_to_case_B_when_sigma_E_large():
+    # Limite sigma_E -> inf => Caso B: la gaussiana troncata diventa il prior piatto proprio.
+    rng = np.random.default_rng(SEED)
+    D_B, _ = case_C_dataset(30, rng)
+    np.testing.assert_allclose(posterior_C.hierarchical_track_table(D_B[0], 3.0, 1e5),
+                               posterior_C.case_B_track_table(D_B[0]), rtol=1e-8, atol=1e-8)
+
+
+def test_refine_shared_direction_hierarchical_near_truth_and_narrower():
+    # Stadio 1 iterato (report §8.2): con il prior gerarchico plug-in il posterior
+    # su Omega_n e' piu' stretto di quello col prior largo e resta vicino alla verita'.
+    rng = np.random.default_rng(SEED)
+    D_B, omega_true = case_C_dataset(80, rng)
+    theta_grid, phi_grid = grids.sphere_grid(1500)
+    dprior = priors.direction_prior(theta_grid, phi_grid)
+    spreads = []
+    for result in (posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, dprior, n_cap=2000),
+                   posterior_C.refine_shared_direction_hierarchical(D_B, theta_grid, phi_grid, dprior,
+                                                                    3.0, 0.4, n_cap=2000)):
+        omega_hat, cap_log_post, cap_theta, cap_phi = result
+        cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
+        spreads.append(validate.posterior_angular_resolution(cap_log_post[None, :], cap_grid, omega_hat)[0])
+        assert np.max(cap_log_post[-200:]) < cap_log_post.max() - 5.0
+        assert np.arccos(np.clip(omega_hat[0] @ omega_true, -1.0, 1.0)) < np.deg2rad(8.0)
+    assert spreads[1] < spreads[0]
