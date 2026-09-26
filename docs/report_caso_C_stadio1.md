@@ -142,3 +142,68 @@ Cause candidate, tutte da testare:
 3. **Ω_n plug-in** nello stadio 2: poco probabile, perché l'errore su Ω si contrae mentre il bias di μ_E no.
 
 Diagnostica proposta: stadio 2 con Ω_n **vera** e dati generati con smearing polare 1D (coerente con la verosimiglianza). Se il bias sparisce la causa è la 1; altrimenti si passa alla griglia fine (causa 2).
+
+## 7. Causa del bias di μ_E: curvatura della sfera nel kernel di traccia (2026-09-26)
+
+### 7.1 Meccanismo (a)
+
+Il kernel 1D del §6.2 punto 3 tratta θ_obs − θ come gaussiano sul meridiano e trascura la geometria della sfera. Uno spostamento t perpendicolare al meridiano **aumenta** sempre l'angolo dal polo, perché cos θ' = cos θ cos t, quindi θ' ≈ θ + t²/(2 tan θ). Il kernel piatto non vede questo effetto. Assegna quindi a θ_p vero un valore medio più piccolo di σ_θ² cot θ / 2.
+
+Poiché E_p = E_n cos²θ_p, vale d ln E_p/dθ = −2 tan θ. L'errore relativo su E_n è quindi
+
+  ΔE_n / E_n ≈ −σ_θ²,
+
+indipendente da θ. Con σ_θ = 0.08 e μ_E ≈ 3.25 MeV si ottiene ≈ −0.021 MeV, lo stesso valore del plateau del §6.3.
+
+Il kernel esatto per un errore von Mises–Fisher con κ = 1/σ_θ², integrato sull'azimut relativo, è:
+
+  K(θ_obs | θ) = κ / (1 − e^{−2κ}) · sin θ · exp(κ (cos(θ_obs − θ) − 1)) · I₀ₑ(κ sin θ_obs sin θ)
+
+Per θ, θ_obs ≫ σ_θ si riduce al kernel piatto moltiplicato per √(sin θ / sin θ_obs).
+
+Controllo sul primo momento, con traccia di densità cosθ_p/π e σ_θ = 0.08:
+
+| | E[cos θ_obs] |
+|---|---|
+| vMF esatto, (2/3)(coth κ − 1/κ) | 0.66240 |
+| MC di `smear_direction` | 0.66244 ± 0.00017 |
+| kernel sferico, numerico | 0.66240 |
+| kernel piatto, numerico | 0.66454 (≈12σ fuori) |
+
+Il generatore gaussiano 2D e il vMF differiscono solo a O(σ⁴), per cui il generatore resta invariato.
+
+### 7.2 Diagnosi (c)
+
+La diagnosi usa solo lo stadio 2, con Ω_n **vera** fissata a (0.9, 2.1) rad, così da isolarla dallo stadio 1. Parametri:
+
+- μ_E = 3.0 e σ_E = 0.4 MeV;
+- N = 1000 eventi e M = 60 esperimenti, con lo stesso seed per i due kernel;
+- finestra 80×30 su (μ_E, σ_E);
+- stima: media a posteriori di μ_E.
+
+La predizione del §7.1 è −σ_θ² μ_E.
+
+| σ_θ (rad) | predetto (MeV) | kernel piatto (MeV) | kernel sferico (MeV) |
+|---|---|---|---|
+| 0.04 | −0.0048 | −0.0029 ± 0.0024 | +0.0018 ± 0.0024 |
+| 0.08 | −0.0192 | −0.0165 ± 0.0026 | +0.0023 ± 0.0026 |
+| 0.16 | −0.0768 | −0.0681 ± 0.0034 | +0.0027 ± 0.0035 |
+
+- Con il kernel piatto il bias scala come σ_θ²: il rapporto tra 0.16 e 0.08 vale 4.1, contro 4 atteso. Il valore coincide con la predizione entro il 10–15%. A σ_θ = 0.08 riproduce il plateau del §6.3.
+- Con il kernel sferico il bias è compatibile con 0 (≤ 1σ) a ogni σ_θ.
+- La larghezza del posterior non cambia: σ_post ≈ 0.020 MeV a σ_θ = 0.08.
+
+La causa 1 del §6.4 è **confermata (c)**. Le cause 2 e 3 non servono a spiegare il bias.
+
+**Nota sul disegno della diagnosi.** La variante "smearing 1D polare" del piano (§6.4) *non* è coerente con il kernel piatto. Spostare la traccia lungo il meridiano in θ introduce comunque un fattore Jacobiano sin θ / sin θ_obs sulla densità per angolo solido. Con quella variante il bias è −0.0424 MeV con il kernel piatto e −0.0238 con quello sferico, quindi non chiude la domanda ed è stata scartata come test. La conferma viene dallo scaling in σ_θ e dal confronto tra i due kernel sugli stessi dati.
+
+### 7.3 Correzione
+
+- `forward_model.log_track_kernel_sphere` sostituisce il kernel piatto in `track_energy_table` e `hierarchical_base`. Le usano `posterior_B` e entrambi gli stadi di `posterior_C`.
+- Il kernel piatto resta nel codice come confronto.
+- Test aggiunti in `tests/test_case_B.py`:
+  - normalizzazione sulla sfera;
+  - primo momento esatto vMF;
+  - confronto con il MC di `smear_direction`;
+  - limite asintotico piatto × √(sin θ / sin θ_obs).
+- Resta da rimisurare con la checklist completa: bias e coverage di μ_E a N = 1000 e il pull di Ω_n (P2 e P3 del piano).
