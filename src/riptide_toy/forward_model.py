@@ -7,8 +7,18 @@ from riptide_toy.constants import N_THETA_OBS, N_THETA_TRACK
 def measure(Ep_true: np.ndarray, theta_p_true: np.ndarray,
             sigma_Ep: float, sigma_theta: float,
             rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
-    """Return: (Ep_hat, theta_p_hat), same dimension of the inputs,
-    with added gaussian noise - they're the observables D."""
+    """Osservabili D: valori veri piu' rumore gaussiano indipendente.
+
+    Args:
+        Ep_true: energia vera del protone, MeV, forma (n,).
+        theta_p_true: angolo di rinculo vero, rad, forma (n,).
+        sigma_Ep: risoluzione in energia, MeV.
+        sigma_theta: risoluzione angolare, rad.
+        rng: generatore numpy.
+
+    Ritorna:
+        (Ep_hat, theta_p_hat), MeV e rad, ciascuno forma (n,).
+    """
     Ep_hat = rng.normal(Ep_true, sigma_Ep, Ep_true.shape)
     theta_p_hat = rng.normal(theta_p_true, sigma_theta, theta_p_true.shape)
     return (Ep_hat, theta_p_hat)

@@ -8,8 +8,14 @@ from riptide_toy.constants import EN_MAX, EN_MIN, SIGMA_E_MAX, SIGMA_E_MIN
 # cachati vanno resi non scrivibili perche' sono condivisi tra i chiamanti.
 @lru_cache(maxsize=None)
 def energy_grid(n: int = 500) -> np.ndarray:
-    """Return: array (n,), values of En in MeV,
-    increasing from EN_MIN to EN_MAX."""
+    """Griglia di ipotesi su En, equispaziata su [EN_MIN, EN_MAX].
+
+    Args:
+        n: numero di punti.
+
+    Ritorna:
+        array (n,), En in MeV, crescente, non scrivibile.
+    """
     grid = np.linspace(EN_MIN, EN_MAX, n)
     grid.flags.writeable = False
     return grid
@@ -20,8 +26,15 @@ def energy_grid(n: int = 500) -> np.ndarray:
 # un indice = una direzione, area solida quasi costante per pixel.
 @lru_cache(maxsize=None)
 def sphere_grid(n_pixel: int = 3000) -> tuple[np.ndarray, np.ndarray]:
-    """Return: (theta, phi), twoo arrays of dimension (n_pixel,)
-    in radians - the coordinates of the directions for the sphere."""
+    """Direzioni sulla sfera unitaria, reticolo di Fibonacci.
+
+    Args:
+        n_pixel: numero di direzioni.
+
+    Ritorna:
+        (theta, phi), due array (n_pixel,) in rad, non scrivibili; l'indice i
+        e' una direzione. Il pixel 0 sta a theta ~ sqrt(2/n_pixel) dal polo.
+    """
     i = np.arange(n_pixel)
     golden_angle = np.pi * (3.0 - np.sqrt(5.0))
     theta = np.arccos(1.0 - 2.0 * (i + 0.5) / n_pixel)
@@ -32,17 +45,22 @@ def sphere_grid(n_pixel: int = 3000) -> tuple[np.ndarray, np.ndarray]:
 
 @lru_cache(maxsize=None)
 def theta_p_grid(n: int = 500) -> np.ndarray:
-    """Return: array (n,), lab recoil angle theta_p in rad,
-    increasing from 0 to pi/2 (theta_lab <= 90 deg, CLAUDE.md Sez. 3).
-    Usata per marginalizzare la nuisance theta_p in posterior_A."""
+    """Griglia sull'angolo di rinculo in lab, [0, pi/2] (theta_lab <= 90 deg,
+    CLAUDE.md Sez. 3); usata per marginalizzare la nuisance theta_p in posterior_A.
+
+    Args:
+        n: numero di punti.
+
+    Ritorna:
+        array (n,), theta_p in rad, crescente, non scrivibile.
+    """
     grid = np.linspace(0.0, np.pi / 2, n)
     grid.flags.writeable = False
     return grid
 
 @lru_cache(maxsize=None)
 def hyperparameter_grid(n_mu: int = 60, n_sigma: int = 60) -> tuple[np.ndarray, np.ndarray]:
-    """Return: (mu_grid, sigma_grid), due array 1D di dimensione (n_mu*n_sigma,) --
-    griglia 2D appiattita su (mu_E, sigma_E) per il Caso C (CLAUDE.md Sez. 4: "mai
+    """Griglia 2D appiattita su (mu_E, sigma_E) per il Caso C (CLAUDE.md Sez. 4: "mai
     griglia 4D bruta", Omega_n va fissato a parte dal Caso B prima di usare questa
     griglia). mu_E copre lo stesso dominio di energy_grid; sigma_E e' spaziata
     logaritmicamente (e' un parametro di scala) per coprire con la stessa griglia
@@ -51,7 +69,15 @@ def hyperparameter_grid(n_mu: int = 60, n_sigma: int = 60) -> tuple[np.ndarray, 
     Nota: meshgrid con indexing="ij" poi ravel (ordine 'C'): l'indice flat
     i*n_sigma + j corrisponde a (mu_grid_1d[i], sigma_grid_1d[j]), quindi un
     array di lunghezza n_mu*n_sigma allineato a questa griglia si puo'
-    ri-plasmare con .reshape(n_mu, n_sigma)."""
+    ri-plasmare con .reshape(n_mu, n_sigma).
+
+    Args:
+        n_mu: punti su mu_E.
+        n_sigma: punti su sigma_E.
+
+    Ritorna:
+        (mu_grid, sigma_grid), MeV, ciascuno forma (n_mu*n_sigma,), non scrivibili.
+    """
     mu_1d = np.linspace(EN_MIN, EN_MAX, n_mu)
     sigma_1d = np.geomspace(SIGMA_E_MIN, SIGMA_E_MAX, n_sigma)
     mu_mesh, sigma_mesh = np.meshgrid(mu_1d, sigma_1d, indexing="ij")

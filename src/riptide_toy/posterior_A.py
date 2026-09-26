@@ -9,6 +9,10 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray], shared_param_grid: 
     """Log-posterior non normalizzato su En, per uno o piu' eventi, con
     theta_p marginalizzato come nuisance (Caso A).
 
+    Assunzioni dichiarate: sorgente unica (1) + monoenergetica (En condiviso
+    fra gli eventi, caso limite della 3); z non modellata (vedi roadmap,
+    Deviazioni).
+
     Nota: diverge dalla guida (Sez. 3), che assume theta_p_hat gia'
     fissato dentro loglik. Qui forward_model.loglik marginalizza
     theta_p internamente su un prior piatto proprio su [0, pi/2]
