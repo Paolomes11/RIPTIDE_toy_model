@@ -108,7 +108,7 @@ def test_omega_n_parallel_to_z_reduces_to_case_A():
 def test_sphere_grid_is_pixelization_with_equal_area():
     # fix errata (c): un indice = una direzione, area solida ~costante per
     # pixel. Punti uniformi sulla sfera hanno cos(theta) ~ Uniform(-1, 1)
-    # (isotropia, Cap. 20): la media deve annullarsi.
+    # (isotropia): la media deve annullarsi.
     theta, phi = grids.sphere_grid(2000)
     assert theta.shape == (2000,)
     assert phi.shape == (2000,)
@@ -290,7 +290,7 @@ def test_combine_reuse_angular_contraction_vs_N():
     sigma_100 = angular_sigma(100)
 
     # Contrazione ~1/sqrt(N) (stesso andamento di combine.expected_sigma_n,
-    # gia' verificato in Caso A, Es. 39.1): tolleranza larga perche' qui
+    # gia' verificato in Caso A, caso di riferimento R2): tolleranza larga perche' qui
     # sigma_10 e' una singola realizzazione Monte Carlo, non una media
     # d'insieme.
     predicted_100 = sigma_10 / np.sqrt(10.0)
@@ -300,13 +300,13 @@ def test_combine_reuse_angular_contraction_vs_N():
 
 def test_angular_bias_and_pull_on_simulated_omega_n():
     # riga 12 (guida Sez. 4, riga 12): "Bias/pull su distanza angolare", etichetta (d)
-    # (non nel libro; verificato su dati simulati con Omega_n nota, come richiesto dalla
+    # (nessun valore di riferimento; verificato su dati simulati con Omega_n nota, come richiesto dalla
     # guida). Si ripetono M esperimenti indipendenti (N=20 eventi sintetici ciascuno,
     # stessa costruzione "onesta" della riga 11), si stima Omega_n col MAP del
     # posterior combinato, e si confronta la distanza angolare vera (angular_residual)
     # con l'incertezza dichiarata dal posterior attorno alla propria stima
     # (posterior_angular_resolution, self-referenziale sul proprio MAP). Non essendo
-    # un oracolo del libro, si verifica solo che il pull risultante (angular_pull) sia
+    # un caso di riferimento, si verifica solo che il pull risultante (angular_pull) sia
     # d'ordine 1 (ne' fortemente sovrastimato ne' sottostimato), non una calibrazione
     # esatta N(0,1)/Rayleigh(1): la distanza angolare non e' gaussiana come nel caso 1D.
     rng = np.random.default_rng(SEED)

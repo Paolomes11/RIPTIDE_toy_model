@@ -6,8 +6,8 @@ from riptide_toy.combine import combine_loglik, expected_sigma_n
 from riptide_toy.validate import run_checklist
 
 
-def test_example_38_1():
-    # oracolo Es. 38.1: Ep_hat=1.40 MeV, theta_p_hat=0.50 rad -> En = 1.82 +/- 0.21 MeV
+def test_reference_single_event():
+    # caso di riferimento R1 (singolo evento): Ep_hat=1.40 MeV, theta_p_hat=0.50 rad -> En = 1.82 +/- 0.21 MeV
     en_grid = grids.energy_grid()
     D = (np.array([1.40]), np.array([0.50]))
     prior = priors.energy_prior(en_grid)
@@ -27,8 +27,8 @@ def test_example_38_1():
     assert abs(sigma - 0.21) < 0.01
 
 
-def test_example_39_1():
-    # oracolo Es. 39.1: due eventi combinati -> En = 2.40 +/- 0.18 MeV
+def test_reference_two_events():
+    # caso di riferimento R2: due eventi combinati -> En = 2.40 +/- 0.18 MeV
     en_grid = np.linspace(0.5, 6.0, 2000)
     ll1 = -0.5 * ((en_grid - 2.70) / 0.45) ** 2
     ll2 = -0.5 * ((en_grid - 2.35) / 0.20) ** 2
@@ -43,12 +43,12 @@ def test_example_39_1():
     assert abs(sigma - 0.18) < 0.01
 
 
-def test_expected_sigma_n_example_39_1():
+def test_expected_sigma_n_reference():
     assert expected_sigma_n(1.0, 4) == 0.5
 
 
-def _faulty_reconstruction_example_40_1(truth: np.ndarray, rng: np.random.Generator):
-    # oracolo Es. 40.1: errore di scala +3% (+0.05 MeV) sul valore vero, incertezze
+def _faulty_reconstruction(truth: np.ndarray, rng: np.random.Generator):
+    # caso di riferimento R3: errore di scala +3% (+0.05 MeV) sul valore vero, incertezze
     # dichiarate 30% troppo strette rispetto alla risoluzione vera sigma(En)=0.08*En.
     # Il rumore intrinseco del detector si applica DOPO l'errore di scala, non scalato
     # con esso: e' l'unica costruzione delle due plausibili che riproduce pull width
@@ -68,17 +68,17 @@ def _faulty_reconstruction_example_40_1(truth: np.ndarray, rng: np.random.Genera
     return estimate, sigma_hat, intervals
 
 
-def test_example_40_1():
-    # oracolo Es. 40.1 (ricostruzione "faulty"): bias 0.08->0.20 MeV, pull mean~0.9,
-    # pull width~1.4, copertura nominale 68% -> ~45%. Nel libro questi valori sono
-    # dati con "~"/"≈" (a differenza di Es. 38.1/39.1, senza tolleranza esplicita
-    # sigma - CLAUDE.md Sez. 5): le tolleranze qui sono scelte in base a quanto
-    # strette sono le cifre citate, non desunte da un numero esatto del libro.
+def test_reference_faulty_reconstruction():
+    # caso di riferimento R3 (ricostruzione difettosa): bias 0.08->0.20 MeV, pull
+    # mean~0.9, pull width~1.4, copertura nominale 68% -> ~45%. Questi valori attesi
+    # sono approssimati ("~"/"≈"), a differenza di R1/R2 che hanno una tolleranza
+    # esplicita su sigma (CLAUDE.md Sez. 5): le tolleranze qui sono scelte in base a
+    # quanto strette sono le cifre attese, non desunte da un numero esatto.
     rng = np.random.default_rng(20260907)
     truth = rng.uniform(1.0, 5.0, 20_000)
 
     result = run_checklist(
-        _faulty_reconstruction_example_40_1, truth, levels=np.array([0.68]), rng=rng
+        _faulty_reconstruction, truth, levels=np.array([0.68]), rng=rng
     )
 
     assert abs(result["bias"][0] - 0.08) < 0.02

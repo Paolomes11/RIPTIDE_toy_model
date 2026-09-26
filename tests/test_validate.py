@@ -73,7 +73,7 @@ def test_posterior_angular_resolution_recovers_known_sigma():
     # riga 12: log-posterior gaussiano costruito a mano in un angolo theta attorno a
     # reference_hat = z_hat, con sigma nota. Per |theta| piccolo la distanza angolare
     # da z_hat coincide con |theta|: la deviazione pesata recuperata deve riprodurre
-    # sigma (verifica di consistenza interna, non un oracolo del libro).
+    # sigma (verifica di consistenza interna, non un caso di riferimento).
     sigma_true = 0.05
     theta = np.linspace(-0.3, 0.3, 4000)
     omega_hat_grid = np.stack([np.sin(theta), np.zeros_like(theta), np.cos(theta)], axis=-1)
@@ -94,9 +94,9 @@ def test_angular_pull_is_plain_ratio():
     np.testing.assert_allclose(pull, [1.0, 2.0, 0.0])
 
 
-def test_posterior_mean_std_recovers_gaussian_and_book_example_39_1():
-    # riga 14: gaussiana costruita a mano su un asse lineare, con i valori dell'
-    # Es. 39.1 (2.40 +- 0.18 MeV) come media/sigma note: verifica di consistenza interna.
+def test_posterior_mean_std_recovers_gaussian_and_reference_two_events():
+    # riga 14: gaussiana costruita a mano su un asse lineare, con i valori del
+    # caso di riferimento R2 (2.40 +- 0.18 MeV) come media/sigma note: verifica di consistenza interna.
     grid = np.linspace(0.0, 6.0, 4001)
     log_post = -0.5 * ((grid - 2.4) / 0.18) ** 2
     mean, std = posterior_mean_std(log_post[None, :], grid)

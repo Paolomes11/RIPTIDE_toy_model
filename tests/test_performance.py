@@ -73,7 +73,7 @@ def test_combine_loglik_20000_events_under_200ms():
 
 
 def test_run_checklist_20000_events_under_1_minute():
-    # scala dell'Es. 40.1; ricostruzione analitica (quella dell'oracolo), per
+    # scala del caso di riferimento R3; ricostruzione analitica (quella di R3), per
     # misurare il costo di validate e non quello del motore del Caso A.
     rng = np.random.default_rng(SEED)
     truth = rng.uniform(1.0, 5.0, 20_000)
