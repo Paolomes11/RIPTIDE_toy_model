@@ -44,14 +44,17 @@ def summarize(log_post: np.ndarray, mu_fine: np.ndarray, sigma_fine: np.ndarray)
             "ls_mean": ls_mean[0], "ls_std": ls_std[0], "ls_median": ls_int[0, 0], "ls_int": ls_int[1:]}
 
 
-def run_experiment(task: tuple[int, int]) -> dict:
+def run_experiment(task: tuple[int, int, int]) -> dict:
     """Un esperimento: dataset sintetico, stadio 1 a prior largo, stadio 2 su omega_0 e su Omega vera.
+
+    Args:
+        task: (N eventi, indice dell'esperimento, tag del seed), spawn_key=(N, i, tag).
 
     Ritorna:
         dict con N, i, verita' (mu_true, sigma_true in MeV) e i riassunti "hat" e "true".
     """
-    n_events, index = task
-    rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(n_events, index, SEED_TAG)))
+    n_events, index, seed_tag = task
+    rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(n_events, index, seed_tag)))
     mu_true = rng.uniform(*MU_RANGE)
     sigma_true = np.exp(rng.uniform(*np.log(SIGMA_RANGE)))
     omega_true = kinematics.direction_from_theta_phi(
@@ -77,7 +80,7 @@ def run_experiment(task: tuple[int, int]) -> dict:
 
 def main() -> None:
     n_proc = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-    tasks = [(n, i) for n, m in N_M for i in range(m)]
+    tasks = [(n, i, SEED_TAG) for n, m in N_M for i in range(m)]
     with Pool(n_proc) as pool:
         results = pool.map(run_experiment, tasks, chunksize=1)
     out_dir = Path(__file__).resolve().parent.parent / "outputs"
