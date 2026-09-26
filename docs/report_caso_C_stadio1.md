@@ -455,3 +455,36 @@ Chi riporta σ̂_E a N ≲ 150 deve dichiarare il prior usato.
 
 - coverage al 68% di log σ_E bassa a N = 150–300 (0.60–0.64, tra 1 e 2.4 errori binomiali), mentre 90% e 95% sono nominali;
 - coverage al 90% di μ_E a N = 300 pari a 0.84 (circa −1.6 errori binomiali con M = 100).
+
+**Aggiornamento (v0.13):** il primo punto aperto è chiuso come fluttuazione statistica (§12). Il secondo resta al limite (d).
+
+## 12. Coverage al 68% di log σ_E a N = 150–300: fluttuazione statistica (v0.13, 2026-09-26) (c)
+
+Il punto aperto di §11.3 è stato esaminato con `scripts/caso_C_cov68.py` e nel notebook 09.
+
+**Dati esistenti** (seed della checklist, senza nuovi run):
+
+- **Forma.** La semiampiezza dell'intervallo a code uguali al 68% vale in mediana 1.00 std, e al 95% 1.01 × 1.96 std. Il posterior di log σ_E è quindi gaussiano nel nucleo. Fanno eccezione i rari esperimenti col plateau di §11.2: a N = 150 il 5° percentile del rapporto al 68% è 0.83.
+- **Asimmetria.** I mancati al 68% sono bilanciati: 35 sotto e 45 sopra a N = 150, 20 e 16 a N = 300.
+- **Discretizzazione.** Il passo della griglia fine 40×40 in log σ_E vale circa 0.27 std. Con una griglia 80×80, su 14 esperimenti gli estremi dell'intervallo al 68% si spostano al massimo di 0.036 std, tipicamente di 0.01 std.
+- Tutte e tre le cause sono escluse (c). Restava da capire se l'sd dei pull, 1.05–1.06, indicasse un posterior troppo stretto del 5–10%: la coverage attesa al 68% sarebbe circa 0.65.
+
+**Seed nuovi.** Il test usa `spawn_key=(N, i, 68)`, disgiunti da quelli della checklist, e il prior di default. Lo stadio 2 è calcolato su Ω̂_0 (pipeline v0.11) e sulla Ω_n vera. Il run ha usato 3 processi, circa 11 min.
+
+| N (M) | stadio 2 su | coverage log σ_E 68/90/95 | err. binomiale 68/90/95 | pull media/sd | mancati 68% sotto/sopra |
+|---|---|---|---|---|---|
+| 150 (200), seed della checklist | Ω̂_0 | 0.60 / 0.87 / 0.945 | 0.033 / 0.021 / 0.015 | −0.02 / 1.05 | 35 / 45 |
+| 150 (600), seed nuovi | Ω̂_0 | **0.658** / 0.895 / 0.955 | 0.019 / 0.012 / 0.009 | +0.07 / 0.99 | 103 / 102 |
+| 150 (600), seed nuovi | Ω vera | 0.650 / 0.902 / 0.957 | | −0.06 / 0.97 | 87 / 123 |
+| 300 (100), seed della checklist | Ω̂_0 | 0.64 / 0.87 / 0.94 | 0.047 / 0.030 / 0.022 | +0.00 / 1.06 | 20 / 16 |
+| 300 (300), seed nuovi | Ω̂_0 | **0.723** / 0.917 / 0.963 | 0.027 / 0.017 / 0.013 | +0.01 / 0.92 | 42 / 41 |
+| 300 (300), seed nuovi | Ω vera | 0.737 / 0.917 / 0.970 | | −0.07 / 0.91 | 35 / 44 |
+
+**Esito (c).**
+
+- Sui seed nuovi la coverage al 68% vale −1.2 errori binomiali a N = 150 e +1.6 a N = 300. Sui 900 esperimenti nuovi combinati vale esattamente 0.680. L'sd dei pull è 0.92–0.99.
+- Il posterior troppo stretto è falsificato, e lo stadio 1 non contribuisce: con Ω̂_0 e con la Ω vera le coverage sono compatibili.
+- Il deficit dei seed della checklist (0.613 combinata su M = 300, z = −2.5) è una **fluttuazione statistica**. La checklist ha circa 24 coverage (4 N × 3 livelli × 2 parametri scalari), e la probabilità di almeno uno scarto con |z| ≥ 2.4 è circa 0.33.
+- log σ_E è quindi calibrato a N = 150–300 col prior di default.
+
+**Ancora al limite (d):** la coverage al 90% di μ_E a N = 300. Vale 0.84 ± 0.037 sui seed della checklist e 0.877 ± 0.017 sui seed nuovi, cioè −1.4 errori binomiali. La sd dei pull di μ_E è 1.03 sui seed nuovi e le coverage al 68% e al 95% sono nominali: non c'è un segnale netto e non si interviene.

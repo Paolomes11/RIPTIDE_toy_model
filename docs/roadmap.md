@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.12 — 2026-09-26
+v0.13 — 2026-09-26
 
 ## Stato
 
@@ -20,7 +20,7 @@ v0.12 — 2026-09-26
 | 11 | `combine` su Ω_n (riuso) | fatto, nessuna modifica a `combine.py`; contrazione angolare σ(N=10)→σ(N=100) coerente con 1/√N entro tolleranza larga (singola realizzazione MC) |
 | 12 | `validate` su distanza angolare | fatto (`angular_residual`, `posterior_angular_resolution`, `angular_pull`, additive); verificato su geometria nota + su Caso B simulato (M=30 esperimenti, Ω_n nota): bias medio <20°, pull mediano d'ordine 1 |
 | 13 | `posterior_C` | fatto (`grids.hyperparameter_grid`, `priors.energy_prior_given_hyperparams`/`hyperparameter_prior`, `forward_model.loglik_marginal_En_hierarchical`, `posterior_C.estimate_shared_direction`/`single_event_posterior`), testato; entrambi i limiti di Sez. 5 verdi (σ_E→∞ ≈ Caso B entro atol=0.01 sulla log-verosimiglianza; σ_E→0 recupera l'energia condivisa vera entro 0.1 MeV) |
-| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist Cap. 40 v0.11 completa (`docs/report_caso_C_stadio1.md` §9–§11, notebook 07–08): μ_E calibrato a ogni N (bias −0.02 MeV chiuso dal kernel sferico; coverage a N = 1000 nominale con M = 100), Ω_n calibrato a N ≥ 150 e ~40% più preciso (stadio 1 iterato), σ_E calibrato a ogni N con stadio 2 su Ω̂_0 (coverage a N = 50: 0.67/0.89/0.93) (c); bias di log σ_E a N piccolo (−0.15 a N = 50) spiegato come effetto del prior largo su σ_E: nullo col prior del generatore, la marginalizzazione su Ω lo peggiora (report §11, (c)); **aperto** (d): coverage 68% di log σ_E a N = 150–300 (0.60–0.64) e coverage 90% di μ_E a N = 300 (0.84) |
+| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist Cap. 40 v0.11 completa (`docs/report_caso_C_stadio1.md` §9–§12, notebook 07–09): μ_E calibrato a ogni N (bias −0.02 MeV chiuso dal kernel sferico; coverage a N = 1000 nominale con M = 100), Ω_n calibrato a N ≥ 150 e ~40% più preciso (stadio 1 iterato), σ_E calibrato a ogni N con stadio 2 su Ω̂_0 (coverage a N = 50: 0.67/0.89/0.93) (c); bias di log σ_E a N piccolo (−0.15 a N = 50) spiegato come effetto del prior largo su σ_E: nullo col prior del generatore, la marginalizzazione su Ω lo peggiora (report §11, (c)); coverage 68% di log σ_E a N = 150–300 bassa sui seed della checklist (0.60–0.64): fluttuazione statistica, nominale su seed nuovi con M = 600/300 (0.658/0.723; `scripts/caso_C_cov68.py`, report §12, notebook 09, (c)); **al limite** (d): coverage 90% di μ_E a N = 300 (0.84 su M = 100, 0.877 ± 0.017 su seed nuovi), senza segnale nei pull |
 
 ## Deviazioni dalla guida (documentate, non silenziose)
 
