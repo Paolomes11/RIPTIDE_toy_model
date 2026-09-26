@@ -1,4 +1,4 @@
-"""Riga 14: checklist Cap. 40 sul Caso C (stadio 1 iterato + stadio 2 raffinati).
+"""Riga 14: checklist Cap. 40 sul Caso C (stadio 2 su omega_0, Omega_n da stadio 1 iterato).
 
 Ordine della checklist (CLAUDE.md Sez. 7): bias -> risoluzione -> pull ->
 coverage -> contrazione ~1/sqrt(N) -> robustezza al prior.
@@ -56,32 +56,12 @@ def run_experiment(task: tuple[int, int]) -> dict:
     theta_grid, phi_grid = grids.sphere_grid()
     direction_prior = priors.direction_prior(theta_grid, phi_grid)
     mu_grid, sigma_grid = grids.hyperparameter_grid()
-    # Stadio 1 iterato (report §8.3): prior largo su En -> stadio 2 -> stadio 1'
-    # con prior plug-in N(mu_hat, sigma_hat) su En
+    # Stadio 1 a prior largo su En -> omega_0 -> stadio 2 (report §10): (mu_E, sigma_E)
+    # restano condizionati su omega_0; lo stadio 1 iterato con prior plug-in
+    # N(mu_hat, sigma_hat) su En (report §8.3) serve solo alla stima di Omega_n
     omega_0 = posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, direction_prior)[0]
-    log_post, mu_fine, sigma_fine = posterior_C.refine_hyperparameters(
-        (*D_B, omega_0), mu_grid, sigma_grid, priors.hyperparameter_prior
-    )
-    mu_hat = validate.posterior_mean_std(log_post[None, :], mu_fine)[0][0]
-    ls_hat = validate.posterior_mean_std(log_post[None, :], np.log(sigma_fine))[0][0]
-    omega_hat, cap_log_post, cap_theta, cap_phi = posterior_C.refine_shared_direction_hierarchical(
-        D_B, theta_grid, phi_grid, direction_prior, mu_hat, np.exp(ls_hat)
-    )
-    cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
-    cap_pixel = np.sqrt(2 * np.pi * (1.0 - np.min(cap_grid @ omega_hat[0])) / cap_grid.shape[0])
-    nearest = np.argmax(cap_grid @ omega_true[0])
-    truth_in_cap = np.arccos(np.clip(cap_grid[nearest] @ omega_true[0], -1.0, 1.0)) < 3 * cap_pixel
-    omega_covered = validate.credible_region_contains(
-        cap_log_post[None, :], np.array([nearest]), LEVELS
-    )[0] & truth_in_cap
-
-    summary = {
-        "N": n_events, "mu_true": mu_true, "sigma_true": sigma_true,
-        "omega_error": validate.angular_residual(omega_true, omega_hat)[0],
-        "omega_sigma": validate.posterior_angular_resolution(cap_log_post[None, :], cap_grid, omega_hat)[0],
-        "omega_covered": omega_covered,
-    }
-    D = (*D_B, omega_hat)
+    D = (*D_B, omega_0)
+    summary = {"N": n_events, "mu_true": mu_true, "sigma_true": sigma_true}
     prior_fns = {"logU": priors.hyperparameter_prior}
     if n_events == N_ROBUSTNESS:
         prior_fns["U"] = priors.hyperparameter_prior_uniform_sigma
@@ -95,6 +75,19 @@ def run_experiment(task: tuple[int, int]) -> dict:
             "mu_mean": mu_mean[0], "mu_std": mu_std[0], "mu_median": mu_int[0, 0], "mu_int": mu_int[1:],
             "ls_mean": ls_mean[0], "ls_std": ls_std[0], "ls_median": ls_int[0, 0], "ls_int": ls_int[1:],
         }
+
+    omega_hat, cap_log_post, cap_theta, cap_phi = posterior_C.refine_shared_direction_hierarchical(
+        D_B, theta_grid, phi_grid, direction_prior, summary["logU"]["mu_mean"], np.exp(summary["logU"]["ls_mean"])
+    )
+    cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
+    cap_pixel = np.sqrt(2 * np.pi * (1.0 - np.min(cap_grid @ omega_hat[0])) / cap_grid.shape[0])
+    nearest = np.argmax(cap_grid @ omega_true[0])
+    truth_in_cap = np.arccos(np.clip(cap_grid[nearest] @ omega_true[0], -1.0, 1.0)) < 3 * cap_pixel
+    summary["omega_error"] = validate.angular_residual(omega_true, omega_hat)[0]
+    summary["omega_sigma"] = validate.posterior_angular_resolution(cap_log_post[None, :], cap_grid, omega_hat)[0]
+    summary["omega_covered"] = validate.credible_region_contains(
+        cap_log_post[None, :], np.array([nearest]), LEVELS
+    )[0] & truth_in_cap
     return summary
 
 
