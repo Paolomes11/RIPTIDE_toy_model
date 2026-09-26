@@ -207,3 +207,39 @@ La causa 1 del §6.4 è **confermata (c)**. Le cause 2 e 3 non servono a spiegar
   - confronto con il MC di `smear_direction`;
   - limite asintotico piatto × √(sin θ / sin θ_obs).
 - Resta da rimisurare con la checklist completa: bias e coverage di μ_E a N = 1000 e il pull di Ω_n (P2 e P3 del piano).
+
+## 8. Direzione Ω_n: pull a N=1000 e sovra-copertura (2026-09-26)
+
+### 8.1 Pull esploso a N=1000: calotta degenere (c)
+
+La diagnosi rigioca lo stadio 1 sui 40 seed della checklist a N=1000 e registra per ogni esperimento:
+
+- raggio della calotta;
+- pixel;
+- N_eff = 1/Σp²;
+- σ dichiarata;
+- errore.
+
+In 39 esperimenti su 40 la calotta è sana: N_eff va da 54 a 1400 (mediana ≈ 120) e σ vale ≈ 3.8 pixel. L'ipotesi del §6.3 (posterior su un solo pixel) è quindi **smentita**.
+
+L'unico esperimento anomalo (il n. 8) ha una calotta di **raggio ≈ 4.5·10⁻⁸ rad**: gli 8000 pixel coincidono, il posterior è piatto su di essi, σ = 0 e il pull vale ≈ 5·10⁵. Il meccanismo è il seguente:
+
+1. `refine_shared_direction` stimava il passo della griglia grossolana come `min(angle[angle > 0])`.
+2. Per alcuni pixel `arccos(best @ best)` vale 1.49·10⁻⁸, non 0, perché il prodotto scalare è arrotondato a 1 − ε.
+3. Il MAP stesso finiva così nel minimo e il passo diventava 1.5·10⁻⁸.
+4. A N=1000 un solo pixel supera la soglia, per cui il raggio si riduceva a due volte quel passo.
+
+Correzione: nuova funzione pura `posterior_C.direction_cap_radius`, che esclude il MAP per indice, più un test di regressione. Dopo la correzione l'esperimento 8 ha pull 0.41 e N_eff 164. Il raffinamento adattivo previsto dal piano non serve.
+
+### 8.2 Sovra-copertura di Ω_n: prior largo su E_n nello stadio 1 (c)
+
+Dopo le correzioni del kernel (§7) e della calotta, a N=1000 (M=40) il pull rms di Ω vale 0.71 e la coverage di Rayleigh al 68% vale 0.90. Le incertezze restano quindi conservative.
+
+Diagnosi: stadio 1 sugli stessi seed a N=150 (M=200), cambiando solo il prior su E_n. Lo stadio 1 con il prior vero è un oracolo (usa μ_E e σ_E veri) e serve solo a isolare la causa.
+
+| prior su E_n | pull rms (MAP) | pull rms (media) | coverage 68% | errore rms | σ dichiarata media |
+|---|---|---|---|---|---|
+| largo U(0.5, 6) (attuale, Caso B) | 0.78 ± 0.04 | 0.77 | 0.86 | 1.73° | 2.20° |
+| vero N(μ_E, σ_E) | 1.04 ± 0.05 | 1.05 | 0.66 | 1.11° | 1.06° |
+
+La sovra-copertura è dovuta al nuisance E_n mal specificato: ogni evento viene marginalizzato su un E_n ammesso in [0.5, 6] MeV, mentre i dati hanno E_n ≈ μ_E ± σ_E. Con il prior giusto Ω è calibrato (pull rms ≈ 1, coverage nominale) ed è più preciso del 36% in errore rms. Questo coincide con l'opzione 2 del §5.
