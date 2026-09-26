@@ -183,6 +183,26 @@ def test_posterior_C_end_to_end_direction_and_hyperparams():
     assert abs(mu_grid[best] - mu_E_true) < 0.5
 
 
+def test_stage1_error_contracts_at_large_N():
+    # Regressione (report §13, punto D): a N=300 lo stadio 1 raffinato deve
+    # stare entro pochi gradi. Il vecchio massimo sistematico (pixel 0, ~53
+    # gradi) lo violerebbe. Su 100 seed: mediana 1.2, max 3.0 gradi (c).
+    rng = np.random.default_rng(SEED)
+    n_events = 300
+    omega_n_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([2.1]))[0]
+    En_k = rng.normal(3.0, 0.3, n_events)
+    Ep_true, track_true = kinematics.sample_recoil_events(rng, En_k, omega_n_true)
+    track_hat = kinematics.smear_direction(rng, track_true, SIGMA_THETA)
+    Ep_hat = rng.normal(Ep_true, SIGMA_EP)
+
+    theta_grid, phi_grid = grids.sphere_grid()
+    omega_n_hat = posterior_C.refine_shared_direction(
+        (Ep_hat, track_hat), theta_grid, phi_grid, priors.direction_prior(theta_grid, phi_grid)
+    )[0]
+    angular_error = np.arccos(np.clip(omega_n_hat[0] @ omega_n_true, -1.0, 1.0))
+    assert angular_error < np.deg2rad(5.0)
+
+
 def test_estimate_shared_direction_raises_when_combined_is_all_neginf(monkeypatch):
     # R1 (docs/report_caso_C_stadio1.md): se il combinato e' -inf su tutti i
     # candidati, np.argmax restituiva in silenzio il pixel 0 (polo nord della
