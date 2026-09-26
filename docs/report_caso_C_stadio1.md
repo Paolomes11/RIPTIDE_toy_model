@@ -299,3 +299,81 @@ Robustezza al prior a N = 150: invariata rispetto a §6.3.
   - Test diretto da fare: N = 50 con stadio 1 a prior largo contro iterato.
 - **Coverage 68% di μ_E a N = 1000**: 0.57 con M = 40 (−1.5 errori binomiali), ma 0.95 e 1.00 al 90% e al 95% e larghezza del pull 1.01: compatibile con una fluttuazione (d). Da ricontrollare con M ≥ 100.
 - I numeri a N = 1000 differiscono di 1–2 esperimenti su 40 da quelli di §8.3 (coverage 68%: μ_E 0.57 contro 0.55, Ω 0.78 contro 0.72). La causa non è stata indagata; fanno fede quelli di questo run.
+
+## 10. Stadio 2 su Ω̂_0 e coverage di μ_E a N = 1000 (v0.11, 2026-09-26)
+
+### 10.1 Test diretto: stadio 1 a prior largo contro iterato (c)
+
+Sono stati usati gli stessi seed della checklist (`spawn_key=(N, i)`) e le stesse definizioni di §9.
+Per ogni esperimento si calcolano entrambe le varianti:
+
+- **largo**: stadio 1 a prior largo, da cui Ω̂_0, poi stadio 2 su Ω̂_0;
+- **iterato**: la pipeline di §9.
+
+Lo script era una diagnostica nello scratchpad, non inclusa nel repo: 3 processi, 515 s.
+
+N = 50, M = 200 (errore binomiale ±0.033 / 0.021 / 0.015):
+
+| | largo | iterato |
+|---|---|---|
+| Ω: errore rms / σ dichiarata media | 3.05° / 3.85° | 1.96° / 1.82° |
+| Ω: pull rms | 0.79 | 1.08 |
+| Ω: coverage 68/90/95 | 0.84 / 0.965 / 0.995 | 0.70 / 0.86 / 0.925 |
+| μ_E: bias [MeV] / coverage | +0.002 ± 0.006 / 0.675, 0.91, 0.96 | +0.002 ± 0.006 / 0.65, 0.89, 0.95 |
+| log σ_E: bias (mediana) | −0.154 ± 0.033 | −0.271 ± 0.037 |
+| log σ_E: pull (media / larghezza) | −0.11 / 0.96 | −0.37 / 0.93 |
+| log σ_E: coverage 68/90/95 | 0.665 / 0.885 / 0.93 | 0.615 / 0.825 / 0.905 |
+
+N = 1000, M = 100 (i primi 40 sono gli esperimenti della checklist; errore binomiale ±0.047 / 0.030 / 0.022):
+
+| | largo | iterato |
+|---|---|---|
+| Ω: pull rms / coverage 68/90/95 | 0.76 / 0.80, 0.99, 1.00 | 1.05 / 0.67, 0.88, 0.93 |
+| μ_E: pull (media / larghezza) | +0.01 / 0.95 | −0.01 / 0.95 |
+| μ_E: coverage 68/90/95 | 0.65 / 0.95 / 0.99 | 0.66 / 0.95 / 0.98 |
+| log σ_E: bias / coverage | −0.001 ± 0.006 / 0.71, 0.92, 0.98 | −0.006 ± 0.006 / 0.71, 0.94, 0.98 |
+
+**Lettura.**
+
+- L'iterazione **migliora Ω_n** (errore circa −35%, calibrata) ma **peggiora σ_E a N = 50**.
+- Ipotesi (d): σ̂_E è già sottostimato, e il prior plug-in sceglie una direzione adattata a uno spettro stretto. Lo stadio 2 condizionato su quella direzione rinforza la sottostima.
+- **Coverage 68% di μ_E a N = 1000:**
+  - con M = 100 vale 0.65, nominale;
+  - nei 40 esperimenti della checklist vale 0.55, nei 60 nuovi 0.72;
+  - lo 0.57 di §9 era quindi una **fluttuazione di M = 40 (c)**.
+
+### 10.2 Correzione (v0.11)
+
+In `scripts/caso_C_checklist.py` (commit `819f2ce`) le due stime vengono ora da stadi diversi:
+
+- (μ̂_E, σ̂_E) si prendono dallo stadio 2 su Ω̂_0;
+- lo stadio 1 iterato, con prior plug-in N(μ̂_E, σ̂_E), serve solo a stimare Ω_n.
+
+Il costo è di uno stadio 2 in meno per esperimento. `src/` non cambia. Ω̂_n e (μ̂_E, σ̂_E) non vengono più da un'unica stima congiunta: va detto quando si riportano insieme.
+
+### 10.3 Checklist v0.11 (c)
+
+La checklist completa è stata rilanciata con 3 processi. La v0.10 è conservata in `outputs/caso_C_checklist_results_v0.10.pkl`; il confronto completo è nel notebook `notebooks/08_checklist_caso_C_v0.11.ipynb`. I risultati su Ω_n sono identici alla v0.10, esperimento per esperimento.
+
+| N (M) | bias μ_E [MeV] | bias log σ_E | pull log σ_E (media/larghezza) | coverage μ_E 68/90/95 | coverage log σ_E 68/90/95 | coverage Ω 68/90/95 |
+|---|---|---|---|---|---|---|
+| 50 (200) | +0.0023 ± 0.0057 | −0.15 ± 0.03 | −0.11 / 0.96 | 0.68 / 0.91 / 0.96 | 0.67 / 0.89 / 0.93 | 0.70 / 0.86 / 0.93 |
+| 150 (200) | +0.0007 ± 0.0036 | −0.055 ± 0.019 | −0.02 / 1.05 | 0.69 / 0.92 / 0.95 | 0.60 / 0.87 / 0.94 | 0.65 / 0.88 / 0.93 |
+| 300 (100) | −0.0008 ± 0.0040 | −0.017 ± 0.017 | +0.00 / 1.06 | 0.66 / 0.84 / 0.91 | 0.64 / 0.87 / 0.94 | 0.66 / 0.91 / 0.95 |
+| 1000 (40) | +0.0017 ± 0.0031 | +0.008 ± 0.008 | +0.15 / 0.87 | 0.55 / 0.95 / 1.00 | 0.70 / 0.93 / 1.00 | 0.78 / 0.93 / 0.97 |
+
+Contrazione, robustezza al prior e pull di Ω sono invariati rispetto a §9:
+
+- pendenza di μ_E −0.46;
+- pendenza di Ω −0.56;
+- pull di Ω 1.08 / 1.05 / 1.00 / 0.89.
+
+**Esito.**
+
+- **Chiuso (c):**
+  - regressione di log σ_E a N = 50: coverage di nuovo entro gli errori binomiali, bias come nella v0.9;
+  - coverage di μ_E a N = 1000.
+- **Aperto (d):**
+  - bias residuo di log σ_E a N piccolo: −0.15 a N = 50, −0.055 a N = 150. Ipotesi: l'incertezza di Ω̂_0, circa 3° a N = 50, non è propagata nello stadio 2. Rimedio da provare: marginalizzare lo stadio 2 su alcuni pixel della calotta, pesati con la posterior di Ω;
+  - rms di log σ_E maggiore della σ dichiarata a N = 150–300 (0.27 contro 0.19; 0.17 contro 0.11), con pull e coverage nominali, già presente nella v0.9;
+  - a N = 300 la coverage al 90% di μ_E vale 0.84 (−2 errori binomiali; v0.10 0.87), con larghezza del pull 1.14 in entrambe le versioni. Da tenere d'occhio.

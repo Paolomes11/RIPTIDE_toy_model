@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.10 — 2026-09-26
+v0.11 — 2026-09-26
 
 ## Stato
 
@@ -20,7 +20,7 @@ v0.10 — 2026-09-26
 | 11 | `combine` su Ω_n (riuso) | fatto, nessuna modifica a `combine.py`; contrazione angolare σ(N=10)→σ(N=100) coerente con 1/√N entro tolleranza larga (singola realizzazione MC) |
 | 12 | `validate` su distanza angolare | fatto (`angular_residual`, `posterior_angular_resolution`, `angular_pull`, additive); verificato su geometria nota + su Caso B simulato (M=30 esperimenti, Ω_n nota): bias medio <20°, pull mediano d'ordine 1 |
 | 13 | `posterior_C` | fatto (`grids.hyperparameter_grid`, `priors.energy_prior_given_hyperparams`/`hyperparameter_prior`, `forward_model.loglik_marginal_En_hierarchical`, `posterior_C.estimate_shared_direction`/`single_event_posterior`), testato; entrambi i limiti di Sez. 5 verdi (σ_E→∞ ≈ Caso B entro atol=0.01 sulla log-verosimiglianza; σ_E→0 recupera l'energia condivisa vera entro 0.1 MeV) |
-| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist Cap. 40 v0.10 completa (`docs/report_caso_C_stadio1.md` §9, notebook 07): μ_E calibrato a ogni N (bias −0.02 MeV chiuso dal kernel sferico), Ω_n calibrato a N ≥ 150 e ~40% più preciso (stadio 1 iterato), σ_E calibrato a N ≥ 150 (c); **aperto**: a N = 50 bias di log σ_E −0.27 e coverage 90% 0.82, causa (d); coverage 68% di μ_E a N = 1000 da ricontrollare con M ≥ 100 |
+| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist Cap. 40 v0.11 completa (`docs/report_caso_C_stadio1.md` §9–§10, notebook 07–08): μ_E calibrato a ogni N (bias −0.02 MeV chiuso dal kernel sferico; coverage a N = 1000 nominale con M = 100), Ω_n calibrato a N ≥ 150 e ~40% più preciso (stadio 1 iterato), σ_E calibrato a ogni N con stadio 2 su Ω̂_0 (coverage a N = 50: 0.67/0.89/0.93) (c); **aperto** (d): bias residuo di log σ_E a N piccolo (−0.15 a N = 50, già nella v0.9), probabilmente l'incertezza di Ω non propagata nello stadio 2 |
 
 ## Deviazioni dalla guida (documentate, non silenziose)
 
@@ -207,8 +207,11 @@ v0.10 — 2026-09-26
   (report §8.1). Il raffinamento adattivo previsto dal piano non è servito.
 - **Stadio 1 iterato, empirical Bayes (2026-09-26)**: dopo lo stadio 2, lo stadio 1 si rifà
   con prior N(μ̂_E, σ̂_E) su E_n (`posterior_C.refine_shared_direction_hierarchical`), poi si
-  rifà lo stadio 2. Resta a due stadi, niente 4D. Usa i dati due volte (b); a N = 50 peggiora
-  σ_E (report §9, (d)).
+  rifà lo stadio 2. Resta a due stadi, niente 4D. Usa i dati due volte (b).
+  Dalla v0.11 serve **solo a Ω_n**: (μ_E, σ_E) vengono dallo stadio 2 su Ω̂_0 (stadio 1 a prior
+  largo), perché condizionare lo stadio 2 sull'Ω iterato portava il bias di log σ_E a N = 50 da
+  −0.15 a −0.27 (report §10, (c)). Ω̂_n e (μ̂_E, σ̂_E) non vengono quindi da un'unica stima
+  congiunta.
 
 ## Pubblicazione su GitHub
 
