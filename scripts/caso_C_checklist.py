@@ -57,8 +57,9 @@ def run_experiment(task: tuple[int, int]) -> dict:
     direction_prior = priors.direction_prior(theta_grid, phi_grid)
     mu_grid, sigma_grid = grids.hyperparameter_grid()
     # Stadio 1 a prior largo su En -> omega_0 -> stadio 2 (report §10): (mu_E, sigma_E)
-    # restano condizionati su omega_0; lo stadio 1 iterato con prior plug-in
-    # N(mu_hat, sigma_hat) su En (report §8.3) serve solo alla stima di Omega_n
+    # restano condizionati su omega_0; lo stadio 1 iterato con prior su En
+    # N(media, sd) della predittiva dello stadio 2 (report §8.3, §13 punto B)
+    # serve solo alla stima di Omega_n
     omega_0 = posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, direction_prior)[0]
     D = (*D_B, omega_0)
     summary = {"N": n_events, "mu_true": mu_true, "sigma_true": sigma_true}
@@ -67,6 +68,8 @@ def run_experiment(task: tuple[int, int]) -> dict:
         prior_fns["U"] = priors.hyperparameter_prior_uniform_sigma
     for name, prior_fn in prior_fns.items():
         log_post, mu_fine, sigma_fine = posterior_C.refine_hyperparameters(D, mu_grid, sigma_grid, prior_fn)
+        if name == "logU":
+            prior_En = posterior_C.predictive_energy_moments(log_post, mu_fine, sigma_fine)
         mu_mean, mu_std = validate.posterior_mean_std(log_post[None, :], mu_fine)
         ls_mean, ls_std = validate.posterior_mean_std(log_post[None, :], np.log(sigma_fine))
         mu_int = validate.credible_interval(log_post[None, :], mu_fine, np.concatenate([[0.0], LEVELS]))[0]
@@ -77,7 +80,7 @@ def run_experiment(task: tuple[int, int]) -> dict:
         }
 
     omega_hat, cap_log_post, cap_theta, cap_phi = posterior_C.refine_shared_direction_hierarchical(
-        D_B, theta_grid, phi_grid, direction_prior, summary["logU"]["mu_mean"], np.exp(summary["logU"]["ls_mean"])
+        D_B, theta_grid, phi_grid, direction_prior, *prior_En
     )
     cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
     cap_pixel = np.sqrt(2 * np.pi * (1.0 - np.min(cap_grid @ omega_hat[0])) / cap_grid.shape[0])
