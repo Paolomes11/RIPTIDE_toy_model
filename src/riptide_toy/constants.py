@@ -30,3 +30,7 @@ N_THETA_OBS = 801
 WINDOW_DELTA_LOG = 10.0
 N_MU_FINE, N_SIGMA_FINE = 40, 40
 N_DIRECTION_CAP = 8000
+# stadio 2 marginalizzato su Omega_n (correzione 2, report §11): pixel ad area
+# uguale nella calotta tenuta (raggio ~4.5 sigma_Omega con WINDOW_DELTA_LOG),
+# passo ~0.8 sigma_Omega; ciascuno costa uno stadio 2 (hierarchical_base).
+N_DIRECTION_MARGINAL = 100

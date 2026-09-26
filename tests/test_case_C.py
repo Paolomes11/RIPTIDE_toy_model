@@ -399,3 +399,46 @@ def test_refine_shared_direction_hierarchical_near_truth_and_narrower():
         assert np.max(cap_log_post[-200:]) < cap_log_post.max() - 5.0
         assert np.arccos(np.clip(omega_hat[0] @ omega_true, -1.0, 1.0)) < np.deg2rad(8.0)
     assert spreads[1] < spreads[0]
+
+
+def test_marginal_direction_reduces_to_conditional_for_point_like_cap():
+    # Correzione 2: se la calotta dello stadio 1 e' puntiforme (raggio 1e-6 rad),
+    # marginalizzare su Omega_n equivale a fissarlo in omega_hat (a meno di una costante).
+    rng = np.random.default_rng(SEED)
+    D_B, omega_true = case_C_dataset(60, rng)
+    omega_hat = omega_true[None, :]
+    cap_theta, cap_phi = posterior_C.direction_cap_grid(omega_hat, 1e-6, 50)
+    cap_log_post = np.zeros(50)
+    mu_grid, sigma_grid = grids.hyperparameter_grid(30, 30)
+    conditional, mu_c, sigma_c = posterior_C.refine_hyperparameters(
+        (*D_B, omega_hat), mu_grid, sigma_grid, priors.hyperparameter_prior, n_mu=15, n_sigma=15
+    )
+    marginal, mu_m, sigma_m = posterior_C.refine_hyperparameters_marginal_direction(
+        D_B, omega_hat, cap_log_post, cap_theta, cap_phi, mu_grid, sigma_grid,
+        priors.hyperparameter_prior, n_pixel=5, n_mu=15, n_sigma=15
+    )
+    assert np.array_equal(mu_m, mu_c) and np.array_equal(sigma_m, sigma_c)
+    np.testing.assert_allclose(marginal - logsumexp(marginal),
+                               conditional - logsumexp(conditional), atol=1e-4)
+
+
+def test_marginal_direction_not_narrower_than_conditional():
+    # Propagare l'incertezza su Omega_n (qualche grado a N=60) non restringe il
+    # posterior su log(sigma_E) rispetto allo stadio 2 condizionato su omega_hat.
+    rng = np.random.default_rng(SEED)
+    D_B, _ = case_C_dataset(60, rng)
+    theta_grid, phi_grid = grids.sphere_grid(1500)
+    dprior = priors.direction_prior(theta_grid, phi_grid)
+    stage_1 = posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, dprior, n_cap=2000)
+    mu_grid, sigma_grid = grids.hyperparameter_grid(30, 30)
+    conditional, _, sigma_c = posterior_C.refine_hyperparameters(
+        (*D_B, stage_1[0]), mu_grid, sigma_grid, priors.hyperparameter_prior, n_mu=20, n_sigma=20
+    )
+    marginal, _, sigma_m = posterior_C.refine_hyperparameters_marginal_direction(
+        D_B, *stage_1, mu_grid, sigma_grid, priors.hyperparameter_prior,
+        n_pixel=40, n_mu=20, n_sigma=20
+    )
+    assert np.all(np.isfinite(marginal))
+    _, std_c = validate.posterior_mean_std(conditional[None, :], np.log(sigma_c))
+    _, std_m = validate.posterior_mean_std(marginal[None, :], np.log(sigma_m))
+    assert std_m[0] >= 0.99 * std_c[0]

@@ -3,8 +3,8 @@ from typing import Callable
 import numpy as np
 
 from riptide_toy import combine, forward_model, grids, kinematics, posterior_B, priors
-from riptide_toy.constants import (N_DIRECTION_CAP, N_MU_FINE, N_SIGMA_FINE, SIGMA_EP, SIGMA_THETA,
-                                   WINDOW_DELTA_LOG)
+from riptide_toy.constants import (N_DIRECTION_CAP, N_DIRECTION_MARGINAL, N_MU_FINE, N_SIGMA_FINE,
+                                   SIGMA_EP, SIGMA_THETA, WINDOW_DELTA_LOG)
 
 
 def estimate_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
@@ -443,3 +443,59 @@ def refine_hyperparameters(D: tuple[np.ndarray, np.ndarray, np.ndarray],
         base, mu_fine, sigma_fine, prior_fn(mu_fine, sigma_fine)
     )
     return log_post_fine, mu_fine, sigma_fine
+
+
+def refine_hyperparameters_marginal_direction(
+        D_B: tuple[np.ndarray, np.ndarray], omega_hat: np.ndarray,
+        cap_log_post: np.ndarray, cap_theta: np.ndarray, cap_phi: np.ndarray,
+        mu_grid: np.ndarray, sigma_grid: np.ndarray,
+        prior_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
+        delta_log: float = WINDOW_DELTA_LOG, n_pixel: int = N_DIRECTION_MARGINAL,
+        n_mu: int = N_MU_FINE, n_sigma: int = N_SIGMA_FINE
+        ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Stadio 2 con Omega_n marginalizzato invece che fissato (correzione 2):
+
+        log p(mu_E, sigma_E | D) = log pi(mu_E, sigma_E)
+            + log sum_j exp(sum_k log L_k(mu_E, sigma_E, Omega_j)) + cost.,
+
+    marginale esatto del posterior congiunto su (Omega_n, mu_E, sigma_E),
+    con l'integrale su Omega_n per quadratura su pixel ad area uguale di una
+    calotta attorno a omega_hat (prior su Omega_n uniforme: peso costante,
+    omesso). Lo stadio 1 serve solo a scegliere la calotta (pixel con
+    log-posterior > max - delta_log); la verosimiglianza in ogni pixel e'
+    quella gerarchica dello stadio 2. La finestra fine su (mu_E, sigma_E) e'
+    quella di refine_hyperparameters su omega_hat, comune a tutti i pixel.
+    Mai griglia 4D: un ciclo sui pixel, ciascuno uno stadio 2 (CLAUDE.md Sez. 4).
+    Assunzioni: 1 + 2 + 3.
+
+    Args:
+        D_B: (Ep_hat, track_hat): energia di rinculo, MeV, forma (n_events,);
+            direzione della traccia, versori, forma (n_events, 3).
+        omega_hat, cap_log_post, cap_theta, cap_phi: uscita dello stadio 1
+            (refine_shared_direction o _hierarchical): versore (1, 3),
+            log-posterior (n_cap,), pixel della calotta in rad (n_cap,).
+        mu_grid, sigma_grid: griglia globale (grids.hyperparameter_grid), MeV.
+        prior_fn: (mu_grid, sigma_grid) -> prior proprio sulla griglia.
+        delta_log: soglia sulla calotta dello stadio 1 e sulla finestra.
+        n_pixel: pixel della quadratura su Omega_n.
+        n_mu, n_sigma: punti per asse della griglia fine.
+
+    Ritorna:
+        (log_post_fine (n_mu*n_sigma,) log-posterior marginale non normalizzato,
+         mu_fine, sigma_fine (n_mu*n_sigma,) MeV, layout di grids.hyperparameter_grid_window).
+    """
+    Ep_hat, track_hat = D_B
+    _, mu_fine, sigma_fine = refine_hyperparameters((*D_B, omega_hat), mu_grid, sigma_grid,
+                                                    prior_fn, delta_log, n_mu, n_sigma)
+    cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
+    radius = direction_cap_radius(cap_log_post, cap_grid, delta_log)
+    pixel_grid = kinematics.direction_from_theta_phi(*direction_cap_grid(omega_hat, radius, n_pixel))
+    prior_fine = prior_fn(mu_fine, sigma_fine)
+    log_post = np.empty((n_pixel, mu_fine.shape[0]), dtype=np.float64)
+    for j in range(n_pixel):  # ciclo sui pixel di Omega_n, non sugli eventi
+        theta_obs = kinematics.recoil_angle_from_direction(track_hat, pixel_grid[j:j + 1])[:, 0]
+        base = forward_model.hierarchical_base(Ep_hat, theta_obs, grids.energy_grid(),
+                                               SIGMA_EP, SIGMA_THETA)
+        log_post[j] = hyperparameter_log_posterior_from_base(base, mu_fine, sigma_fine, prior_fine)
+    # il prior su (mu_E, sigma_E) e' lo stesso in ogni riga: contato una volta
+    return forward_model.logsumexp_axis(log_post, axis=0), mu_fine, sigma_fine
