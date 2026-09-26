@@ -544,7 +544,7 @@ I run multi-processo sono stati eseguiti con `OMP_NUM_THREADS=1`, 3 processi e i
 - (B2) verità fuori dalla calotta, per via di `truth_in_cap` nella checklist;
 - (B3) massa della posterior tagliata al bordo della calotta.
 
-La diagnostica rifà lo stadio 1′ con più prior su E_n, sugli stessi dati:
+La diagnostica (`scripts/caso_C_diag_omega_N50.py`, risultati in `outputs/caso_C_diag_omega_N50[_tag50|_tag51].pkl`) rifà lo stadio 1′ con più prior su E_n, sugli stessi dati:
 
 - plug-in N(μ̂, exp(E[log σ])), com'era nella checklist;
 - oracolo N(μ_true, σ_true);
@@ -597,6 +597,8 @@ Ho rigiocato 8 seed a N = 1000 della checklist (indici 0–7):
 `src/` è identico fra il commit di §8.3 (5793bed) e quello di §9 (2306cd9); è cambiato solo lo script della checklist. La differenza di 1–2 esperimenti su 40 viene quindi dallo script diagnostico di §8.3 (b), per esempio dalla coverage "di Rayleigh" di §8.2 al posto dell'HPD. Quello script non è stato conservato. Non serve un test di determinismo.
 
 ### 13.4 Test di integrazione e regressione a N alto (c)
+
+Misure con `scripts/caso_C_diag_stadio1_test.py` (risultati in `outputs/caso_C_diag_stadio1_test.pkl`).
 
 - `test_posterior_C_end_to_end_direction_and_hyperparams` (N = 60, `estimate_shared_direction`, soglia 15°), su 200 seed: errore mediano 2.8°, 95° percentile 5.2°, massimo 7.4°. Il margine sulla soglia è circa 2×, e la realizzazione del test (seed `SEED`, 7.3°) sta nella coda alta.
 - Nuovo `test_stage1_error_contracts_at_large_N`: `refine_shared_direction` a N = 300 con soglia 5°. Su 100 seed l'errore ha mediana 1.2° e massimo 3.0°; il test dura circa 1.2 s. A N = 1000 (mediana 0.6°, massimo 1.3°) servirebbero circa 4–5 s, al limite del budget. Il vecchio massimo sistematico (~53°) farebbe fallire il test.
