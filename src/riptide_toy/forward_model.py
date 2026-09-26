@@ -16,7 +16,7 @@ def measure(Ep_true: np.ndarray, theta_p_true: np.ndarray,
 
 def loglik(D: tuple[np.ndarray, np.ndarray], En_grid: np.ndarray,
            theta_p_grid: np.ndarray, sigma_Ep: float, sigma_theta: float,
-           log_prior_theta: np.ndarray, chunk_size: int = 500) -> np.ndarray:
+           log_prior_theta: np.ndarray, chunk_size: int = 100) -> np.ndarray:
     """Log-verosimiglianza per ogni evento su ogni En, con theta_p
     gia' marginalizzato (pesato da log_prior_theta), a chunk di eventi
     per stare in RAM (evita la griglia piena (n_eventi, n_En, n_theta)).
@@ -46,14 +46,24 @@ def loglik(D: tuple[np.ndarray, np.ndarray], En_grid: np.ndarray,
     theta = theta_p_grid[None, :].astype(np.float32)
     En = En_grid[:, None].astype(np.float32)
     Ep_pred = (En * np.cos(theta) ** 2)[None]
+    inv_sigma_Ep = np.float32(1.0 / sigma_Ep)
+    # termine in theta per evento, (n_events, 1, n_theta): non dipende da En
+    second = (-0.5 * ((theta_p_hat[:, None] - theta) / sigma_theta) ** 2
+              + log_prior_theta[None, :]).astype(np.float32)[:, None, :]
 
     out = np.empty((n_events, n_En), dtype=np.float32)
     for start in range(0, n_events, chunk_size):
         end = min(start + chunk_size, n_events)
-        first = -0.5 * ((Ep_hat[start:end, None, None] - Ep_pred) / sigma_Ep) ** 2
-        second = -0.5 * ((theta_p_hat[start:end, None, None] - theta[None]) / sigma_theta) ** 2
-        joint = first + second + log_prior_theta[None, None, :]   # (chunk, n_En, n_theta)
-        out[start:end] = logsumexp(joint, axis=2)                  # marginalizza theta, un lotto alla volta
+        # log-sum-exp su theta a mano e in place: scipy.special.logsumexp era il
+        # 75% del tempo (conversioni e passate extra, profilo in docs/roadmap.md)
+        joint = (Ep_hat[start:end, None, None] - Ep_pred) * inv_sigma_Ep  # (chunk, n_En, n_theta)
+        joint *= joint
+        joint *= np.float32(-0.5)
+        joint += second[start:end]
+        joint_max = joint.max(axis=2, keepdims=True)  # finito: il prior su theta e' finito
+        joint -= joint_max
+        np.exp(joint, out=joint)
+        out[start:end] = np.log(joint.sum(axis=2)) + joint_max[..., 0]
     return out
 
 
