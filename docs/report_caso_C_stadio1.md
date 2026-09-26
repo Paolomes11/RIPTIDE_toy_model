@@ -4,6 +4,25 @@ Etichette come da convenzione del progetto: **(a)** fatto consolidato · **(b)**
 
 ## 1. Sintesi
 
+**Stato v0.14 (2026-09-26).** Il Caso C è validato a ogni N testato (50–1000) con la checklist completa (§9–§13). Nessun punto resta aperto.
+
+| Punto | Stato | Dove |
+|---|---|---|
+| Massimo sistematico dello stadio 1 (pixel 0, ~53°) | chiuso (c) | §6 |
+| Bias di μ_E (curvatura della sfera nel kernel) | chiuso (c) | §7 |
+| Calotta degenere e sovra-copertura di Ω_n | chiuso (c) | §8 |
+| Coverage di μ_E a N = 1000; regressione di log σ_E a N = 50 | chiuso (c) | §10 |
+| Bias di log σ_E a N piccolo | chiuso (c): effetto del prior largo | §11 |
+| Coverage 68% di log σ_E a N = 150–300 | chiuso (c): fluttuazione | §12 |
+| Coverage 90% di μ_E a N = 300 | chiuso (c): fluttuazione | §13.1 |
+| Ω_n sovra-confidente a N = 50 | chiuso (c): prior predittivo nello stadio 1′ | §13.2 |
+| Differenza fra §8.3 e §9 a N = 1000 | chiuso (c): run deterministici, script diverso | §13.3 |
+| Robustezza del test di integrazione e regressione a N alto | chiuso (c) | §13.4 |
+| Memoria di `posterior_B` (§3.6) | chiuso: elaborazione a blocchi | §13.5 |
+| Spiegazione (d) di §11.1 | resta (d), su una funzione non usata nella pipeline | §11.1 |
+
+**Sintesi iniziale (2026-09-25), superata e conservata per la storia:**
+
 > **Aggiornamento 2026-09-25:** la causa vera è un'altra (combinato −∞ ⇒ pixel 0) e l'ipotesi del §4 è smentita; correzioni e checklist della riga 14 sono in §6.
 
 - Il motore dello stadio 2 (`forward_model.loglik_marginal_En_hierarchical`, `priors.energy_prior_given_hyperparams`) è corretto: con la direzione vera il profilo di verosimiglianza in σ_E ha un massimo interno vicino al valore vero **(c)**.
@@ -69,6 +88,8 @@ Con una direzione errata, θ_p_hat è quasi scorrelato da θ_p vero; il pattern 
 
 ### 3.6 Memoria (nota operativa)
 
+> **Chiuso (v0.14):** `posterior_B` elabora ora gli eventi a blocchi (`forward_model.loglik_marginal_En_theta`, `chunk_size=20`); vedi §13.5.
+
 `posterior_B.single_event_posterior` alloca un array `(n_eventi, n_pixel, n_En=500)` in float64. Con ~136 eventi e 6000 pixel sono ~3 GB per array, più temporanei: si esaurisce la RAM (processo terminato). Per diagnostici oltre ~3000 pixel, processare a blocchi di eventi (10 alla volta è sufficiente).
 
 ## 4. Ipotesi sulla causa (d)
@@ -81,6 +102,8 @@ Predizioni verificabili di questa ipotesi:
 3. Con E_n vero distribuito in modo piatto sul dominio del prior (modello ben specificato), l'errore dovrebbe contrarsi come 1/√N.
 
 ## 5. Possibili passi futuri
+
+> **Superata (v0.14):** i punti 1–6 e 8 sono stati fatti o superati in §6–§11; il 7 è in §13.4, il 9 in §13.5, il 10 nella roadmap.
 
 1. **Verificare l'ipotesi del §4** con i tre controlli elencati, prima di modificare codice.
 2. **Stadio 1 iterativo** (opzione preferita): Caso B → stima (μ_E, σ_E) → direzione ricalcolata con prior gerarchico N(μ_E, σ_E) → iterare fino a convergenza. Resta una griglia a due stadi, senza griglia 4D. Da valutare: convergenza, dipendenza dall'inizializzazione, costo.
@@ -488,3 +511,96 @@ Il punto aperto di §11.3 è stato esaminato con `scripts/caso_C_cov68.py` e nel
 - log σ_E è quindi calibrato a N = 150–300 col prior di default.
 
 **Ancora al limite (d):** la coverage al 90% di μ_E a N = 300. Vale 0.84 ± 0.037 sui seed della checklist e 0.877 ± 0.017 sui seed nuovi, cioè −1.4 errori binomiali. La sd dei pull di μ_E è 1.03 sui seed nuovi e le coverage al 68% e al 95% sono nominali: non c'è un segnale netto e non si interviene.
+
+**Aggiornamento (v0.14):** chiuso come fluttuazione, §13.1.
+
+## 13. Punti residui chiusi (v0.14, 2026-09-26)
+
+I run multi-processo sono stati eseguiti con `OMP_NUM_THREADS=1`, 3 processi e il tetto `systemd-run … MemoryMax=5G`.
+
+### 13.1 Coverage al 90% di μ_E a N = 300: fluttuazione (c)
+
+**Dati esistenti.** Forma e code sono escluse come cause:
+
+| insieme | M | cov. 90% | mancati sotto/sopra | pull media / sd | kurtosi del pull | semiampiezza 90% / (1.645·std) |
+|---|---|---|---|---|---|---|
+| checklist | 100 | 0.840 | 7 / 9 | −0.02 / 1.14 | −0.09 | 1.015 |
+| seed nuovi di §12 (tag 68), Ω̂_0 | 300 | 0.877 | 12 / 25 | −0.09 / 1.03 | +0.11 | 1.015 |
+
+**Seed nuovi.** `scripts/caso_C_cov90_mu.py`, con `spawn_key=(300, i, 90)` e M = 600, ha richiesto circa 10.5 min.
+
+| stadio 2 su | coverage μ_E 68/90/95 | pull media / sd |
+|---|---|---|
+| Ω̂_0 | 0.700 / **0.897** / 0.955 | +0.08 / 1.00 |
+| Ω vera | 0.697 / 0.900 / 0.955 | +0.07 / 1.00 |
+
+**Esito (c).** Sui 900 seed nuovi (tag 68 e 90) la coverage al 90% vale 0.890 ± 0.010 (−1.0 errori binomiali). Aggiungendo i 100 della checklist vale 0.885 ± 0.0095 (−1.6). Lo 0.84 della checklist è una fluttuazione, e μ_E è calibrato a N = 300.
+
+### 13.2 Ω_n sovra-confidente a N = 50: il prior plug-in dello stadio 1′ (c)
+
+**Ipotesi da distinguere (d):**
+
+- (B1) prior plug-in N(μ̂, σ̂) troppo stretto;
+- (B2) verità fuori dalla calotta, per via di `truth_in_cap` nella checklist;
+- (B3) massa della posterior tagliata al bordo della calotta.
+
+La diagnostica rifà lo stadio 1′ con più prior su E_n, sugli stessi dati:
+
+- plug-in N(μ̂, exp(E[log σ])), com'era nella checklist;
+- oracolo N(μ_true, σ_true);
+- predittiva N(E[μ], √(E[σ²] + Var[μ])), cioè E_n mediata sulla posterior dello stadio 2;
+- plug-in allargato exp(E[log σ] + std[log σ]).
+
+**B2 e B3 escluse.** Su 1400 esperimenti la verità è sempre dentro la calotta. La massa della posterior nell'anello esterno (angolo > 0.8 R) è al massimo 10⁻⁶ col prior largo e 10⁻⁸ con gli altri. La verità dista al più 0.43 R dal centro.
+
+**Coverage HPD di Ω a N = 50** (pull rms = `validate.angular_pull`, atteso ~1):
+
+| seed (M) | plug-in | oracolo | predittiva | plug-in +1 sd |
+|---|---|---|---|---|
+| checklist (200) | 0.70 / 0.86 / 0.925, pull rms 1.08 | 0.695 / 0.89 / 0.93, 1.04 | 0.705 / 0.875 / 0.93, 1.05 | 0.71 / 0.885 / 0.925, 1.01 |
+| nuovi, tag 50 (600) | 0.650 / 0.880 / 0.943, 1.06 | 0.658 / 0.892 / 0.958, 1.02 | — | — |
+| nuovi, tag 51 (600) | 0.677 / 0.895 / 0.937, 1.02 | 0.688 / 0.900 / 0.940, 0.99 | 0.692 / 0.907 / 0.950, 0.98 | 0.722 / 0.930 / 0.957, 0.93 |
+
+I valori combinati sono questi:
+
+- **plug-in** (M = 1400): 0.669 / 0.884 / 0.938 (z = −0.9 / −2.0 / −2.1), pull rms 1.04;
+- **oracolo** (M = 1400): 0.895 / 0.946 al 90 / 95%, cioè nominale;
+- **predittiva** (M = 800): 0.899 / 0.945;
+- **plug-in +1 sd** (tag 51): sovra-copre (z = +2.2 / +2.4 al 68 / 90%) ed è scartato.
+
+**Causa (c).** Si tratta di B1 in forma debole. Il plug-in ignora l'incertezza su (μ_E, σ_E), che a N = 50 non è trascurabile, e la posterior di Ω risulta circa il 4% troppo stretta. Col prior vero la coverage è nominale. La predittiva propaga quell'incertezza allo stesso costo del plug-in.
+
+**Correzione (v0.14).**
+
+- Nuova funzione `posterior_C.predictive_energy_moments(log_post, mu_grid, sigma_grid)` con il suo test.
+- La checklist usa questa funzione per il prior dello stadio 1′ al posto del plug-in.
+- Lo stadio 2 non cambia: μ_E e log σ_E restano identici alla v0.11–v0.13, esperimento per esperimento.
+
+**Checklist v0.14**, con circa 7.7 min di run. La v0.13 è conservata in `outputs/caso_C_checklist_results_v0.13.pkl`; l'output è in `outputs/caso_C_checklist_v14.txt`.
+
+| N (M) | coverage Ω (HPD) 68/90/95 | pull Ω rms | rms Ω (σ dichiarata media) [°] | v0.13: coverage / pull rms |
+|---|---|---|---|---|
+| 50 (200) | 0.70 / 0.88 / 0.93 | 1.05 | 1.97 (1.87) | 0.70 / 0.86 / 0.93, 1.08 |
+| 150 (200) | 0.65 / 0.88 / 0.93 | 1.04 | 1.11 (1.06) | 0.65 / 0.88 / 0.93, 1.05 |
+| 300 (100) | 0.66 / 0.91 / 0.96 | 1.00 | 0.75 (0.75) | 0.66 / 0.91 / 0.95, 1.00 |
+| 1000 (40) | 0.78 / 0.92 / 0.98 | 0.89 | 0.37 (0.41) | 0.78 / 0.93 / 0.97, 0.89 |
+
+La pendenza di contrazione di Ω è invariata, −0.56. Sui seed della checklist la differenza è entro gli errori binomiali. La prova della correzione è il confronto a coppie sui seed nuovi della tabella precedente.
+
+### 13.3 Differenza fra §8.3 e §9 a N = 1000: run deterministici (c)
+
+Ho rigiocato 8 seed a N = 1000 della checklist (indici 0–7):
+
+- con `OMP_NUM_THREADS=1` i risultati sono identici bit a bit a `outputs/caso_C_checklist_results.pkl`, e Ω coincide con la v0.10;
+- con 3 thread BLAS le differenze sono ≤ 1.3·10⁻¹⁵, con gli stessi flag di copertura.
+
+`src/` è identico fra il commit di §8.3 (5793bed) e quello di §9 (2306cd9); è cambiato solo lo script della checklist. La differenza di 1–2 esperimenti su 40 viene quindi dallo script diagnostico di §8.3 (b), per esempio dalla coverage "di Rayleigh" di §8.2 al posto dell'HPD. Quello script non è stato conservato. Non serve un test di determinismo.
+
+### 13.4 Test di integrazione e regressione a N alto (c)
+
+- `test_posterior_C_end_to_end_direction_and_hyperparams` (N = 60, `estimate_shared_direction`, soglia 15°), su 200 seed: errore mediano 2.8°, 95° percentile 5.2°, massimo 7.4°. Il margine sulla soglia è circa 2×, e la realizzazione del test (seed `SEED`, 7.3°) sta nella coda alta.
+- Nuovo `test_stage1_error_contracts_at_large_N`: `refine_shared_direction` a N = 300 con soglia 5°. Su 100 seed l'errore ha mediana 1.2° e massimo 3.0°; il test dura circa 1.2 s. A N = 1000 (mediana 0.6°, massimo 1.3°) servirebbero circa 4–5 s, al limite del budget. Il vecchio massimo sistematico (~53°) farebbe fallire il test.
+
+### 13.5 Memoria di `posterior_B` (§3.6)
+
+Risolto nel codice prima della v0.14: `posterior_B` elabora gli eventi a blocchi tramite `forward_model.loglik_marginal_En_theta` (`chunk_size=20`). A N = 1000 il picco misurato è circa 0.3 GB per processo.
