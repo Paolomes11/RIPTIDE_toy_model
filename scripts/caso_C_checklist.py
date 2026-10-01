@@ -119,7 +119,7 @@ def main() -> None:
         results = pool.map(run_experiment, tasks, chunksize=1)
     out_dir = Path("outputs")
     out_dir.mkdir(exist_ok=True)
-    # risultati grezzi per i notebook (07_checklist_caso_C_v2), senza rilanciare il run
+    # risultati grezzi per il notebook 05_validazione_caso_C, senza rilanciare il run
     with open(out_dir / "caso_C_checklist_results.pkl", "wb") as f:
         pickle.dump({"N_M": N_M, "N_ROBUSTNESS": N_ROBUSTNESS, "LEVELS": LEVELS, "results": results}, f)
 
