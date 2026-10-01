@@ -1,3 +1,11 @@
+"""Validazione su dati simulati con verita' nota, nell'ordine
+bias -> risoluzione -> pull -> coverage (contrazione e robustezza al prior negli script).
+
+pull = (stima - verita') / sigma dichiarata: se il ricostruttore e' calibrato e' ~N(0, 1).
+coverage = frazione di intervalli credibili al livello L che contengono la verita':
+deve essere ~L. Per le direzioni: distanza angolare e regioni HPD sulla griglia.
+Generico: non importa nulla dal progetto.
+"""
 from collections.abc import Callable
 
 import numpy as np
@@ -45,11 +53,10 @@ def pull_histogram(truth: np.ndarray, estimate: np.ndarray, sigma_hat: np.ndarra
 def coverage_curve(truth: np.ndarray, intervals: np.ndarray, levels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Copertura empirica di intervalli credibili a piu' livelli nominali (checklist di validazione, punto 4).
 
-    Nota: la guida (Sez. 3) non da' un type hint per `intervals`. Si sceglie qui la
-    forma piu' generica possibile (estremi espliciti, non necessariamente simmetrici
+    Scelta di implementazione: `intervals` ha la forma piu' generica possibile (estremi espliciti, non necessariamente simmetrici
     o gaussiani), cosi' che questa funzione resti utilizzabile sia con intervalli
     gaussiani (livello -> z*sigma_hat) sia con intervalli letti da un posterior a
-    griglia (Caso B/C). Vedi docs/roadmap.md, sezione Deviazioni.
+    griglia (Caso B/C).
 
     Args:
         truth: valore vero per evento, forma (n_eventi,).
@@ -141,10 +148,11 @@ def posterior_angular_resolution(log_posterior: np.ndarray, omega_hat_grid: np.n
 def posterior_mean_std(log_posterior: np.ndarray, grid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Media e deviazione standard pesate su un posterior a griglia per un parametro
     scalare (momenti del posterior; generalizza il calcolo gia' usato inline per
-    i casi di riferimento R1/R2 e per la voce "risoluzione_caso_A" di docs/roadmap.md; qui
+    i casi di riferimento R1/R2 e per la risoluzione del Caso A; qui
     fattorizzata perche' riusata per i parametri scalari mu_E, sigma_E del Caso C,
     riga 14 -- analoga a posterior_angular_resolution ma per un asse lineare invece
-    che sferico). Estensione additiva (CLAUDE.md Sez. 6, checkpoint Caso A).
+    che sferico). Funzione aggiunta dopo il collaudo del Caso A, senza
+    modificare quelle esistenti.
 
     Args:
         log_posterior: log-posterior non normalizzato, forma (n_eventi, n_candidati).
@@ -188,7 +196,7 @@ def credible_interval(log_posterior: np.ndarray, grid: np.ndarray, levels: np.nd
     Se grid ha valori ripetuti (es. un asse di una griglia 2D appiattita) il
     posterior viene prima marginalizzato sommando sui punti con lo stesso
     valore. Quantili per interpolazione lineare della CDF ai centri delle
-    celle; livello 0 = mediana. Estensione additiva (Sez. 6, checkpoint).
+    celle; livello 0 = mediana. Funzione aggiunta, le esistenti invariate.
 
     Args:
         log_posterior: log-posterior non normalizzato, forma (n_eventi, n_candidati).

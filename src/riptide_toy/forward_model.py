@@ -1,3 +1,11 @@
+"""Modello diretto: dalle grandezze vere alle osservabili, e verosimiglianze.
+
+Osservabili per evento: E_p misurata (errore gaussiano SIGMA_EP) e direzione della
+traccia del protone (errore angolare SIGMA_THETA). Le grandezze non osservate
+(theta_p vero, E_n per evento) si marginalizzano su griglia; tutte le somme si fanno
+in log (logsumexp) per stabilita', e i tensori grandi si evitano con blocchi o con
+prodotti di matrici (log_matmul_exp).
+"""
 import numpy as np
 from scipy.special import ive, logsumexp
 
@@ -31,10 +39,10 @@ def loglik(D: tuple[np.ndarray, np.ndarray], En_grid: np.ndarray,
     gia' marginalizzato (pesato da log_prior_theta), a chunk di eventi
     per stare in RAM (evita la griglia piena (n_eventi, n_En, n_theta)).
 
-    Nota: firma diversa da quella della guida (Sez. 3), che non
-    marginalizza theta_p qui dentro. Deviazione mantenuta per
-    prestazioni; posterior_A si adatta a questa firma. Vedi
-    docs/roadmap.md, sezione Deviazioni.
+    Scelta di implementazione: theta_p si marginalizza qui dentro, a
+    blocchi di eventi, invece che a valle: cosi' non si alloca mai la
+    griglia piena e posterior_A riceve gia' una log-verosimiglianza su En.
+    Vedi docs/roadmap.md, sezione Scelte di implementazione.
 
     Args:
         D: (Ep_hat, theta_p_hat), osservabili, ciascuno forma (n_events,).
@@ -83,8 +91,7 @@ def loglik_marginal_En(Ep_hat: np.ndarray, theta_p: np.ndarray, En_grid: np.ndar
     theta_p gia' noto per ogni evento/candidato (calcolato geometricamente
     da kinematics.recoil_angle_from_direction, non marginalizzato qui).
 
-    Fisica: Ep = En*cos^2(theta_p), theta_lab <= pi/2 (CLAUDE.md Sez. 3,
-    scattering elastico a masse uguali: il rinculo e' sempre in avanti). I
+    Fisica: Ep = En*cos^2(theta_p), theta_lab <= pi/2 (scattering elastico a masse uguali: il rinculo e' sempre in avanti). I
     candidati con theta_p > pi/2 sono cinematicamente vietati e ricevono
     log-verosimiglianza -inf.
 
@@ -113,8 +120,8 @@ def loglik_marginal_En_hierarchical(Ep_hat: np.ndarray, theta_p: np.ndarray,
     En diverso per ogni candidato iperparametro (Caso C, stadio 2 della
     griglia a due stadi: Omega_n gia' fissato dal Caso B, qui si
     marginalizza solo su En dato ciascun candidato (mu_E, sigma_E) --
-    CLAUDE.md Sez. 4, "mai griglia 4D bruta": la griglia e' solo su
-    (mu_E, sigma_E), non su Omega_n.
+    mai una griglia 4D bruta: la griglia e' solo su (mu_E, sigma_E), non
+    su Omega_n.
 
     A differenza di loglik_marginal_En (Caso B, un solo log_prior_En
     condiviso da tutti i candidati direzione), qui ogni candidato
@@ -172,6 +179,9 @@ def logsumexp_axis(x: np.ndarray, axis: int) -> np.ndarray:
 def log_matmul_exp(a: np.ndarray, b: np.ndarray, cell_chunk_size: int = 20_000) -> np.ndarray:
     """log sum_j exp(a[i, j] + b[k, j]) per ogni coppia (i, k), come prodotto
     di matrici (BLAS) invece del tensore (n_a, n_b, n_j) passato a logsumexp.
+    Perche': il tensore pieno costa memoria n_a*n_b*n_j e un exp per cella;
+    exp(a) @ exp(b).T fa gli exp solo n_a*n_j + n_b*n_j volte e la somma su j
+    la fa il GEMM ottimizzato.
 
     Stabilita': a e b sono spostati del proprio massimo per riga, quindi
     ogni termine exp(...) e' in [0, 1] con errore relativo ~1e-16 e la somma

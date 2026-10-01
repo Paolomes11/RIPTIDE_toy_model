@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 *.egg-info/
 
-# output e dati pesanti (CLAUDE.md Sez. 8)
+# output e dati pesanti: si rigenerano con gli script
 outputs/
 *.root
 *.npz

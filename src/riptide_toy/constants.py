@@ -1,3 +1,5 @@
+"""Costanti numeriche del toy model: seme, masse, dominio di energia, risoluzioni,
+griglie e soglie. Unita': MeV, rad. Nessun altro modulo contiene numeri magici."""
 SEED = 20260907
 
 # equal masses, natural units of the toy model
@@ -12,7 +14,7 @@ SIGMA_EP = 0.10     # MeV
 SIGMA_THETA = 0.08  # rad
 
 # griglia iperparametri Caso C: range di sigma_E (MeV) per coprire i due test
-# di limite (CLAUDE.md Sez. 5): sigma_E->0 ~ Caso A, sigma_E->infinito ~ Caso B.
+# di limite: sigma_E->0 deve ridare il Caso A, sigma_E->infinito il Caso B.
 # SIGMA_E_MIN << SIGMA_EP: lo scatter fra eventi e' indistinguibile dal rumore
 # di misura. SIGMA_E_MAX >> (EN_MAX - EN_MIN): la gaussiana troncata sul
 # dominio di energy_grid e' gia' ~piatta.

@@ -17,7 +17,7 @@ def test_energy_grid_cache_stable_same_args():
 
 
 def test_sphere_grid_different_args_do_not_collide():
-    # errata (a): maxsize=1 svuoterebbe la cache tra chiamate con n diversi
+    # maxsize=1 svuoterebbe la cache tra chiamate con n diversi
     theta_a, phi_a = grids.sphere_grid(500)
     theta_b, phi_b = grids.sphere_grid()
     assert theta_a.shape == (500,)
@@ -66,7 +66,7 @@ def test_recoil_angle_from_direction_shape_and_values():
 
 
 def test_energy_prior_is_proper_and_integrates_to_one():
-    # fix errata (b): scipy.integrate.trapezoid al posto di np.trapz deprecato
+    # scipy.integrate.trapezoid al posto di np.trapz deprecato
     en_grid = grids.energy_grid()
     p = priors.energy_prior(en_grid)
     assert p.shape == en_grid.shape
@@ -91,3 +91,28 @@ def test_loglik_roundtrip_argmax_near_truth():
     assert ll.shape == (1, en_grid.shape[0])
     argmax_En = en_grid[np.argmax(ll[0])]
     assert abs(argmax_En - En_true) < 3 * sigma_Ep
+
+
+def test_posterior_A_calibrated_when_truth_drawn_from_prior():
+    # Se la verita' e' estratta dal prior del posterior (E_n ~ U(EN_MIN, EN_MAX),
+    # theta_p ~ U(0, pi/2)), gli intervalli credibili coprono al livello nominale in media.
+    # Con 2000 eventi l'errore binomiale al 68% e' sqrt(0.68*0.32/2000) = 0.010: soglia 3 errori.
+    from riptide_toy import posterior_A, validate
+    from riptide_toy.constants import EN_MAX, EN_MIN, SIGMA_EP, SIGMA_THETA
+
+    rng = np.random.default_rng(SEED)
+    n = 2000
+    levels = np.array([0.68, 0.90])
+    truth = rng.uniform(EN_MIN, EN_MAX, n)
+    theta = rng.uniform(0.0, np.pi / 2, n)
+    Ep_hat, theta_hat = forward_model.measure(kinematics.proton_energy(truth, theta), theta,
+                                              SIGMA_EP, SIGMA_THETA, rng)
+    en_grid = grids.energy_grid()
+    prior = priors.energy_prior(en_grid)
+    log_post = np.concatenate([
+        posterior_A.single_event_posterior((Ep_hat[i:i + 50], theta_hat[i:i + 50]), en_grid, prior)
+        for i in range(0, n, 50)
+    ])
+    _, coverage = validate.coverage_curve(truth, validate.credible_interval(log_post, en_grid, levels), levels)
+    binomial = np.sqrt(levels * (1 - levels) / n)
+    assert np.all(np.abs(coverage - levels) < 3 * binomial)

@@ -1,3 +1,18 @@
+"""Caso C: direzione Omega_n condivisa e energie simili, E_n^(k) ~ N(mu_E, sigma_E).
+
+Una griglia 4D su (Omega_n, mu_E, sigma_E) sarebbe troppo costosa, quindi si
+procede a due stadi:
+  stadio 1: Omega_n dal Caso B (prior largo su E_n), griglia grossolana sulla sfera
+            e poi calotta fine attorno al massimo (refine_shared_direction);
+  stadio 2: griglia 2D su (mu_E, sigma_E) con Omega_n fissato alla stima dello
+            stadio 1 (refine_hyperparameters);
+  stadio 1 iterato: la direzione si ristima con un prior su E_n preso dalla
+            predittiva dello stadio 2 (predictive_energy_moments,
+            refine_shared_direction_hierarchical), piu' stretto del prior largo.
+L'incertezza di Omega_n non si propaga allo stadio 2 (empirical Bayes): la
+checklist di validazione su dati simulati dice se basta.
+Assunzioni: sorgente unica + direzione ~costante + energie simili.
+"""
 from typing import Callable
 
 import numpy as np
@@ -13,11 +28,11 @@ def estimate_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
     """Stadio 1 del Caso C: stima puntuale (MAP) di Omega_n riusando il
     Caso B, per fissarla prima della griglia 2D su (mu_E, sigma_E) --
     evita la maledizione della dimensionalita' di una griglia 4D bruta
-    (CLAUDE.md Sez. 4: "griglia a due stadi (Omega_n da B, poi 2D su
-    mu_E,sigma_E)").
+    (costo ~ n_pixel * n_mu * n_sigma * n_En per evento): prima Omega_n dal
+    Caso B, poi una griglia 2D su (mu_E, sigma_E).
 
     Nota: posterior_B.single_event_posterior somma gia' il prior sulla
-    direzione una volta per evento (CLAUDE.md Sez. 3). Per combinare gli N
+    direzione una volta per evento. Per combinare gli N
     eventi con combine.combine_loglik (che il prior lo aggiunge una sola
     volta sull'intero campione, come nelle righe 11/12) va prima sottratto,
     altrimenti verrebbe contato N volte invece di 1.
@@ -96,9 +111,8 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray, np.ndarray],
                             prior: np.ndarray) -> np.ndarray:
     """Log-posterior non normalizzato su (mu_E, sigma_E), con Omega_n gia'
     fissato (stadio 1, estimate_shared_direction) ed En^(k) come nuisance
-    per-evento a prior gerarchico N(mu_E, sigma_E) (Caso C, CLAUDE.md
-    Sez. 3). Stadio 2 della griglia a due stadi (Sez. 4): qui la griglia
-    e' solo su (mu_E, sigma_E), mai 4D.
+    per-evento a prior gerarchico N(mu_E, sigma_E) (Caso C). Stadio 2 della
+    griglia a due stadi: qui la griglia e' solo su (mu_E, sigma_E), mai 4D.
 
     Assunzioni dichiarate: sorgente unica (1) + direzione ~costante, campo
     lontano (2) + energie simili tra loro (3, E_n^(k) ~ N(mu_E, sigma_E)),
@@ -108,7 +122,7 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray, np.ndarray],
     Nota: a differenza del template generico (D, shared_param_grid, prior)
     di posterior_A/B, qui D include anche omega_n_hat -- il risultato
     dello stadio 1, gia' fissato, non una nuisance o uno shared_param di
-    questa funzione. Vedi docs/roadmap.md, sezione Deviazioni.
+    questa funzione. Vedi docs/roadmap.md, sezione Scelte di implementazione.
 
     Args:
         D: (Ep_hat, track_hat, omega_n_hat), osservabili piu' la stima
@@ -252,7 +266,7 @@ def refine_shared_direction_hierarchical(D_B: tuple[np.ndarray, np.ndarray],
                                          ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Stadio 1 iterato: come refine_shared_direction ma con il prior su En
     N(mu_E, sigma_E) dalle stime dello stadio 2 (una sola iterazione; resta a
-    due stadi, niente griglia 4D, CLAUDE.md Sez. 4). Assunzioni: 1 + 2 + 3.
+    due stadi, niente griglia 4D). Assunzioni: 1 + 2 + 3.
 
     Args:
         D_B: (Ep_hat, track_hat), come in estimate_shared_direction.
@@ -489,7 +503,8 @@ def refine_hyperparameters_marginal_direction(
     log-posterior > max - delta_log); la verosimiglianza in ogni pixel e'
     quella gerarchica dello stadio 2. La finestra fine su (mu_E, sigma_E) e'
     quella di refine_hyperparameters su omega_hat, comune a tutti i pixel.
-    Mai griglia 4D: un ciclo sui pixel, ciascuno uno stadio 2 (CLAUDE.md Sez. 4).
+    Mai griglia 4D: un ciclo sui pixel, ciascuno uno stadio 2 (la memoria resta
+    quella di un solo stadio 2).
     Assunzioni: 1 + 2 + 3.
 
     Args:

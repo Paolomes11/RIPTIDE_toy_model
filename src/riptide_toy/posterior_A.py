@@ -1,3 +1,8 @@
+"""Caso A: energia E_n condivisa da tutti gli eventi, direzione nota (asse z).
+
+Posterior di singolo evento su E_n con theta_p marginalizzato; gli N eventi si
+combinano poi con combine.combine_loglik. Assunzioni: sorgente unica + monoenergetica.
+"""
 import numpy as np
 
 from riptide_toy import forward_model, grids
@@ -11,13 +16,12 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray], shared_param_grid: 
 
     Assunzioni dichiarate: sorgente unica (1) + monoenergetica (En condiviso
     fra gli eventi, caso limite della 3); z non modellata (vedi roadmap,
-    Deviazioni).
+    Scelte di implementazione).
 
-    Nota: diverge dalla guida (Sez. 3), che assume theta_p_hat gia'
-    fissato dentro loglik. Qui forward_model.loglik marginalizza
-    theta_p internamente su un prior piatto proprio su [0, pi/2]
-    (CLAUDE.md Sez. 1: conflitto guida/codice segnalato, non risolto
-    in silenzio). Vedi docs/roadmap.md, sezione Deviazioni.
+    Scelta di implementazione: theta_p non e' preso come noto (la sua
+    misura theta_p_hat ha errore SIGMA_THETA); forward_model.loglik lo
+    marginalizza internamente su un prior piatto proprio su [0, pi/2].
+    Vedi docs/roadmap.md, sezione Scelte di implementazione.
 
     Args:
         D: (Ep_hat, theta_p_hat), osservabili, ciascuno forma (n_events,).

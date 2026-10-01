@@ -8,10 +8,10 @@ from scipy.stats import norm
 from riptide_toy import combine, forward_model, grids, kinematics, posterior_A, posterior_B, priors, validate
 from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
 
-# Soglie = obiettivi di tempo della guida (Sez. 5, tabella "Obiettivi di tempo
-# per funzione"). Test di regressione: avvisano se si reintroduce un ciclo
-# lento. Esclusi dalla CI e dal pre-commit (CLAUDE.md Sez. 8), da lanciare
-# prima di ogni PR.
+# Soglie = obiettivi di tempo fissati per ogni funzione del path caldo (elenco
+# in docs/roadmap.md). Test di regressione: avvisano se si reintroduce un ciclo
+# Python lento. Esclusi dalla CI e dal pre-commit (dipendono dalla macchina),
+# da lanciare prima di ogni PR.
 
 
 def best_time(fn: Callable[[], object], repeat: int = 3) -> float:
@@ -120,7 +120,7 @@ def test_posterior_A_one_event_under_1ms():
     assert best_time(lambda: posterior_A.single_event_posterior(D, en_grid, prior)) < 1e-3
 
 
-# Target ridefinito (R4, docs/roadmap.md): la guida chiede 50 ms, ma la
+# Target ridefinito (R4, docs/roadmap.md): l'obiettivo iniziale era 50 ms, ma la
 # marginalizzazione esatta su theta_p tocca 1000 x 500 x 500 = 2.5e8 celle,
 # ~1.0-1.2 s con numpy denso float32 (c). Una finestra su theta_p non e'
 # esatta (differenze di loglik fino a 18.6 nelle code), numba non adottato.

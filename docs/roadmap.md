@@ -1,6 +1,8 @@
 # Roadmap — riptide-toy
 
-v0.15 — 2026-09-26
+v0.16 — 2026-10-01
+
+Sintesi dei risultati: `docs/resoconto.md`.
 
 ## Stato
 
@@ -8,7 +10,7 @@ v0.15 — 2026-09-26
 |---|---|---|
 | 1 | `constants` + `grids` | fatto (fix errata a applicato), testato |
 | 2 | `kinematics` | fatto, testato |
-| 3 | `forward_model` | fatto (firma diversa dalla guida, vedi Deviazioni), testato |
+| 3 | `forward_model` | fatto (marginalizza θ_p internamente, vedi Scelte di implementazione), testato |
 | 4 | `posterior_A` (+ `priors.energy_prior`, `constants.SIGMA_EP/SIGMA_THETA`) | fatto, caso di riferimento R1 verde (argmax 1.80 MeV, σ pesata 0.219 MeV vs atteso 1.82±0.21) |
 | 5 | `combine` | fatto, caso di riferimento R2 verde (argmax 2.4067 MeV, σ pesata 0.1828 vs atteso 2.40±0.18); `expected_sigma_n(1.0,4)==0.5` |
 | 6 | `validate` | fatto, caso di riferimento R3 verde (bias 0.08→0.20 MeV, pull mean 0.90, pull width 1.44, copertura 0.433 vs atteso ~45%) |
@@ -18,9 +20,9 @@ v0.15 — 2026-09-26
 | 9 | `priors` (direction) | fatto (`direction_prior`, fix errata c su `grids.sphere_grid`), testato |
 | 10 | `posterior_B` | fatto (`forward_model.loglik_marginal_En` + `posterior_B.single_event_posterior`), testato; limite 1 evento + prior piatto verde |
 | 11 | `combine` su Ω_n (riuso) | fatto, nessuna modifica a `combine.py`; contrazione angolare σ(N=10)→σ(N=100) coerente con 1/√N entro tolleranza larga (singola realizzazione MC) |
-| 12 | `validate` su distanza angolare | fatto (`angular_residual`, `posterior_angular_resolution`, `angular_pull`, additive); verificato su geometria nota + su Caso B simulato con il generatore fisico (M=30 esperimenti, Ω_n nota): bias medio <20°, pull mediano d'ordine 1 (d); checklist quantitativa del Caso B aperta (vedi Punti aperti) |
-| 13 | `posterior_C` | fatto (`grids.hyperparameter_grid`, `priors.energy_prior_given_hyperparams`/`hyperparameter_prior`, `forward_model.loglik_marginal_En_hierarchical`, `posterior_C.estimate_shared_direction`/`single_event_posterior`), testato; entrambi i limiti di Sez. 5 verdi (σ_E→∞ ≈ Caso B entro atol=0.01 sulla log-verosimiglianza; σ_E→0 recupera l'energia condivisa vera entro 0.1 MeV) |
-| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist di validazione v0.11 completa (`docs/report_caso_C_stadio1.md` §9–§12, notebook 07–09): μ_E calibrato a ogni N (bias −0.02 MeV chiuso dal kernel sferico; coverage a N = 1000 nominale con M = 100), Ω_n calibrato a N ≥ 150 e ~40% più preciso (stadio 1 iterato), σ_E calibrato a ogni N con stadio 2 su Ω̂_0 (coverage a N = 50: 0.67/0.89/0.93) (c); bias di log σ_E a N piccolo (−0.15 a N = 50) spiegato come effetto del prior largo su σ_E: nullo col prior del generatore, la marginalizzazione su Ω lo peggiora (report §11, (c)); coverage 68% di log σ_E a N = 150–300 bassa sui seed della checklist (0.60–0.64): fluttuazione statistica, nominale su seed nuovi con M = 600/300 (0.658/0.723; `scripts/caso_C_cov68.py`, report §12, notebook 09, (c)); coverage 90% di μ_E a N = 300: fluttuazione, 0.890 ± 0.010 su 900 seed nuovi (`scripts/caso_C_cov90_mu.py`, report §13.1, (c)); Ω_n a N = 50 leggermente sovra-confidente col prior plug-in dello stadio 1′ (0.884/0.938 al 90/95%, M = 1400; l'oracolo è nominale): sostituito dal prior predittivo `posterior_C.predictive_energy_moments` (0.899/0.945, M = 800), checklist v0.14 rilanciata, stadio 2 invariato (report §13.2, (c)); run deterministici a `OMP_NUM_THREADS=1` (§13.3); test di regressione `test_stage1_error_contracts_at_large_N` (§13.4); diagnostiche in `scripts/caso_C_diag_omega_N50.py` e `scripts/caso_C_diag_stadio1_test.py`, riepilogo nel notebook 10. Nessun punto aperto sul Caso C |
+| 12 | `validate` su distanza angolare | fatto (`angular_residual`, `posterior_angular_resolution`, `angular_pull`, additive); verificato su geometria nota + su Caso B simulato con il generatore fisico (M=30 esperimenti, Ω_n nota); checklist quantitativa del Caso B (`scripts/caso_B_checklist.py`, M = 400…40, N = 10…1000): pull rms 0.99–1.03 e coverage nominale fino a N = 300 (c) |
+| 13 | `posterior_C` | fatto (`grids.hyperparameter_grid`, `priors.energy_prior_given_hyperparams`/`hyperparameter_prior`, `forward_model.loglik_marginal_En_hierarchical`, `posterior_C.estimate_shared_direction`/`single_event_posterior`), testato; entrambi i test di limite verdi (σ_E→∞ ≈ Caso B entro atol=0.01 sulla log-verosimiglianza; σ_E→0 recupera l'energia condivisa vera entro 0.1 MeV) |
+| 14 | `validate` finale su C | fatto (`scripts/caso_C_checklist.py`, `validate.credible_interval`/`credible_region_contains`, raffinamento locale in `posterior_C`); checklist di validazione v0.11 completa (`docs/report_caso_C_stadio1.md` §9–§12): μ_E calibrato a ogni N (bias −0.02 MeV chiuso dal kernel sferico; coverage a N = 1000 nominale con M = 100), Ω_n calibrato a N ≥ 150 e ~40% più preciso (stadio 1 iterato), σ_E calibrato a ogni N con stadio 2 su Ω̂_0 (coverage a N = 50: 0.67/0.89/0.93) (c); bias di log σ_E a N piccolo (−0.15 a N = 50) spiegato come effetto del prior largo su σ_E: nullo col prior del generatore, la marginalizzazione su Ω lo peggiora (report §11, (c)); coverage 68% di log σ_E a N = 150–300 bassa sui seed della checklist (0.60–0.64): fluttuazione statistica, nominale su seed nuovi con M = 600/300 (0.658/0.723; `scripts/caso_C_cov68.py`, report §12, (c)); coverage 90% di μ_E a N = 300: fluttuazione, 0.890 ± 0.010 su 900 seed nuovi (`scripts/caso_C_cov90_mu.py`, report §13.1, (c)); Ω_n a N = 50 leggermente sovra-confidente col prior plug-in dello stadio 1′ (0.884/0.938 al 90/95%, M = 1400; l'oracolo è nominale): sostituito dal prior predittivo `posterior_C.predictive_energy_moments` (0.899/0.945, M = 800), checklist v0.14 rilanciata, stadio 2 invariato (report §13.2, (c)); run deterministici a `OMP_NUM_THREADS=1` (§13.3); test di regressione `test_stage1_error_contracts_at_large_N` (§13.4); diagnostiche in `scripts/caso_C_diag_omega_N50.py` e `scripts/caso_C_diag_stadio1_test.py`, riepilogo nel notebook `05_validazione_caso_C` (le versioni intermedie sono in `notebooks/storico/`). Nessun punto aperto sul Caso C |
 
 ## Casi di riferimento
 
@@ -34,22 +36,25 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   30% più strette della risoluzione vera σ(E_n) = 0.08·E_n → bias 0.08 → 0.20 MeV, pull medio
   ≈ 0.9, larghezza ≈ 1.4, coverage nominale 68% → ~45%.
 
-## Deviazioni dalla guida (documentate, non silenziose)
+## Scelte di implementazione
 
-- **`forward_model.loglik`**: la guida (Sez. 3) specifica una firma più semplice, senza
+Scelte non ovvie, con la motivazione. "Specifica" indica la specifica di codice locale da cui il
+progetto è partito (non pubblicata).
+
+- **`forward_model.loglik`**: la specifica prevedeva una firma più semplice, senza
   marginalizzazione di θ_p. Il codice esistente marginalizza già θ_p internamente
   (`sigma_Ep, sigma_theta, log_prior_theta, chunk_size`, a chunk per stare in RAM).
   Decisione: si mantiene questa versione (ottimizzata) invece di riscriverla; `posterior_A`
   si adatta alla firma reale. Motivo: priorità a prestazioni e tempo di sviluppo.
 - **`sample_cm_angle` / `sample_recoil`**: in origine lette come la stessa funzione. Dal
   2026-09-25 l'evento intero è campionato da `sample_recoil_events`, ed è questa la funzione del
-  target "10^5 eventi < 0.1 s" della guida (Sez. 5) in `tests/test_performance.py`. Nessun tempo
+  target "10^5 eventi < 0.1 s" in `tests/test_performance.py`. Nessun tempo
   di volo nello scope del toy.
-- **`risoluzione_caso_A`**: non definita in guida. Si usa la deviazione standard pesata sulla
+- **`risoluzione_caso_A`**: non definita nella specifica. Si usa la deviazione standard pesata sulla
   griglia del posterior: `σ² = Σ p(En)(En−⟨En⟩)² / Σp(En)` con `p(En) = exp(log_post − max(log_post))`.
   È il secondo momento centrale del posterior; verificato sul caso di riferimento R1.
-- **Caso A, nuisance `z`**: CLAUDE.md Sez. 3 elenca `θ_p, z` come nuisance del Caso A, ma né
-  la guida né `forward_model.py` usano `z`. `posterior_A` marginalizza solo `θ_p`; `z` è
+- **Caso A, nuisance `z`**: la tabella dei casi elenca `θ_p, z` come nuisance del Caso A, ma né
+  la specifica né `forward_model.py` usano `z`. `posterior_A` marginalizza solo `θ_p`; `z` è
   fuori scope per ora (nessuna sorgente di dato/osservabile per `z` definita da nessuna fonte).
 - **`kinematics.sample_cm_angle`** (chiusa, 2026-09-25): campionava `uniform(0, 2π)`; ora
   `arccos(uniform(-1, 1))`, isotropo in angolo solido (a). Nuove `recoil_angle_from_cm`
@@ -57,12 +62,12 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   E_p ~ U(0, E_n)) e `smear_direction` (risoluzione SIGMA_THETA nel piano tangente). I dati
   sintetici dei test B/C (righe 11, 12, 13) sono rigenerati con questa catena: le note
   "Riga 11/12, dati sintetici" qui sotto descrivono la costruzione precedente.
-- **`posterior_A.single_event_posterior`**: la guida (Sez. 3) assume `theta_p_hat` già fissato
+- **`posterior_A.single_event_posterior`**: la specifica assume `theta_p_hat` già fissato
   dentro `loglik`. Qui `forward_model.loglik` marginalizza `theta_p` internamente su un prior
   piatto proprio su `[0, π/2]` (coerente con la deviazione già presa per `forward_model`), e
   `single_event_posterior` somma il prior su `En` una sola volta sopra il risultato. Verificato
   contro il caso di riferimento R1 (vedi tabella Stato, riga 4).
-- **`validate.coverage_curve`**: la guida (Sez. 3) non dà un type hint per il parametro
+- **`validate.coverage_curve`**: la specifica non dà un type hint per il parametro
   `intervals`. Si sceglie la forma più generica possibile, `(n_eventi, n_livelli, 2)` con
   estremi inferiore/superiore espliciti (non necessariamente simmetrici o gaussiani), così
   da restare utilizzabile sia con intervalli gaussiani (livello → z·σ_hat) sia con intervalli
@@ -74,8 +79,7 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   scelta quella con rumore applicato **dopo** l'errore di scala (non scalato insieme ad esso),
   perché riproduce pull width ≈1.4 molto più fedelmente (rapporto atteso 1/0.7≈1.429 contro
   1.03/0.7≈1.471 nell'altra costruzione). I valori attesi di R3 sono dati con
-  "~"/"≈" (a differenza di R1/R2, che hanno tolleranza numerica esplicita — CLAUDE.md
-  Sez. 5): le tolleranze del test (`test_reference_faulty_reconstruction`) sono scelte in proporzione a quanto
+  "~"/"≈" (a differenza di R1/R2, che hanno tolleranza numerica esplicita): le tolleranze del test (`test_reference_faulty_reconstruction`) sono scelte in proporzione a quanto
   approssimative sono le cifre citate (0.02 MeV su bias, 0.1 su pull mean/width, 0.05 su
   copertura, quest'ultima la meno precisa delle quattro: "~45%" è la cifra più tonda).
 
@@ -83,7 +87,7 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   il posterior combinato sia per la curva di contrazione con shift sistematico 2%. A quel
   range lo shift su Ep (2%, piccolo rispetto a σ_Ep) produce un offset ancora dentro il
   rumore statistico: a N=100 l'offset osservato (~0.02-0.08 MeV a seconda del run) non è
-  chiaramente separato dal rumore, quindi il plateau richiesto da CLAUDE.md Sez. 6
+  chiaramente separato dal rumore, quindi il plateau richiesto
   ("il plateau della contrazione è visibile, non converge a zero") non sarebbe dimostrabile
   con questi soli quattro punti. Si usa quindi un range esteso, `N=1,2,10,100,1000,5000`,
   solo per la figura del contraction plot con shift; la figura del posterior vs N e del
@@ -91,23 +95,23 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   l'offset si stabilizza a ≈0.05 MeV (coerente con la stima analitica 0.02·En_true=0.05 MeV)
   mentre σ continua a scendere fino a ~0.001 MeV: il plateau è così chiaramente visibile.
 
-- **`posterior_B` / `forward_model.loglik_marginal_En`**: la guida (Sez. 3, Sez. 5) descrive
+- **`posterior_B` / `forward_model.loglik_marginal_En`**: la specifica descrive
   il Caso B come θ_p derivato geometricamente dalla traccia 3D osservata e dal candidato Ω_n
   (`kinematics.recoil_angle_from_direction`), non come nuisance da marginalizzare su una
   griglia separata — a differenza del Caso A, dove θ_p è genuinamente ignoto. Questo angolo è
   invariante all'azimut della traccia attorno al candidato (per costruzione), quindi basta
   un'unica marginalizzazione su `En_grid`, con broadcasting a due assi (candidati × `En_grid`,
-  come indicato in guida per le prestazioni del Caso B), invece di una griglia a tre assi con
+  per le prestazioni del Caso B), invece di una griglia a tre assi con
   una seconda marginalizzazione su θ_p. I candidati con θ_p > π/2 (emisfero posteriore) sono
   esclusi (log-verosimiglianza −∞): il rinculo è sempre in avanti per scattering elastico a
-  masse uguali (CLAUDE.md Sez. 3, `θ_lab ≤ 90°`). Nota sul test di limite: con prior piatto su
+  masse uguali (`θ_lab ≤ 90°`). Nota sul test di limite: con prior piatto su
   `En`, l'integrale marginale su `En` varia con θ_p come `1/cos²θ_p` (Jacobiano del cambio di
   variabile `En' = En·cos²θ_p`) — non è esattamente costante, solo approssimativamente entro
   un cono centrale attorno alla direzione osservata; il test verifica questo comportamento
   qualitativo (nessun picco netto sull'emisfero anteriore, in contrasto con il taglio netto a
   −∞ sull'emisfero posteriore), non una costanza esatta.
 
-- **Riga 11, dati sintetici per il test di contrazione angolare**: la guida chiede "Contrazione
+- **Riga 11, dati sintetici per il test di contrazione angolare**: la specifica chiede "Contrazione
   angolare vs N, stesso andamento della contrazione in E_n", senza specificare come generare gli eventi
   sintetici. Si è scelto di pescare `theta_p_true` e `phi_true` (angolo e azimut del rinculo
   rispetto a `Omega_n_true`, fissato sull'asse z senza perdita di generalità, come nel test
@@ -120,16 +124,16 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   da una catena fisica completa). Il criterio di accettazione verificato è qualitativo (la
   deviazione standard angolare pesata sul posterior diminuisce da N=10 a N=100 in modo
   compatibile con 1/√N entro una tolleranza larga, dato che si tratta di una singola
-  realizzazione Monte Carlo e non di una media d'insieme), coerente con quanto richiesto dalla
-  guida per questa riga.
+  realizzazione Monte Carlo e non di una media d'insieme), coerente con quanto richiesto per
+  questa riga.
 
-- **Riga 12, `validate.py` su distanza angolare**: la guida (Sez. 4, riga 12) chiede
+- **Riga 12, `validate.py` su distanza angolare**: la riga 12 chiede
   "bias/pull su distanza angolare", senza dare firme né un oracolo numerico (etichetta
   **(d)**: ipotesi da testare, senza valore di riferimento — la distanza angolare non è
   gaussiana, quindi non ci si aspetta un pull esattamente N(0,1) come nel caso 1D, solo
   scala ~1 se il ricostruttore è calibrato). Tre funzioni additive in `validate.py`
-  (`combine.py`/`validate.py` restano congelati per le funzioni esistenti, CLAUDE.md
-  Sez. 6): `angular_residual` (distanza angolare fra due versori), `posterior_angular_resolution`
+  (`combine.py`/`validate.py` restano congelati per le funzioni esistenti dopo il
+  checkpoint del Caso A): `angular_residual` (distanza angolare fra due versori), `posterior_angular_resolution`
   (analogo sferico della deviazione standard pesata già usata per `risoluzione_caso_A`,
   qui attorno a una direzione di riferimento per evento — verità nota, o la stima stessa),
   `angular_pull` (rapporto puro, senza assunzioni di normalità). Test di integrazione:
@@ -146,16 +150,16 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   accettazione volutamente larghe (bias medio <20°, pull mediano in [0.2, 3.0]), coerenti
   con l'etichetta (d).
 
-- **Riga 13, `posterior_C` importa anche `combine`**: la guida (Sez. 3, tabella import) elenca
+- **Riga 13, `posterior_C` importa anche `combine`**: la tabella degli import elenca
   per `posterior_C` solo `kinematics, forward_model, priors, grids, posterior_B`. Lo stadio 1
   (`estimate_shared_direction`) deve combinare gli N eventi su `Ω_n` prima di passare allo
-  stadio 2 sulla griglia `(μ_E, σ_E)` — la griglia a due stadi mandata da CLAUDE.md Sez. 4
-  ("mai griglia 4D bruta") richiede proprio questo. `combine.py` non ha import dal progetto ed
+  stadio 2 sulla griglia `(μ_E, σ_E)` — la griglia a due stadi (niente griglia 4D bruta:
+  costerebbe n_pixel·n_μ·n_σ·n_E) richiede proprio questo. `combine.py` non ha import dal progetto ed
   è pensato per essere generico, chiamato da qualunque layer superiore (già usato direttamente
   nei test del Caso B, righe 11/12): l'import diretto in `posterior_C` è quindi una deviazione
   minima e coerente con l'architettura esistente, non una violazione dello strato.
 - **Riga 13, doppio conteggio del prior nello stadio 1**: `posterior_B.single_event_posterior`
-  somma già il prior sulla direzione una volta per evento (CLAUDE.md Sez. 3). Per riusarlo con
+  somma già il prior sulla direzione una volta per evento. Per riusarlo con
   `combine.combine_loglik` (che aggiunge il prior una sola volta sull'intero campione, come
   nelle righe 11/12) va prima sottratto il prior già sommato (`log_posterior_per_event -
   log(direction_prior)`), altrimenti verrebbe contato N volte invece di 1.
@@ -191,7 +195,7 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   e tracce esatte il combinato diventava −∞ ovunque per N grande e `argmax` restituiva il
   pixel 0 (causa del "pixel a 53°", `docs/report_caso_C_stadio1.md` §6). Le funzioni
   vecchie (`loglik_marginal_En`, `loglik_marginal_En_hierarchical`) restano come confronto.
-- **Errata guida, test di limite "1 evento + prior piatto" (riga 10)**: con il termine di
+- **Errata della specifica, test di limite "1 evento + prior piatto" (riga 10)**: con il termine di
   traccia L_k(Ω_n) non è ~costante sull'emisfero anteriore né −∞ su quello posteriore. Il
   test confronta con la forma analitica
   cos/π · [Φ((EN_MAX c − E_p)/s) − Φ((EN_MIN c − E_p)/s)] / c, con c = cos²θ_p, entro 45°,
@@ -233,30 +237,34 @@ Tre casi con valori attesi noti, verificati in `tests/test_reference_examples.py
   marginalizzato su Ω_n) resta nel codice ma non è usata: peggiora il bias e costa ~30–40×
   (report §11.1).
 
-## Punti aperti (v0.15, 2026-09-26)
+## Punti aperti (v0.16, 2026-10-01)
 
-Emersi dalla revisione dei doc contro CLAUDE.md, guida, test e notebook. Il Caso C resta chiuso.
+Nessun punto aperto sul codice. I punti 1–3 della v0.15 sono chiusi; i punti 4–6 diventano limiti
+dichiarati.
 
-1. **Calibrazione del Caso A (d).** `notebooks/02_caso_A.ipynb` (5000 eventi, `posterior_A` su dati del
-   generatore, E_n ~ U(1, 5)): pull medio +0.122 (≈9 errori standard), larghezza 0.943, coverage
-   0.725 / 0.923 / 0.963 (al 68% ≈ +7 errori binomiali). L'attribuzione al prior troncato ai bordi non
-   è testata. Manca una checklist Cap. 40 del posterior del Caso A (R3 valida solo `validate.py`).
-   Test proposto: checklist con prior uguale al generatore, come in report §11.2.
-2. **Checklist quantitativa del Caso B (d).** Oltre al test della riga 12 (M=30, soglie larghe) e al
-   notebook 03 (M=6, pull rms 0.73–0.93), il Caso B è misurato solo come stadio 1 del Caso C, su dati
-   con E_n concentrata (report §8.2, §10.1). Manca la verifica con E_n distribuita come il suo prior.
-3. **Test del Caso B con Ω_n vera sul polo (c).** `tests/test_case_B.py` usa Ω_n vera = asse z, a
-   ≈ √(2/n) dal pixel 0 di `grids.sphere_grid` (≈2.9° con 800 pixel): il vecchio fallimento
-   "combinato −∞ ⇒ pixel 0" non li farebbe fallire. **Chiuso il 2026-09-26**: Ω_n vera = (0.9, 2.1)
-   come nel Caso C, test verdi.
-4. **Assunzioni 1 e 3 non messe alla prova (d).** Nessun test con contaminazione da una seconda
-   sorgente (assunzione 1), con spettro non gaussiano (assunzione 3) o con prior diversi su E_n e Ω_n
-   (la robustezza al prior copre solo σ_E a N = 150).
-5. **Minori.** Ω_n a N = 1000: coverage 0.775 e pull rms 0.89 con M = 40, rimisurati con M = 100 solo
-   col prior plug-in (report §10.1), non col predittivo della v0.14. Il test a N = 60 cade nella coda
-   alta (7.3° su soglia 15°, report §13.4).
-6. **Limiti dichiarati, da riportare nell'articolo.** Nuisance `z` del Caso A fuori scope; isotropia in
-   CM assunta nel range 0.5–6 MeV; target `loglik` N = 1000 ridefinito a 2 s.
+1. **Calibrazione del Caso A: chiuso (c).** `scripts/caso_A_checklist.py`, 20 000 eventi. Con la
+   verità estratta dal prior (E_n ~ U(0.5, 6), θ_p ~ U(0, π/2)): pull +0.003 / 0.998, coverage
+   0.683 / 0.899 / 0.949, cioè nominale. Con il generatore U(1, 5) del notebook 02: pull +0.115 / 0.927,
+   coverage 0.735 / 0.925 / 0.964. La sovra-copertura viene quindi dal generatore più stretto del prior,
+   non dal posterior. Il bias per bin di E_n (+0.51 … −0.69 MeV) mostra l'attrazione verso il centro
+   del prior. Test di regressione in `tests/test_case_A.py`.
+2. **Checklist quantitativa del Caso B: chiuso (c).** `scripts/caso_B_checklist.py`; E_n per evento
+   distribuita come il suo prior, Ω_n isotropa, N = 10/30/100/300/1000 con M = 400/300/200/100/40.
+   Pull rms 1.01 / 0.99 / 1.00 / 1.03 / 0.88; coverage al 68% 0.66 / 0.68 / 0.69 / 0.66 / 0.78
+   (±0.07 a N = 1000); pendenza di contrazione −0.59. Tabella in `docs/resoconto.md` §4.
+3. **Test del Caso B con Ω_n vera sul polo: chiuso il 2026-09-26 (c).**
+
+## Limiti dichiarati (da riportare nell'articolo)
+
+- **Assunzioni 1 e 3 non messe alla prova (d)**: nessun test con contaminazione da una seconda
+  sorgente, con spettro non gaussiano o con prior diversi su E_n e Ω_n. La robustezza al prior copre
+  solo σ_E a N = 150.
+- **N = 1000 con M = 40 (b)**: nei Casi B e C la coverage ha un errore binomiale di ±0.07.
+  Nel Caso C, Ω_n a N = 1000 è stato rimisurato con M = 100 solo col prior plug-in (report §10.1). Il test a
+  N = 60 cade nella coda alta (7.3° su soglia 15°, report §13.4).
+- **Nuisance `z` del Caso A** fuori scope; **isotropia in CM** assunta nel range 0.5–6 MeV;
+  **target `loglik`** per N = 1000 ridefinito a 2 s.
+- **Caso C**: Ω̂_n e (μ̂_E, σ̂_E) vengono da stadi diversi. Fino a N ≲ 150, log σ_E dipende dal prior.
 
 ## Pubblicazione su GitHub
 

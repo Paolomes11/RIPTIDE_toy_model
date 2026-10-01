@@ -18,9 +18,8 @@ def test_reference_single_event():
     argmax_En = en_grid[np.argmax(logpost[0])]
     assert abs(argmax_En - 1.82) < 0.03  # ~3 passi di griglia
 
-    # sigma stimata come deviazione standard pesata sulla griglia (CLAUDE.md
-    # Sez. 5: tol. 0.01 su sigma; risoluzione_caso_A non e' definita in guida,
-    # vedi docs/roadmap.md, sezione Deviazioni).
+    # sigma stimata come deviazione standard pesata sulla griglia del
+    # posterior, tolleranza 0.01 MeV sul valore atteso 0.21.
     w = np.exp(logpost[0] - logpost[0].max())
     mean = np.sum(w * en_grid) / np.sum(w)
     sigma = np.sqrt(np.sum(w * (en_grid - mean) ** 2) / np.sum(w))
@@ -53,7 +52,7 @@ def _faulty_reconstruction(truth: np.ndarray, rng: np.random.Generator):
     # Il rumore intrinseco del detector si applica DOPO l'errore di scala, non scalato
     # con esso: e' l'unica costruzione delle due plausibili che riproduce pull width
     # ~1.4 (rapporto 1/0.7 = 1.4286, contro 1.03/0.7 = 1.4714 se il rumore fosse
-    # scalato anch'esso). Vedi docs/roadmap.md, sezione Deviazioni.
+    # scalato anch'esso). Vedi docs/roadmap.md, sezione Scelte di implementazione.
     true_sigma = 0.08 * truth
     noise = rng.normal(0.0, true_sigma, truth.shape[0])
     estimate = 1.03 * truth + 0.05 + noise
@@ -72,7 +71,7 @@ def test_reference_faulty_reconstruction():
     # caso di riferimento R3 (ricostruzione difettosa): bias 0.08->0.20 MeV, pull
     # mean~0.9, pull width~1.4, copertura nominale 68% -> ~45%. Questi valori attesi
     # sono approssimati ("~"/"≈"), a differenza di R1/R2 che hanno una tolleranza
-    # esplicita su sigma (CLAUDE.md Sez. 5): le tolleranze qui sono scelte in base a
+    # esplicita su sigma (0.01 MeV): le tolleranze qui sono scelte in base a
     # quanto strette sono le cifre attese, non desunte da un numero esatto.
     rng = np.random.default_rng(20260907)
     truth = rng.uniform(1.0, 5.0, 20_000)
