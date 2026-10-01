@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,9 @@ name = "riptide-toy"
 version = "0.1.0"
 description = "Toy model Python for the statistical reconstruction of RIPTIDE"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Giulio Mesini" }]
 dependencies = [
 "numpy",
 "scipy",

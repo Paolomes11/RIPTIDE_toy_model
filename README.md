@@ -62,3 +62,7 @@ pytest tests/ -v --ignore=tests/test_performance.py   # test funzionali
 pytest tests/test_reference_examples.py -v            # solo i casi di riferimento R1-R3
 pytest tests/ -v                                       # anche i test di prestazione
 ```
+
+## Licenza
+
+Apache License 2.0: vedi `LICENSE` e `NOTICE`. Copyright 2026 Giulio Mesini.
