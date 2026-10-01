@@ -1,9 +1,12 @@
+"""Griglie di calcolo, create una volta e messe in cache (array in sola lettura):
+energia E_n, angolo di rinculo theta_p, direzioni sulla sfera (Fibonacci) e
+iperparametri (mu_E, sigma_E) del Caso C."""
 import numpy as np
 from functools import lru_cache
 
 from riptide_toy.constants import EN_MAX, EN_MIN, SIGMA_E_MAX, SIGMA_E_MIN
 
-# (a) errata guida: maxsize=1 svuota la cache se si chiama la funzione con
+# maxsize=None e non 1: maxsize=1 svuota la cache se si chiama la funzione con
 # argomenti diversi (es. sphere_grid(500) poi sphere_grid()); gli array
 # cachati vanno resi non scrivibili perche' sono condivisi tra i chiamanti.
 @lru_cache(maxsize=None)
@@ -20,10 +23,9 @@ def energy_grid(n: int = 500) -> np.ndarray:
     grid.flags.writeable = False
     return grid
 
-# (c) errata: theta e phi erano due linspace indipendenti (stessa lunghezza
-# n_pixel ma nessun accoppiamento), quindi l'indice i non corrispondeva a una
-# singola direzione sulla sfera. Fix: reticolo di Fibonacci (angolo aureo),
-# un indice = una direzione, area solida quasi costante per pixel.
+# Reticolo di Fibonacci (angolo aureo) e non due linspace indipendenti su theta e phi:
+# cosi' l'indice i e' una sola direzione sulla sfera e ogni pixel ha area solida
+# quasi uguale, quindi un prior uniforme per pixel e' uniforme sulla sfera.
 @lru_cache(maxsize=None)
 def sphere_grid(n_pixel: int = 3000) -> tuple[np.ndarray, np.ndarray]:
     """Direzioni sulla sfera unitaria, reticolo di Fibonacci.
@@ -46,7 +48,7 @@ def sphere_grid(n_pixel: int = 3000) -> tuple[np.ndarray, np.ndarray]:
 @lru_cache(maxsize=None)
 def theta_p_grid(n: int = 500) -> np.ndarray:
     """Griglia sull'angolo di rinculo in lab, [0, pi/2] (theta_lab <= 90 deg,
-    CLAUDE.md Sez. 3); usata per marginalizzare la nuisance theta_p in posterior_A.
+    il rinculo a masse uguali e' sempre in avanti); usata per marginalizzare la nuisance theta_p in posterior_A.
 
     Args:
         n: numero di punti.
@@ -60,11 +62,11 @@ def theta_p_grid(n: int = 500) -> np.ndarray:
 
 @lru_cache(maxsize=None)
 def hyperparameter_grid(n_mu: int = 60, n_sigma: int = 60) -> tuple[np.ndarray, np.ndarray]:
-    """Griglia 2D appiattita su (mu_E, sigma_E) per il Caso C (CLAUDE.md Sez. 4: "mai
-    griglia 4D bruta", Omega_n va fissato a parte dal Caso B prima di usare questa
+    """Griglia 2D appiattita su (mu_E, sigma_E) per il Caso C (mai una griglia 4D
+    bruta: Omega_n va fissato a parte dal Caso B prima di usare questa
     griglia). mu_E copre lo stesso dominio di energy_grid; sigma_E e' spaziata
     logaritmicamente (e' un parametro di scala) per coprire con la stessa griglia
-    sia il limite sigma_E->0 (Caso A) sia sigma_E->infinito (Caso B, Sez. 5).
+    sia il limite sigma_E->0 (Caso A) sia sigma_E->infinito (Caso B).
 
     Nota: meshgrid con indexing="ij" poi ravel (ordine 'C'): l'indice flat
     i*n_sigma + j corrisponde a (mu_grid_1d[i], sigma_grid_1d[j]), quindi un

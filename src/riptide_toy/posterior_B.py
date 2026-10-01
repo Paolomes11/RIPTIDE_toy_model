@@ -1,3 +1,8 @@
+"""Caso B: direzione Omega_n condivisa (campo lontano), E_n diversa per evento.
+
+E_n e' una nuisance per evento, marginalizzata con il prior largo; il parametro
+d'interesse e' la direzione sulla sfera. Assunzioni: sorgente unica + direzione ~costante.
+"""
 import numpy as np
 
 from riptide_toy import forward_model, grids, kinematics, priors
@@ -8,7 +13,7 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray],
                             shared_param_grid: tuple[np.ndarray, np.ndarray],
                             prior: np.ndarray) -> np.ndarray:
     """Log-posterior non normalizzato su Omega_n, con En come nuisance
-    per-evento a prior largo (Caso B, CLAUDE.md Sez. 3).
+    per-evento a prior largo (Caso B).
 
     Assunzioni dichiarate: sorgente unica (1) + direzione ~costante,
     campo lontano (2) + scattering isotropo in CM (toy 0.5-6 MeV), che da'

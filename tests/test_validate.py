@@ -16,7 +16,7 @@ from riptide_toy.validate import (
 
 def test_bias_and_pull_on_honest_synthetic_data():
     # dati costruiti apposta per essere onesti (nessun bias, sigma_hat corretta):
-    # se questo test non passa il bug e' nella funzione, non nei dati (guida, Sez. 3).
+    # se questo test non passa il bug e' nella funzione, non nei dati.
     rng = np.random.default_rng(20260907)
     truth = rng.uniform(1, 5, 2000)
     estimate = truth + rng.normal(0, 0.2, 2000)

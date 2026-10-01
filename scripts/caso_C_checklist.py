@@ -1,6 +1,6 @@
 """Riga 14: checklist di validazione sul Caso C (stadio 2 su omega_0, Omega_n da stadio 1 iterato).
 
-Ordine della checklist (CLAUDE.md Sez. 7): bias -> risoluzione -> pull ->
+Ordine della checklist: bias -> risoluzione -> pull ->
 coverage -> contrazione ~1/sqrt(N) -> robustezza al prior.
 M esperimenti indipendenti per ciascun N; per ogni esperimento verita' nuova:
 mu_E ~ U(2.5, 4.0) MeV, sigma_E ~ log-U(0.2, 0.6) MeV, Omega_n isotropa.

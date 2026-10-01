@@ -49,7 +49,7 @@ def test_perpendicular_basis_orthonormal_including_axis_along_x():
 
 
 def test_sample_recoil_events_mean_var_and_track_distribution():
-    # Oracolo guida riga 2: isotropia in CM => Ep ~ U(0, En), media En/2,
+    # Oracolo: isotropia in CM => Ep ~ U(0, En), media En/2,
     # varianza En^2/12 (a); equivalente a cos^2(theta_p) ~ U(0, 1).
     rng = np.random.default_rng(SEED)
     n = 200_000
@@ -90,7 +90,7 @@ def test_smear_direction_polar_deviation_matches_sigma_theta():
 
 
 def test_omega_n_parallel_to_z_reduces_to_case_A():
-    # riga 8 (CLAUDE.md Sez. 5, test di limite): Omega_n || z. L'angolo 3D fra
+    # riga 8, test di limite: Omega_n || z. L'angolo 3D fra
     # track_hat e Omega_n deve ridarsi esattamente theta_p del Caso A,
     # qualunque sia l'azimut della traccia (arccos(track . z_hat) = theta_p
     # per costruzione, indipendente da phi).
@@ -106,7 +106,7 @@ def test_omega_n_parallel_to_z_reduces_to_case_A():
 
 
 def test_sphere_grid_is_pixelization_with_equal_area():
-    # fix errata (c): un indice = una direzione, area solida ~costante per
+    # un indice = una direzione, area solida ~costante per
     # pixel. Punti uniformi sulla sfera hanno cos(theta) ~ Uniform(-1, 1)
     # (isotropia): la media deve annullarsi.
     theta, phi = grids.sphere_grid(2000)
@@ -250,7 +250,7 @@ def simulate_case_B_events(rng: np.random.Generator, omega_n_true: np.ndarray,
 
 
 def test_combine_reuse_angular_contraction_vs_N():
-    # riga 11 (guida Sez. 4, riga 11: "combine.py (riuso)"): combine_loglik
+    # riga 11 (riuso di combine.py sul Caso B): combine_loglik
     # e' generico (nessun import dal progetto, congelato dal checkpoint Caso
     # A) e si riusa invariato passandogli la matrice grezza di
     # forward_model.loglik_marginal_En_theta (non posterior_B.single_event_posterior,
@@ -300,9 +300,8 @@ def test_combine_reuse_angular_contraction_vs_N():
 
 
 def test_angular_bias_and_pull_on_simulated_omega_n():
-    # riga 12 (guida Sez. 4, riga 12): "Bias/pull su distanza angolare", etichetta (d)
-    # (nessun valore di riferimento; verificato su dati simulati con Omega_n nota, come richiesto dalla
-    # guida). Si ripetono M esperimenti indipendenti (N=20 eventi sintetici ciascuno,
+    # riga 12: bias/pull su distanza angolare, etichetta (d)
+    # (nessun valore di riferimento; verificato su dati simulati con Omega_n nota). Si ripetono M esperimenti indipendenti (N=20 eventi sintetici ciascuno,
     # stessa costruzione "onesta" della riga 11), si stima Omega_n col MAP del
     # posterior combinato, e si confronta la distanza angolare vera (angular_residual)
     # con l'incertezza dichiarata dal posterior attorno alla propria stima

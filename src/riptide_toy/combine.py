@@ -1,3 +1,6 @@
+"""Combinazione degli eventi: log-posterior = log-prior + somma delle log-verosimiglianze
+di singolo evento (prior contato una sola volta). Generico: non importa nulla dal
+progetto, serve per tutti e tre i casi."""
 import numpy as np
 
 

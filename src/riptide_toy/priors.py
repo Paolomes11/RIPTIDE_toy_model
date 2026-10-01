@@ -1,3 +1,7 @@
+"""Prior, tutti propri (normalizzati su un dominio finito): un prior improprio non
+garantisce un posterior normalizzabile. E_n piatto su [EN_MIN, EN_MAX], direzione
+uniforme sulla sfera, E_n | (mu_E, sigma_E) gaussiana troncata, iperparametri
+uniformi in mu_E e in log sigma_E (sigma_E e' un parametro di scala)."""
 import numpy as np
 from scipy.integrate import trapezoid
 from scipy.special import logsumexp
@@ -14,7 +18,7 @@ def energy_prior(en_grid: np.ndarray) -> np.ndarray:
 
     Ritorna:
         array (n,), densita' di probabilita' costante; l'integrale
-        trapezoidale su en_grid vale 1 (fix errata b: scipy.integrate.trapezoid).
+        trapezoidale su en_grid vale 1 (scipy.integrate.trapezoid: np.trapz e' deprecato in NumPy 2).
     """
     width = en_grid[-1] - en_grid[0]
     return np.full_like(en_grid, 1.0 / width)
@@ -41,7 +45,8 @@ def energy_prior_given_hyperparams(en_grid: np.ndarray, mu_E: np.ndarray,
                                     sigma_E: np.ndarray) -> np.ndarray:
     """pi(En | mu_E, sigma_E): gaussiana troncata al dominio di en_grid e
     rinormalizzata (Caso C, prior gerarchico sull'energia condivisa,
-    CLAUDE.md Sez. 3: "E_n^(k) ~ N(mu_E, sigma_E)"). Mai flat impropria:
+    E_n^(k) ~ N(mu_E, sigma_E)). Mai flat impropria (un prior improprio non
+    da' un posterior normalizzabile garantito):
     la normalizzazione e' sul dominio finito di en_grid, non su
     tutta la retta reale, quindi resta propria anche per sigma_E grande
     rispetto al dominio (limite Caso B).
@@ -54,7 +59,7 @@ def energy_prior_given_hyperparams(en_grid: np.ndarray, mu_E: np.ndarray,
     Ritorna:
         array (n_hyper, n_En) se mu_E/sigma_E hanno forma (n_hyper,),
         altrimenti (n_En,); l'integrale trapezoidale su en_grid vale 1 per
-        ogni riga (fix errata b: scipy.integrate.trapezoid).
+        ogni riga (scipy.integrate.trapezoid: np.trapz e' deprecato in NumPy 2).
     """
     scalar_input = np.ndim(mu_E) == 0
     mu = np.atleast_1d(mu_E)[:, None]

@@ -17,7 +17,7 @@ def test_energy_grid_cache_stable_same_args():
 
 
 def test_sphere_grid_different_args_do_not_collide():
-    # errata (a): maxsize=1 svuoterebbe la cache tra chiamate con n diversi
+    # maxsize=1 svuoterebbe la cache tra chiamate con n diversi
     theta_a, phi_a = grids.sphere_grid(500)
     theta_b, phi_b = grids.sphere_grid()
     assert theta_a.shape == (500,)
@@ -66,7 +66,7 @@ def test_recoil_angle_from_direction_shape_and_values():
 
 
 def test_energy_prior_is_proper_and_integrates_to_one():
-    # fix errata (b): scipy.integrate.trapezoid al posto di np.trapz deprecato
+    # scipy.integrate.trapezoid al posto di np.trapz deprecato
     en_grid = grids.energy_grid()
     p = priors.energy_prior(en_grid)
     assert p.shape == en_grid.shape

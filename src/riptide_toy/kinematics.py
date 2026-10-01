@@ -1,3 +1,10 @@
+"""Cinematica dello scattering elastico n-p a masse uguali.
+
+E_p = E_n cos^2(theta_p), con theta_p <= 90 gradi. Con scattering isotropo nel
+centro di massa cos(theta_CM) ~ U(-1, 1) e theta_p = (pi - theta_CM)/2, quindi
+cos^2(theta_p) = (1 - cos theta_CM)/2 ~ U(0, 1) e E_p ~ U(0, E_n). Qui: generazione
+degli eventi, rotazioni attorno alla direzione del neutrone, smearing della traccia.
+"""
 import numpy as np
 
 from riptide_toy.constants import M_NEUTRON, M_PROTON

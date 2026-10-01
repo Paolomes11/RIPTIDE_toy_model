@@ -80,7 +80,7 @@ def test_hierarchical_track_loglik_sigma_E_to_infinity_matches_case_B():
 
 
 def test_sigma_E_to_infinity_reduces_to_case_B():
-    # riga 13 (CLAUDE.md Sez. 5, test di limite): sigma_E -> infinito => Caso B.
+    # riga 13, test di limite: sigma_E -> infinito => Caso B.
     # Con sigma_E grande la gaussiana troncata su en_grid tende alla prior
     # piatta di priors.energy_prior (limite gia' verificato in REPL, Fase 3):
     # loglik_marginal_En_hierarchical con quel prior deve coincidere con
