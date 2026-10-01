@@ -1,6 +1,8 @@
 # Caso C — resoconto diagnostico dello stadio 1 (direzione) e del profilo in σ_E
 
-Etichette come da convenzione del progetto: **(a)** fatto consolidato · **(b)** stima con assunzioni esplicite · **(c)** verificato via MC/numerico · **(d)** ipotesi da testare.
+Diario tecnico del Caso C. La sintesi aggiornata di tutti i risultati è in `docs/resoconto.md`.
+
+Etichette: **(a)** fatto consolidato · **(b)** stima con assunzioni esplicite · **(c)** verificato via MC/numerico · **(d)** ipotesi da testare.
 
 ## 1. Sintesi
 
@@ -21,7 +23,7 @@ Etichette come da convenzione del progetto: **(a)** fatto consolidato · **(b)**
 | Memoria di `posterior_B` (§3.6) | chiuso: elaborazione a blocchi | §13.5 |
 | Spiegazione (d) di §11.1 | resta (d), su una funzione non usata nella pipeline | §11.1 |
 
-Punti aperti fuori dal Caso C (calibrazione dei Casi A e B, test delle assunzioni 1 e 3): `docs/roadmap.md`, sezione "Punti aperti" (v0.15).
+Fuori dal Caso C, la calibrazione dei Casi A e B è chiusa nella v0.16 (`docs/roadmap.md`, "Punti aperti"). Le assunzioni 1 e 3 non testate sono elencate fra i limiti dichiarati in `docs/resoconto.md` §7.
 
 **Sintesi iniziale (2026-09-25), superata e conservata per la storia:**
 
@@ -297,7 +299,7 @@ Il prior plug-in usa i dati due volte (stadio 2 → stadio 1′). L'effetto atte
 
 ## 9. Checklist di validazione completa dopo le correzioni P1–P3 (v0.10, 2026-09-26) (c)
 
-Run completo di `scripts/caso_C_checklist.py`: kernel sferico (§7), raggio della calotta corretto (§8.1), stadio 1 iterato (§8.3). Setup e M come in §6.3; circa 10 minuti con 3 processi. I risultati grezzi sono in `outputs/caso_C_checklist_results.pkl`; tabelle, confronto con la v0.9 e figure sono nel notebook `notebooks/07_checklist_caso_C_v2.ipynb`.
+Run completo di `scripts/caso_C_checklist.py`: kernel sferico (§7), raggio della calotta corretto (§8.1), stadio 1 iterato (§8.3). Setup e M come in §6.3; circa 10 minuti con 3 processi. I risultati grezzi sono in `outputs/caso_C_checklist_results.pkl`; tabelle, confronto con la v0.9 e figure sono nel notebook `notebooks/storico/07_checklist_caso_C_v2.ipynb`.
 
 | N (M) | bias μ_E [MeV] | bias log σ_E | pull μ_E (media/larghezza) | pull Ω rms | coverage μ_E 68/90/95 | coverage log σ_E 68/90/95 | coverage Ω (HPD) 68/90/95 |
 |---|---|---|---|---|---|---|---|
@@ -378,7 +380,7 @@ Il costo è di uno stadio 2 in meno per esperimento. `src/` non cambia. Ω̂_n e
 
 ### 10.3 Checklist v0.11 (c)
 
-La checklist completa è stata rilanciata con 3 processi. La v0.10 è conservata in `outputs/caso_C_checklist_results_v0.10.pkl`; il confronto completo è nel notebook `notebooks/08_checklist_caso_C_v0.11.ipynb`. I risultati su Ω_n sono identici alla v0.10, esperimento per esperimento.
+La checklist completa è stata rilanciata con 3 processi. La v0.10 è conservata in `outputs/caso_C_checklist_results_v0.10.pkl`; il confronto completo è nel notebook `notebooks/storico/08_checklist_caso_C_v0.11.ipynb`. I risultati su Ω_n sono identici alla v0.10, esperimento per esperimento.
 
 | N (M) | bias μ_E [MeV] | bias log σ_E | pull log σ_E (media/larghezza) | coverage μ_E 68/90/95 | coverage log σ_E 68/90/95 | coverage Ω 68/90/95 |
 |---|---|---|---|---|---|---|
@@ -485,7 +487,7 @@ Chi riporta σ̂_E a N ≲ 150 deve dichiarare il prior usato.
 
 ## 12. Coverage al 68% di log σ_E a N = 150–300: fluttuazione statistica (v0.13, 2026-09-26) (c)
 
-Il punto aperto di §11.3 è stato esaminato con `scripts/caso_C_cov68.py` e nel notebook 09.
+Il punto aperto di §11.3 è stato esaminato con `scripts/caso_C_cov68.py` e nel notebook `notebooks/storico/09_coverage_log_sigma.ipynb`.
 
 **Dati esistenti** (seed della checklist, senza nuovi run):
 
@@ -518,7 +520,7 @@ Il punto aperto di §11.3 è stato esaminato con `scripts/caso_C_cov68.py` e nel
 
 ## 13. Punti residui chiusi (v0.14, 2026-09-26)
 
-Figure e tabelle di questa sezione sono riprodotte in `notebooks/10_punti_residui_caso_C_v0.14.ipynb`, che legge solo i pkl in `outputs/`.
+Figure e tabelle di questa sezione sono riprodotte in `notebooks/05_validazione_caso_C.ipynb` (versione originale in `notebooks/storico/10_punti_residui_caso_C_v0.14.ipynb`), che legge solo i pkl in `outputs/`.
 
 I run multi-processo sono stati eseguiti con `OMP_NUM_THREADS=1`, 3 processi e il tetto `systemd-run … MemoryMax=5G`.
 
