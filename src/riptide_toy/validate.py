@@ -246,3 +246,38 @@ def credible_region_contains(log_posterior: np.ndarray, true_index: np.ndarray,
     p_true = np.take_along_axis(p, true_index[:, None], axis=1)
     mass_above = np.sum(np.where(p > p_true, p, 0.0), axis=-1)
     return mass_above[:, None] < levels[None, :]
+
+
+def probability_integral_transform(samples: np.ndarray, grid: np.ndarray,
+                                   cdf: np.ndarray) -> np.ndarray:
+    """Trasformata integrale di probabilita': u = F(x) con F tabulata. Se i
+    campioni seguono F, u ~ U(0, 1).
+
+    Args:
+        samples: valori osservati, forma (n,), nelle unita' di grid.
+        grid: ascisse crescenti della ripartizione, forma (m,).
+        cdf: ripartizione su grid, forma (m,), da 0 a 1.
+
+    Ritorna:
+        array (n,), u in [0, 1] (interpolazione lineare).
+    """
+    return np.interp(samples, grid, cdf)
+
+
+def ks_uniform_statistic(u: np.ndarray) -> float:
+    """Statistica di Kolmogorov-Smirnov di u rispetto a U(0, 1):
+    massima distanza fra ripartizione empirica e identita'.
+
+    Args:
+        u: valori in [0, 1], forma (n,).
+
+    Ritorna:
+        float adimensionale in [0, 1]; senza parametri stimati dagli stessi
+        dati e' ~ 1/sqrt(n) sotto l'ipotesi nulla (soglia da calibrare su
+        simulazioni quando i parametri sono stimati).
+    """
+    u = np.sort(u)
+    n = u.shape[0]
+    upper = np.arange(1, n + 1) / n - u
+    lower = u - np.arange(n) / n
+    return float(max(upper.max(), lower.max()))

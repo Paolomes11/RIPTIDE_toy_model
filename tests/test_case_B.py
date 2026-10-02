@@ -361,3 +361,52 @@ def test_angular_bias_and_pull_on_simulated_omega_n():
     assert np.degrees(residuals.mean()) < 20.0
     # pull d'ordine 1: ne' sigma_hat inutile (pull >> 1), ne' falsamente stretta (pull << 1)
     assert 0.2 < np.median(pulls) < 3.0
+
+
+def test_mixed_source_axes_fraction_geometry_and_null_case():
+    rng = np.random.default_rng(SEED)
+    omega = kinematics.direction_from_theta_phi(np.array([0.7]), np.array([1.9]))[0]
+    axes = kinematics.mixed_source_axes(rng, omega, 200, 0.0, np.radians(30.0))
+    assert axes.shape == (200, 3) and np.all(axes == omega)
+    axes = kinematics.mixed_source_axes(rng, omega, 200, 0.1, np.radians(30.0))
+    np.testing.assert_allclose(axes[:180] @ omega, 1.0)
+    np.testing.assert_allclose(np.degrees(np.arccos(axes[180:] @ omega)), 30.0, atol=1e-6)
+    assert np.all(axes[180:] == axes[180])  # seconda sorgente puntiforme: una sola direzione
+    axes = kinematics.mixed_source_axes(rng, omega, 40_000, 0.5, None)
+    np.testing.assert_allclose(np.linalg.norm(axes, axis=1), 1.0)
+    # fondo isotropo: cos dell'angolo con omega ~ U(-1, 1), media 0 e sd 1/sqrt(3)
+    assert abs(np.mean(axes[20_000:] @ omega)) < 0.02
+
+
+def test_sample_recoil_events_per_event_axes_same_stream():
+    # assi per evento tutti uguali: stessi eventi della direzione comune a parita' di seme
+    En = np.full(50, 3.0)
+    omega = np.array([0.0, 0.6, 0.8])
+    common = kinematics.sample_recoil_events(np.random.default_rng(SEED), En, omega)
+    per_event = kinematics.sample_recoil_events(np.random.default_rng(SEED), En,
+                                                np.broadcast_to(omega, (50, 3)))
+    for a, b in zip(common, per_event):
+        np.testing.assert_allclose(a, b)
+
+
+def test_track_angle_cdf_limit_and_montecarlo():
+    # sigma -> 0: densita' sin(2 theta) su [0, pi/2], ripartizione sin^2(theta)
+    grid, cdf = forward_model.track_angle_cdf(0.005)
+    assert cdf[0] == 0.0 and abs(cdf[-1] - 1.0) < 1e-12 and np.all(np.diff(cdf) >= 0.0)
+    forward = grid <= np.pi / 2
+    np.testing.assert_allclose(cdf[forward], np.sin(grid[forward]) ** 2, atol=5e-3)
+    # MC con la risoluzione del toy: la PIT degli angoli osservati e' uniforme
+    # (soglia KS all'1% per n grande: 1.63/sqrt(n))
+    rng = np.random.default_rng(SEED)
+    n = 20_000
+    omega = np.array([0.0, 0.0, 1.0])
+    _, track = kinematics.sample_recoil_events(rng, np.full(n, 3.0), omega)
+    theta_obs = np.arccos(np.clip(kinematics.smear_direction(rng, track, SIGMA_THETA) @ omega, -1.0, 1.0))
+    grid, cdf = forward_model.track_angle_cdf(SIGMA_THETA)
+    u = validate.probability_integral_transform(theta_obs, grid, cdf)
+    assert validate.ks_uniform_statistic(u) < 1.63 / np.sqrt(n)
+
+
+def test_ks_uniform_statistic_matches_scipy():
+    u = np.random.default_rng(SEED).uniform(0.0, 1.0, 300) ** 1.2
+    assert abs(validate.ks_uniform_statistic(u) - stats.kstest(u, "uniform").statistic) < 1e-12

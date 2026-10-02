@@ -97,7 +97,8 @@ def sample_recoil_events(rng: np.random.Generator, En: np.ndarray,
     Args:
         rng: generatore numpy.
         En: energia vera del neutrone per evento, MeV, forma (n,).
-        omega_n_hat: direzione del neutrone incidente, versore, forma (3,).
+        omega_n_hat: direzione del neutrone incidente, versore, forma (3,)
+            (comune a tutti gli eventi) o (n, 3) (una per evento).
 
     Ritorna:
         (Ep_true, track_true): energia del protone in MeV, forma (n,), e
@@ -109,6 +110,38 @@ def sample_recoil_events(rng: np.random.Generator, En: np.ndarray,
     phi = rng.uniform(0.0, 2 * np.pi, n)
     axis = np.broadcast_to(omega_n_hat, (n, 3))
     return proton_energy(En, theta_p), direction_around_axis(axis, theta_p, phi)
+
+
+def mixed_source_axes(rng: np.random.Generator, omega_n_hat: np.ndarray, n_events: int,
+                      fraction: float, separation: float | None) -> np.ndarray:
+    """Direzioni incidenti per evento con una frazione di eventi che non viene
+    dalla sorgente principale (stress test dell'ipotesi di sorgente unica).
+
+    Args:
+        rng: generatore numpy (usato solo per la geometria della contaminazione).
+        omega_n_hat: direzione della sorgente principale, versore, forma (3,).
+        n_events: numero totale di eventi.
+        fraction: frazione di eventi contaminanti, in [0, 1]; il loro numero e'
+            round(fraction * n_events).
+        separation: angolo fra la sorgente principale e una seconda sorgente
+            puntiforme (azimut casuale), rad; None = fondo isotropo, una
+            direzione indipendente e uniforme sulla sfera per ogni contaminante.
+
+    Ritorna:
+        array (n_events, 3), versori: i primi n_events - n_c uguali a
+        omega_n_hat, gli ultimi n_c dai contaminanti.
+    """
+    n_contaminants = int(round(fraction * n_events))
+    if separation is None:
+        theta = np.arccos(rng.uniform(-1.0, 1.0, n_contaminants))
+        phi = rng.uniform(0.0, 2 * np.pi, n_contaminants)
+        others = direction_from_theta_phi(theta, phi)
+    else:
+        second = direction_around_axis(omega_n_hat[None, :], np.array([separation]),
+                                       rng.uniform(0.0, 2 * np.pi, 1))
+        others = np.broadcast_to(second, (n_contaminants, 3))
+    main = np.broadcast_to(omega_n_hat, (n_events - n_contaminants, 3))
+    return np.concatenate([main, others])
 
 
 def sample_energy_spectrum(rng: np.random.Generator, shape: str, mean: float,
