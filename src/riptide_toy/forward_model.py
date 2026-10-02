@@ -336,6 +336,31 @@ def log_track_kernel_sphere(theta_obs: np.ndarray, theta_grid: np.ndarray,
     return log_vmf + log_bessel + (log_norm + log_track_density(theta_grid) + log_weight)[None, :]
 
 
+def track_angle_cdf(sigma_theta: float, n_theta: int = N_THETA_TRACK,
+                    n_theta_obs: int = N_THETA_OBS) -> tuple[np.ndarray, np.ndarray]:
+    """Funzione di ripartizione dell'angolo osservato fra traccia e Omega_n
+    per sorgente unica: densita' cos(theta_p)/pi per steradiante convoluta con
+    la risoluzione angolare (log_track_kernel_sphere). Non dipende da E_n
+    (cos^2 theta_p ~ U(0, 1) per ogni E_n), quindi vale nei Casi B e C.
+
+    Args:
+        sigma_theta: risoluzione angolare per componente, rad.
+        n_theta: punti della griglia di theta vero su [0, pi/2].
+        n_theta_obs: punti della griglia di theta osservato su [0, pi].
+
+    Ritorna:
+        (obs_grid, cdf): angoli osservati in rad, forma (n_theta_obs,), uniformi
+        su [0, pi], e ripartizione adimensionale, stessa forma, da 0 a 1.
+    """
+    theta_grid = np.linspace(0.0, np.pi / 2, n_theta)
+    obs_grid = np.linspace(0.0, np.pi, n_theta_obs)
+    per_steradian = np.exp(logsumexp(log_track_kernel_sphere(obs_grid, theta_grid, sigma_theta), axis=1))
+    # densita' per unita' di theta osservato: elemento d'angolo solido 2 pi sin(theta)
+    density = 2 * np.pi * np.sin(obs_grid) * per_steradian
+    cdf = np.concatenate([[0.0], np.cumsum(0.5 * (density[1:] + density[:-1]) * np.diff(obs_grid))])
+    return obs_grid, cdf / cdf[-1]
+
+
 def track_energy_table(Ep_hat: np.ndarray, En_grid: np.ndarray, sigma_Ep: float,
                        sigma_theta: float, log_prior_En: np.ndarray,
                        n_theta: int = N_THETA_TRACK, n_theta_obs: int = N_THETA_OBS,
