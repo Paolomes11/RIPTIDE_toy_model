@@ -1,10 +1,12 @@
 import numpy as np
 import pytest
+from scipy import stats
 from scipy.special import logsumexp
 
 from riptide_toy import (combine, forward_model, grids, kinematics, posterior_B, posterior_C,
                          priors, validate)
-from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_E_MAX, SIGMA_E_MIN, SIGMA_EP, SIGMA_THETA
+from riptide_toy.constants import (BIMODAL_HALF_SEPARATION, EN_MAX, EN_MIN, SEED, SIGMA_E_MAX,
+                                    SIGMA_E_MIN, SIGMA_EP, SIGMA_THETA)
 
 
 def test_hyperparameter_grid_shape_and_domain():
@@ -497,3 +499,36 @@ def test_marginal_direction_not_narrower_than_conditional():
     _, std_c = validate.posterior_mean_std(conditional[None, :], np.log(sigma_c))
     _, std_m = validate.posterior_mean_std(marginal[None, :], np.log(sigma_m))
     assert std_m[0] >= 0.99 * std_c[0]
+
+
+def test_sample_energy_spectrum_matches_mean_sd_and_gauss_stream():
+    # ogni forma ha media e sd fissate: con n = 400 000 l'errore sulla media e'
+    # sd/sqrt(n) ~ 6e-4 sd e quello relativo sulla sd ~ 1e-3: soglie 5e-3
+    mean, sd, n = 3.0, 0.4, 400_000
+    for shape in ("gauss", "uniform", "bimodal", "lognormal"):
+        En = kinematics.sample_energy_spectrum(np.random.default_rng(SEED), shape, mean, sd, n)
+        assert En.shape == (n,)
+        assert abs(En.mean() - mean) < 5e-3 * sd
+        assert abs(En.std() / sd - 1.0) < 5e-3
+    # "gauss" consuma il generatore come rng.normal: stessi dataset della checklist
+    np.testing.assert_array_equal(
+        kinematics.sample_energy_spectrum(np.random.default_rng(SEED), "gauss", mean, sd, 10),
+        np.random.default_rng(SEED).normal(mean, sd, 10),
+    )
+    with pytest.raises(ValueError):
+        kinematics.sample_energy_spectrum(np.random.default_rng(SEED), "boh", mean, sd, 10)
+
+
+def test_sample_energy_spectrum_shapes_differ_from_gaussian():
+    # bimodale: due picchi, densita' al centro sotto quella alle righe;
+    # uniforme: niente code oltre sqrt(3) sd; lognormale: asimmetria positiva
+    mean, sd, n = 3.0, 0.4, 400_000
+    rng = np.random.default_rng(SEED)
+    z = (kinematics.sample_energy_spectrum(rng, "bimodal", mean, sd, n) - mean) / sd
+    centre = np.mean(np.abs(z) < 0.1)
+    line = np.mean(np.abs(z - BIMODAL_HALF_SEPARATION) < 0.1)
+    assert centre < 0.5 * line
+    z = (kinematics.sample_energy_spectrum(rng, "uniform", mean, sd, n) - mean) / sd
+    assert np.abs(z).max() <= np.sqrt(3.0)
+    En = kinematics.sample_energy_spectrum(rng, "lognormal", mean, sd, n)
+    assert stats.skew(En) > 0.0
