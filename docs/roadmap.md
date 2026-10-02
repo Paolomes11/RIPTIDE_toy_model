@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.16 — 2026-10-01
+v0.17 — 2026-10-03
 
 Sintesi dei risultati: `docs/resoconto.md`.
 
@@ -237,10 +237,25 @@ progetto è partito (non pubblicata).
   marginalizzato su Ω_n) resta nel codice ma non è usata: peggiora il bias e costa ~30–40×
   (report §11.1).
 
-## Punti aperti (v0.16, 2026-10-01)
+- **Stress test della v0.17** (2026-10-03): solo funzioni nuove, nessuna modifica alle esistenti.
+  Generatori: `kinematics.mixed_source_axes` (asse per evento con seconda sorgente o fondo
+  isotropo), `kinematics.sample_energy_spectrum` (spettri con stessa media e sd della gaussiana),
+  `kinematics.direction_from_tangent`. Prior alternativi, tutti propri: `priors.energy_prior_log_uniform`,
+  `priors.direction_prior_von_mises_fisher`, `priors.hyperparameter_prior_uniform_sigma`, più
+  `posterior_C.refine_direction_from_table_with_prior` per applicare un prior di direzione anche
+  alla calotta fine. Diagnostica: `forward_model.track_angle_cdf`,
+  `validate.probability_integral_transform`, `validate.ks_uniform_statistic`. Stima congiunta del
+  Caso C: `posterior_C.joint_log_posterior_local`, `stencil_gradient_hessian` e `joint_laplace`
+  (stencil 3^4 di differenze centrali in (a, b, μ_E, log σ_E), con a, b coordinate nel piano
+  tangente a Ω_n e passi pari alle larghezze dei due stadi; `N_LAPLACE_NEWTON` = 2 passi di
+  Newton; nessuna griglia 4D), più `validate.conditional_covariance` e
+  `validate.canonical_correlations`. Costanti nuove: `EN_MAX_WIDE`, `BIMODAL_HALF_SEPARATION`,
+  `N_LAPLACE_NEWTON`.
 
-Nessun punto aperto sul codice. I punti 1–3 della v0.15 sono chiusi; i punti 4–6 diventano limiti
-dichiarati.
+## Punti aperti (v0.17, 2026-10-03)
+
+Nessun punto aperto sul codice. I punti 1–3 erano chiusi nella v0.16; i punti 4–8 chiudono o
+quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoconto.md` §4–§6.
 
 1. **Calibrazione del Caso A: chiuso (c).** `scripts/caso_A_checklist.py`, 20 000 eventi. Con la
    verità estratta dal prior (E_n ~ U(0.5, 6), θ_p ~ U(0, π/2)): pull +0.003 / 0.998, coverage
@@ -253,18 +268,40 @@ dichiarati.
    Pull rms 1.01 / 0.99 / 1.00 / 1.03 / 0.88; coverage al 68% 0.66 / 0.68 / 0.69 / 0.66 / 0.78
    (±0.07 a N = 1000); pendenza di contrazione −0.59. Tabella in `docs/resoconto.md` §4.
 3. **Test del Caso B con Ω_n vera sul polo: chiuso il 2026-09-26 (c).**
+4. **Statistica a N = 1000: chiuso (c).** `scripts/n1000_extra.py`: 200 esperimenti in più per caso
+   su seed disgiunti (M = 240, ±0.03 sulla coverage 68%). Caso B: pull rms 0.96, coverage
+   0.70 / 0.91 / 0.95. La pendenza di contrazione è −0.53 su 30–1000 e −0.57 su 10–1000 (la −0.59
+   veniva da M = 40). A N = 10 la distribuzione del pull ha code pesanti (frazione > 3: 0.023 contro
+   0.011 di Rayleigh), quindi il regime non è gaussiano. Caso C: calibrato. μ_E è appena
+   sovra-coperto al 90% (0.95 ± 0.019); causa non indagata.
+5. **Robustezza al prior: chiuso (c).** `scripts/robustezza_prior.py`. I prior sui parametri
+   condivisi vengono dimenticati con N. Il prior su E_n per evento del Caso B no: Ω̂_n si sposta di
+   ~1 σ a ogni N con un prior largo, ~0.3 σ con uno log-uniforme. La coverage resta nominale.
+6. **Spettro non gaussiano, Caso C: chiuso (c).** `scripts/stress_spettro.py`. μ_E e Ω_n sono
+   robusti. log σ_E è sovra-coperto per spettri a curtosi bassa (uniforme, bimodale): coverage 68%
+   0.75–0.81 a N = 150–300.
+7. **Sorgente unica, Casi B e C: quantificato (c).** `scripts/stress_sorgente.py`. Ω̂_n si sposta
+   verso la seconda sorgente di circa f·Δ. La coverage crolla con N: per f = 0.05 a 30° la coverage
+   68% scende da 0.41 a N = 30 a 0.16 a N = 300. La diagnostica KS ha potenza al livello del falso
+   allarme per Δ ≲ 30°. Resta un limite (sotto).
+8. **Due stadi contro stima congiunta, Caso C: chiuso (c).** `scripts/correlazione_stadi.py`, con
+   Laplace locale 4D (`posterior_C.joint_laplace`). La correlazione canonica fra Ω_n e (μ_E, log σ_E) ha mediana
+   0.17 / 0.10 / 0.08 a N = 50 / 150 / 300. Marginalizzare invece di fissare allarga le incertezze in
+   media dell'1.3% / 0.4% / 0.3% (massimo 6%), quindi la fattorizzazione è giustificata. Il modo
+   congiunto di log σ_E è meno centrato della media dei due stadi (pull −0.27 a N = 50): è
+   l'asimmetria del marginale (d).
 
 ## Limiti dichiarati (da riportare nell'articolo)
 
-- **Assunzioni 1 e 3 non messe alla prova (d)**: nessun test con contaminazione da una seconda
-  sorgente, con spettro non gaussiano o con prior diversi su E_n e Ω_n. La robustezza al prior copre
-  solo σ_E a N = 150.
-- **N = 1000 con M = 40 (b)**: nei Casi B e C la coverage ha un errore binomiale di ±0.07.
-  Nel Caso C, Ω_n a N = 1000 è stato rimisurato con M = 100 solo col prior plug-in (report §10.1). Il test a
-  N = 60 cade nella coda alta (7.3° su soglia 15°, report §13.4).
-- **Nuisance `z` del Caso A** fuori scope; **isotropia in CM** assunta nel range 0.5–6 MeV;
-  **target `loglik`** per N = 1000 ridefinito a 2 s.
-- **Caso C**: Ω̂_n e (μ̂_E, σ̂_E) vengono da stadi diversi. Fino a N ≲ 150, log σ_E dipende dal prior.
+- **Assunzione 1 necessaria e non verificabile per sorgenti vicine (c).** Basta una contaminazione
+  di pochi per cento a Δ ≲ 30° per perdere la calibrazione di Ω_n e σ_E a N grande, senza che la
+  diagnostica KS se ne accorga. Un modello a mistura che stimi f è sviluppo futuro.
+- **Assunzione 3:** la coverage di log σ_E dipende dalla curtosi dello spettro (c). Spettri a code
+  pesanti non sono stati provati (d).
+- **Prior su E_n nel Caso B** da scegliere sullo spettro fisico atteso: non si dimentica con N (c).
+  Nel Caso C log σ_E dipende dal prior (0.3 σ a N = 50, < 0.1 σ da N ≈ 300, c).
+- **Nuisance `z` del Caso A** fuori scope (nessun osservabile); **isotropia in CM** assunta nel
+  range 0.5–6 MeV, da verificare oltre ~10 MeV (d); **target `loglik`** per N = 1000 ridefinito a 2 s.
 
 ## Pubblicazione su GitHub
 
