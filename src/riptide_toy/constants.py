@@ -45,3 +45,7 @@ N_DIRECTION_CAP = 8000
 # uguale nella calotta tenuta (raggio ~4.5 sigma_Omega con WINDOW_DELTA_LOG),
 # passo ~0.8 sigma_Omega; ciascuno costa uno stadio 2 (hierarchical_base).
 N_DIRECTION_MARGINAL = 100
+# stima congiunta locale del Caso C (Laplace su (Omega_n, mu_E, log sigma_E)):
+# passi di Newton dal punto dei due stadi; il secondo ricentra lo stencil sul
+# modo, cosi' l'Hessiana e' valutata a ~0 passi da esso.
+N_LAPLACE_NEWTON = 2

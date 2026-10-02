@@ -18,8 +18,9 @@ from typing import Callable
 import numpy as np
 
 from riptide_toy import combine, forward_model, grids, kinematics, posterior_B, priors
-from riptide_toy.constants import (N_DIRECTION_CAP, N_DIRECTION_MARGINAL, N_MU_FINE, N_SIGMA_FINE,
-                                   SIGMA_EP, SIGMA_THETA, WINDOW_DELTA_LOG)
+from riptide_toy.constants import (N_DIRECTION_CAP, N_DIRECTION_MARGINAL, N_LAPLACE_NEWTON,
+                                   N_MU_FINE, N_SIGMA_FINE, SIGMA_EP, SIGMA_THETA,
+                                   WINDOW_DELTA_LOG)
 
 
 def estimate_shared_direction(D_B: tuple[np.ndarray, np.ndarray],
@@ -579,3 +580,120 @@ def refine_hyperparameters_marginal_direction(
         log_post[j] = hyperparameter_log_posterior_from_base(base, mu_fine, sigma_fine, prior_fine)
     # il prior su (mu_E, sigma_E) e' lo stesso in ogni riga: contato una volta
     return forward_model.logsumexp_axis(log_post, axis=0), mu_fine, sigma_fine
+
+
+def joint_log_posterior_local(D_B: tuple[np.ndarray, np.ndarray], omega_center: np.ndarray,
+                              offsets: np.ndarray, mu_E: np.ndarray, sigma_E: np.ndarray,
+                              prior_fn: Callable[[np.ndarray, np.ndarray], np.ndarray]
+                              ) -> np.ndarray:
+    """Log-posterior congiunto su (Omega_n, mu_E, sigma_E) in pochi punti attorno a
+    una stima: Omega_n alle coordinate tangenti offsets attorno a omega_center,
+    (mu_E, sigma_E) ai punti dati. Serve a misurare localmente l'accoppiamento fra
+    Omega_n e gli iperparametri che i due stadi trascurano; mai griglia 4D: un
+    hierarchical_base per direzione (come refine_hyperparameters_marginal_direction).
+    Prior su Omega_n uniforme (costante, omesso). Assunzioni: 1 + 2 + 3.
+
+    Args:
+        D_B: (Ep_hat, track_hat): energia di rinculo, MeV, forma (n_events,);
+            direzione della traccia, versori, forma (n_events, 3).
+        omega_center: versore attorno a cui si prendono le direzioni, forma (3,).
+        offsets: coordinate tangenti (kinematics.direction_from_tangent), rad,
+            forma (n_dir, 2).
+        mu_E, sigma_E: punti degli iperparametri, MeV, forma (n_hyper,).
+        prior_fn: (mu_E, sigma_E) -> pesi proporzionali alla densita' del prior in
+            (mu_E, log sigma_E), es. priors.hyperparameter_prior; lo stesso insieme
+            di punti per ogni direzione, quindi la normalizzazione e' comune.
+
+    Ritorna:
+        array (n_dir, n_hyper), log-posterior non normalizzato (stessa costante
+        per tutti i punti).
+    """
+    Ep_hat, track_hat = D_B
+    directions = kinematics.direction_from_tangent(omega_center, offsets)
+    prior = prior_fn(mu_E, sigma_E)
+    out = np.empty((directions.shape[0], mu_E.shape[0]), dtype=np.float64)
+    for j in range(directions.shape[0]):  # ciclo sulle poche direzioni, non sugli eventi
+        theta_obs = kinematics.recoil_angle_from_direction(track_hat, directions[j:j + 1])[:, 0]
+        base = forward_model.hierarchical_base(Ep_hat, theta_obs, grids.energy_grid(),
+                                               SIGMA_EP, SIGMA_THETA)
+        out[j] = hyperparameter_log_posterior_from_base(base, mu_E, sigma_E, prior)
+    return out
+
+
+def stencil_gradient_hessian(values: np.ndarray, steps: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Gradiente e Hessiana per differenze centrali da una funzione valutata sullo
+    stencil prodotto {-h_i, 0, +h_i} in d dimensioni (esatti per una quadratica).
+
+    Args:
+        values: valori della funzione, forma (3,) * d, indice 0/1/2 = -h/0/+h per asse.
+        steps: passi h_i, forma (d,), nelle unita' delle coordinate.
+
+    Ritorna:
+        (gradiente (d,), Hessiana (d, d) simmetrica), nelle unita' della funzione
+        divise per quelle delle coordinate (al quadrato per l'Hessiana).
+    """
+    d = steps.shape[0]
+    center = (1,) * d
+    grad = np.empty(d)
+    hess = np.empty((d, d))
+    for i in range(d):  # d <= 4: cicli sulle coordinate, non sui dati
+        plus, minus = list(center), list(center)
+        plus[i], minus[i] = 2, 0
+        grad[i] = (values[tuple(plus)] - values[tuple(minus)]) / (2 * steps[i])
+        hess[i, i] = (values[tuple(plus)] - 2 * values[center] + values[tuple(minus)]) / steps[i] ** 2
+        for j in range(i):
+            corner = {}
+            for si in (0, 2):
+                for sj in (0, 2):
+                    idx = list(center)
+                    idx[i], idx[j] = si, sj
+                    corner[si, sj] = values[tuple(idx)]
+            hess[i, j] = hess[j, i] = ((corner[2, 2] - corner[2, 0] - corner[0, 2] + corner[0, 0])
+                                       / (4 * steps[i] * steps[j]))
+    return grad, hess
+
+
+def joint_laplace(D_B: tuple[np.ndarray, np.ndarray], omega_start: np.ndarray,
+                  mu_start: float, log_sigma_start: float, steps: np.ndarray,
+                  prior_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
+                  n_newton: int = N_LAPLACE_NEWTON
+                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray, bool]:
+    """Approssimazione di Laplace del posterior congiunto su (Omega_n, mu_E,
+    log sigma_E), partendo dalle stime dei due stadi: Hessiana per differenze
+    centrali su uno stencil 3^4 (coordinate tangenti a, b attorno alla direzione
+    corrente, mu_E, log sigma_E) e passi di Newton verso il modo; ogni passo
+    ricentra lo stencil. Si ferma senza muoversi se l'Hessiana non e' definita
+    negativa (il posterior non e' localmente gaussiano). Assunzioni: 1 + 2 + 3.
+
+    Args:
+        D_B: (Ep_hat, track_hat), come in joint_log_posterior_local.
+        omega_start: direzione di partenza, versore, forma (3,).
+        mu_start: mu_E di partenza, MeV.
+        log_sigma_start: log(sigma_E / MeV) di partenza.
+        steps: passi dello stencil (a, b in rad, mu_E in MeV, log sigma_E), forma (4,).
+        prior_fn: come in joint_log_posterior_local.
+        n_newton: passi di Newton.
+
+    Ritorna:
+        (omega_mode versore (1, 3), (mu_E in MeV, log sigma_E) al modo (2,),
+         Hessiana (4, 4) del log-posterior nell'ultimo punto valutato, coordinate
+         (a, b, mu_E, log sigma_E), True se definita negativa).
+    """
+    omega = np.asarray(omega_start, dtype=np.float64)
+    hyper = np.array([mu_start, log_sigma_start], dtype=np.float64)
+    shift = np.array([-1.0, 0.0, 1.0])
+    a, b = np.meshgrid(shift * steps[0], shift * steps[1], indexing="ij")
+    offsets = np.stack([a.ravel(), b.ravel()], axis=1)
+    for _ in range(n_newton):
+        mu, log_sigma = np.meshgrid(hyper[0] + shift * steps[2], hyper[1] + shift * steps[3],
+                                    indexing="ij")
+        values = joint_log_posterior_local(D_B, omega, offsets, mu.ravel(), np.exp(log_sigma.ravel()),
+                                           prior_fn)
+        grad, hess = stencil_gradient_hessian(values.reshape((3,) * 4), steps)
+        negative_definite = bool(np.all(np.linalg.eigvalsh(hess) < 0))
+        if not negative_definite:
+            break
+        step = -np.linalg.solve(hess, grad)
+        omega = kinematics.direction_from_tangent(omega, step[None, :2])[0]
+        hyper = hyper + step[2:]
+    return omega[None, :], hyper, hess, negative_definite

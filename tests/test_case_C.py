@@ -532,3 +532,77 @@ def test_sample_energy_spectrum_shapes_differ_from_gaussian():
     assert np.abs(z).max() <= np.sqrt(3.0)
     En = kinematics.sample_energy_spectrum(rng, "lognormal", mean, sd, n)
     assert stats.skew(En) > 0.0
+
+
+def test_direction_from_tangent_is_exponential_map():
+    axis = kinematics.direction_from_theta_phi(np.array([1.1]), np.array([2.3]))[0]
+    offsets = np.array([[0.0, 0.0], [0.03, 0.0], [0.0, -0.05], [0.02, 0.04]])
+    v = kinematics.direction_from_tangent(axis, offsets)
+    np.testing.assert_allclose(np.linalg.norm(v, axis=1), 1.0, atol=1e-12)
+    np.testing.assert_allclose(v[0], axis, atol=1e-12)
+    # l'angolo da axis e' la norma delle coordinate tangenti
+    np.testing.assert_allclose(validate.angular_residual(np.broadcast_to(axis, v.shape), v),
+                               np.hypot(offsets[:, 0], offsets[:, 1]), atol=1e-9)
+    # assi tangenti ortogonali fra loro
+    d1, d2 = v[1] - axis, v[2] - axis
+    assert abs(d1 @ d2) < 1e-3 * np.linalg.norm(d1) * np.linalg.norm(d2)
+
+
+def test_stencil_gradient_hessian_exact_for_quadratic():
+    rng = np.random.default_rng(SEED)
+    a = rng.normal(size=(4, 4))
+    hess_true = -(a @ a.T + 4 * np.eye(4))
+    grad_true = rng.normal(size=4)
+    steps = np.array([0.01, 0.02, 0.05, 0.1])
+    shift = np.array([-1.0, 0.0, 1.0])
+    x = np.stack(np.meshgrid(*(shift * h for h in steps), indexing="ij"), axis=-1)
+    values = 3.0 + x @ grad_true + 0.5 * np.einsum("...i,ij,...j->...", x, hess_true, x)
+    grad, hess = posterior_C.stencil_gradient_hessian(values, steps)
+    np.testing.assert_allclose(grad, grad_true, rtol=1e-8)
+    np.testing.assert_allclose(hess, hess_true, rtol=1e-8)
+
+
+def test_conditional_covariance_and_canonical_correlations():
+    rho = 0.6
+    cov = np.array([[1.0, rho, 0.0], [rho, 1.0, 0.0], [0.0, 0.0, 2.0]])
+    np.testing.assert_allclose(validate.conditional_covariance(cov, np.array([0])), [[1 - rho ** 2]])
+    np.testing.assert_allclose(validate.canonical_correlations(cov, np.array([0])), [rho])
+    # invarianti per rotazione e scala dentro il blocco
+    c, s = np.cos(0.7), np.sin(0.7)
+    t = np.array([[3 * c, -s, 0.0], [3 * s, c, 0.0], [0.0, 0.0, 1.0]])
+    cov_t = t @ cov @ t.T
+    np.testing.assert_allclose(np.sort(validate.canonical_correlations(cov_t, np.array([0, 1]))),
+                               np.sort(validate.canonical_correlations(cov, np.array([0, 1]))), atol=1e-12)
+
+
+def test_joint_laplace_matches_two_stage_widths():
+    rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(50, 0)))
+    mu_true, sigma_true = 3.2, 0.4
+    omega_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([1.7]))
+    Ep_true, track = kinematics.sample_recoil_events(rng, rng.normal(mu_true, sigma_true, 50), omega_true[0])
+    D_B = (rng.normal(Ep_true, SIGMA_EP), kinematics.smear_direction(rng, track, SIGMA_THETA))
+    theta_grid, phi_grid = grids.sphere_grid()
+    direction_prior = priors.direction_prior(theta_grid, phi_grid)
+    # stime dei due stadi come nella checklist: stadio 2 su omega_0, Omega_n dallo stadio 1 iterato
+    omega_0 = posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, direction_prior)[0]
+    log_post, mu_fine, sigma_fine = posterior_C.refine_hyperparameters(
+        (*D_B, omega_0), *grids.hyperparameter_grid(), priors.hyperparameter_prior)
+    mu_mean, mu_std = validate.posterior_mean_std(log_post[None, :], mu_fine)
+    ls_mean, ls_std = validate.posterior_mean_std(log_post[None, :], np.log(sigma_fine))
+    omega_hat, cap_log_post, cap_theta, cap_phi = posterior_C.refine_shared_direction_hierarchical(
+        D_B, theta_grid, phi_grid, direction_prior,
+        *posterior_C.predictive_energy_moments(log_post, mu_fine, sigma_fine))
+    cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
+    omega_sigma = validate.posterior_angular_resolution(cap_log_post[None, :], cap_grid, omega_hat)[0]
+    steps = np.array([omega_sigma / np.sqrt(2), omega_sigma / np.sqrt(2), mu_std[0], ls_std[0]])
+    omega_mode, hyper_mode, hess, negative_definite = posterior_C.joint_laplace(
+        D_B, omega_hat[0], mu_mean[0], ls_mean[0], steps, priors.hyperparameter_prior)
+    assert negative_definite
+    cov = np.linalg.inv(-hess)
+    # con Omega_n fissato, Laplace ridà la larghezza della griglia dello stadio 2
+    hyper_given_omega = np.sqrt(np.diag(validate.conditional_covariance(cov, np.array([2, 3]))))
+    np.testing.assert_allclose(hyper_given_omega, [mu_std[0], ls_std[0]], rtol=0.1)
+    # e il modo congiunto resta entro una frazione di sigma dalle stime dei due stadi
+    assert abs(hyper_mode[0] - mu_mean[0]) < 0.3 * mu_std[0]
+    assert validate.angular_residual(omega_hat, omega_mode)[0] < 0.3 * omega_sigma
+    np.testing.assert_allclose(np.sqrt(np.trace(cov[:2, :2])), omega_sigma, rtol=0.15)

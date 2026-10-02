@@ -281,3 +281,41 @@ def ks_uniform_statistic(u: np.ndarray) -> float:
     upper = np.arange(1, n + 1) / n - u
     lower = u - np.arange(n) / n
     return float(max(upper.max(), lower.max()))
+
+
+def conditional_covariance(cov: np.ndarray, block: np.ndarray) -> np.ndarray:
+    """Covarianza delle coordinate di un blocco con le altre fissate, per una
+    gaussiana di covarianza cov: inversa del blocco della matrice di precisione.
+    Il confronto con il blocco di cov (marginale) misura quanta incertezza si perde
+    fissando le altre coordinate invece di marginalizzarle.
+
+    Args:
+        cov: covarianza simmetrica definita positiva, forma (d, d).
+        block: indici del blocco, forma (b,).
+
+    Ritorna:
+        array (b, b), stesse unita' di cov[block][:, block].
+    """
+    precision = np.linalg.inv(cov)
+    return np.linalg.inv(precision[np.ix_(block, block)])
+
+
+def canonical_correlations(cov: np.ndarray, block: np.ndarray) -> np.ndarray:
+    """Correlazioni canoniche fra un blocco di coordinate e il resto: radici degli
+    autovalori di C_aa^-1 C_ab C_bb^-1 C_ba. Non dipendono da rotazioni o
+    riscalamenti dentro ciascun blocco (es. dalla scelta degli assi nel piano
+    tangente).
+
+    Args:
+        cov: covarianza simmetrica definita positiva, forma (d, d).
+        block: indici del primo blocco, forma (b,); il secondo e' il complemento.
+
+    Ritorna:
+        array (min(b, d - b),), adimensionale in [0, 1], decrescente.
+    """
+    other = np.setdiff1d(np.arange(cov.shape[0]), block)
+    c_aa, c_bb = cov[np.ix_(block, block)], cov[np.ix_(other, other)]
+    c_ab = cov[np.ix_(block, other)]
+    m = np.linalg.solve(c_aa, c_ab) @ np.linalg.solve(c_bb, c_ab.T)
+    eig = np.sort(np.clip(np.linalg.eigvals(m).real, 0.0, 1.0))[::-1]
+    return np.sqrt(eig[:min(len(block), len(other))])
