@@ -245,3 +245,21 @@ def theta_phi_from_direction(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     theta = np.arccos(np.clip(v[..., 2], -1.0, 1.0))
     phi = np.mod(np.arctan2(v[..., 1], v[..., 0]), 2 * np.pi)
     return theta, phi
+
+
+def direction_from_tangent(axis: np.ndarray, offsets: np.ndarray) -> np.ndarray:
+    """Versori a coordinate (a, b) nel piano tangente in axis, con la mappa
+    esponenziale: angolo sqrt(a**2 + b**2) da axis lungo a*e1 + b*e2, con (e1, e2)
+    di perpendicular_basis. Coordinate locali senza singolarita' attorno a una
+    stima puntuale, per derivate finite sulla sfera.
+
+    Args:
+        axis: versore di riferimento, forma (3,).
+        offsets: coordinate tangenti (a, b), rad, forma (n, 2).
+
+    Ritorna:
+        array (n, 3), versori unitari; offsets nulli danno axis.
+    """
+    radius = np.hypot(offsets[:, 0], offsets[:, 1])
+    azimuth = np.arctan2(offsets[:, 1], offsets[:, 0])
+    return direction_around_axis(np.broadcast_to(axis, (offsets.shape[0], 3)), radius, azimuth)
