@@ -4,7 +4,7 @@ iperparametri (mu_E, sigma_E) del Caso C."""
 import numpy as np
 from functools import lru_cache
 
-from riptide_toy.constants import EN_MAX, EN_MIN, SIGMA_E_MAX, SIGMA_E_MIN
+from riptide_toy.constants import EN_MAX, EN_MAX_WIDE, EN_MIN, SIGMA_E_MAX, SIGMA_E_MIN
 
 # maxsize=None e non 1: maxsize=1 svuota la cache se si chiama la funzione con
 # argomenti diversi (es. sphere_grid(500) poi sphere_grid()); gli array
@@ -20,6 +20,25 @@ def energy_grid(n: int = 500) -> np.ndarray:
         array (n,), En in MeV, crescente, non scrivibile.
     """
     grid = np.linspace(EN_MIN, EN_MAX, n)
+    grid.flags.writeable = False
+    return grid
+
+@lru_cache(maxsize=None)
+def energy_grid_wide(n_default: int = 500) -> np.ndarray:
+    """Griglia su En equispaziata su [EN_MIN, EN_MAX_WIDE], con lo stesso passo
+    di energy_grid(n_default): il confronto fra prior sul dominio standard e
+    allargato non deve dipendere dalla discretizzazione.
+
+    Args:
+        n_default: numero di punti della griglia standard di cui copiare il passo.
+
+    Ritorna:
+        array (n,), En in MeV, crescente, non scrivibile; passo uguale a
+        quello di energy_grid(n_default) a meno dell'arrotondamento di n.
+    """
+    step = (EN_MAX - EN_MIN) / (n_default - 1)
+    n = int(round((EN_MAX_WIDE - EN_MIN) / step)) + 1
+    grid = np.linspace(EN_MIN, EN_MAX_WIDE, n)
     grid.flags.writeable = False
     return grid
 

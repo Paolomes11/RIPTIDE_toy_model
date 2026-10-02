@@ -355,6 +355,47 @@ def refine_direction_from_table(table: np.ndarray, track_hat: np.ndarray,
     return cap_grid[map_idx:map_idx + 1], cap_log_post, cap_theta, cap_phi
 
 
+def refine_direction_from_table_with_prior(table: np.ndarray, track_hat: np.ndarray,
+                                           theta_grid: np.ndarray, phi_grid: np.ndarray,
+                                           direction_prior_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
+                                           delta_log: float = WINDOW_DELTA_LOG,
+                                           n_cap: int = N_DIRECTION_CAP
+                                           ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Come refine_direction_from_table, ma con un prior su Omega_n qualsiasi
+    applicato sia alla griglia grossolana sia alla calotta fine: il prior
+    uniforme per pixel della calotta va bene solo se il prior sulla sfera e'
+    uniforme. Serve al test di robustezza al prior sulla direzione.
+    Assunzioni: 1 + 2 (+ 3 se la tabella usa il prior gerarchico).
+
+    Args:
+        table: forma (n_events, n_theta_obs), da forward_model.track_energy_table.
+        track_hat: direzione 3D della traccia, versori, forma (n_events, 3).
+        theta_grid, phi_grid: griglia grossolana, rad, forma (n_candidates,).
+        direction_prior_fn: (theta, phi) dei pixel, rad -> pesi del prior per
+            pixel ad area uguale, forma (n_pixel,), somma 1
+            (es. priors.direction_prior).
+        delta_log: soglia sul log-posterior che definisce la regione tenuta.
+        n_cap: pixel della calotta fine.
+
+    Ritorna:
+        come refine_shared_direction.
+    """
+    coarse = direction_log_posterior_from_table(table, track_hat, theta_grid, phi_grid,
+                                                direction_prior_fn(theta_grid, phi_grid))
+    check_finite_combined(coarse)
+    omega_grid = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
+    best = omega_grid[np.argmax(coarse)]
+    radius = direction_cap_radius(coarse, omega_grid, delta_log)
+
+    cap_theta, cap_phi = direction_cap_grid(best, radius, n_cap)
+    cap_log_post = direction_log_posterior_from_table(table, track_hat, cap_theta, cap_phi,
+                                                      direction_prior_fn(cap_theta, cap_phi))
+    check_finite_combined(cap_log_post)
+    cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
+    map_idx = np.argmax(cap_log_post)
+    return cap_grid[map_idx:map_idx + 1], cap_log_post, cap_theta, cap_phi
+
+
 def shared_hyperparameter_log_posterior(D: tuple[np.ndarray, np.ndarray, np.ndarray],
                                         mu_grid: np.ndarray, sigma_grid: np.ndarray,
                                         prior: np.ndarray) -> np.ndarray:

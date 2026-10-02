@@ -1,7 +1,9 @@
 """Prior, tutti propri (normalizzati su un dominio finito): un prior improprio non
 garantisce un posterior normalizzabile. E_n piatto su [EN_MIN, EN_MAX], direzione
 uniforme sulla sfera, E_n | (mu_E, sigma_E) gaussiana troncata, iperparametri
-uniformi in mu_E e in log sigma_E (sigma_E e' un parametro di scala)."""
+uniformi in mu_E e in log sigma_E (sigma_E e' un parametro di scala).
+Le prior alternative (uniforme in sigma_E, log-uniforme su E_n, von Mises-Fisher
+su Omega_n) servono solo ai test di robustezza al prior."""
 import numpy as np
 from scipy.integrate import trapezoid
 from scipy.special import logsumexp
@@ -131,3 +133,46 @@ def hyperparameter_prior_uniform_sigma(mu_grid: np.ndarray, sigma_grid: np.ndarr
         array (n_hyper,), pesi proporzionali a sigma_E che sommano a 1.
     """
     return sigma_grid / sigma_grid.sum()
+
+
+def energy_prior_log_uniform(en_grid: np.ndarray) -> np.ndarray:
+    """Prior alternativa su En, log-uniforme (densita' ~ 1/En) e propria sul
+    dominio di en_grid: serve solo al test di robustezza al prior su E_n.
+    Pesa di piu' le energie basse, dove a parita' di Ep l'angolo di rinculo
+    e' piu' piccolo.
+
+    Args:
+        en_grid: griglia di ipotesi su En, MeV, forma (n,), En > 0.
+
+    Ritorna:
+        array (n,), densita' di probabilita' (1/MeV) proporzionale a 1/En;
+        l'integrale trapezoidale su en_grid vale 1.
+    """
+    unnorm = 1.0 / en_grid
+    return unnorm / trapezoid(unnorm, en_grid)
+
+
+def direction_prior_von_mises_fisher(theta_grid: np.ndarray, phi_grid: np.ndarray,
+                                     theta_axis: float, phi_axis: float,
+                                     kappa: float) -> np.ndarray:
+    """Prior alternativa su Omega_n, von Mises-Fisher di asse (theta_axis,
+    phi_axis) e concentrazione kappa, propria sulla sfera: serve solo al test
+    di robustezza al prior sulla direzione (kappa = 0 ridà la prior uniforme).
+
+    Args:
+        theta_grid: colatitudine dei pixel, rad, forma (n_pixel,), pixel ad
+            area solida ~costante (grids.sphere_grid o calotta di posterior_C).
+        phi_grid: azimut dei pixel, rad, stessa forma di theta_grid.
+        theta_axis: colatitudine dell'asse della prior, rad.
+        phi_axis: azimut dell'asse della prior, rad.
+        kappa: concentrazione, >= 0 (larghezza angolare ~1/sqrt(kappa) rad).
+
+    Ritorna:
+        array (n_pixel,), pesi proporzionali a exp(kappa * cos(angolo dall'asse))
+        che sommano a 1 (pixel ad area uguale: peso per pixel = densita').
+    """
+    cos_angle = (np.cos(theta_grid) * np.cos(theta_axis)
+                 + np.sin(theta_grid) * np.sin(theta_axis) * np.cos(phi_grid - phi_axis))
+    # exp(kappa * (cos - 1)) invece di exp(kappa * cos): niente overflow a kappa grande
+    unnorm = np.exp(kappa * (cos_angle - 1.0))
+    return unnorm / unnorm.sum()

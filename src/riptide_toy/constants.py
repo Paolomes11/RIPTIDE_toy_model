@@ -8,6 +8,9 @@ M_PROTON = 1.0
 
 # energy range of work for the incident particle, MeV
 EN_MIN, EN_MAX = 0.5, 6.0
+# estremo superiore del dominio allargato, usato solo come prior alternativo nei
+# test di robustezza al prior su E_n (la verita' resta in [EN_MIN, EN_MAX])
+EN_MAX_WIDE = 10.0
 
 # risoluzioni toy del detector, usate nel caso di riferimento R1
 SIGMA_EP = 0.10     # MeV

@@ -124,6 +124,23 @@ def test_direction_prior_proper_and_sums_to_one():
     assert abs(p.sum() - 1.0) < 1e-10
 
 
+
+def test_direction_prior_von_mises_fisher_limits_and_first_moment():
+    theta, phi = grids.sphere_grid()
+    axis_theta, axis_phi = 1.0, 2.0
+    cos_angle = (np.cos(theta) * np.cos(axis_theta)
+                 + np.sin(theta) * np.sin(axis_theta) * np.cos(phi - axis_phi))
+    # kappa = 0: prior uniforme
+    np.testing.assert_allclose(
+        priors.direction_prior_von_mises_fisher(theta, phi, axis_theta, axis_phi, 0.0),
+        priors.direction_prior(theta, phi))
+    for kappa in (1.0, 4.0, 20.0):
+        p = priors.direction_prior_von_mises_fisher(theta, phi, axis_theta, axis_phi, kappa)
+        assert abs(p.sum() - 1.0) < 1e-12
+        assert np.argmax(p) == np.argmax(cos_angle)
+        # momento primo analitico della von Mises-Fisher su S^2: coth(kappa) - 1/kappa
+        assert abs((p * cos_angle).sum() - (1.0 / np.tanh(kappa) - 1.0 / kappa)) < 1e-4
+
 def test_log_track_density_isotropic_cm():
     theta = np.array([0.0, np.pi / 3, np.pi / 2 + 0.1, np.pi])
     out = forward_model.log_track_density(theta)

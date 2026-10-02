@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import trapezoid
 
 from riptide_toy import forward_model, grids, kinematics, priors
-from riptide_toy.constants import SEED
+from riptide_toy.constants import EN_MAX_WIDE, EN_MIN, SEED
 
 
 def test_energy_grid_monotone_and_immutable():
@@ -73,6 +73,20 @@ def test_energy_prior_is_proper_and_integrates_to_one():
     assert np.all(p > 0.0)
     assert abs(trapezoid(p, en_grid) - 1.0) < 1e-10
 
+
+
+def test_energy_grid_wide_same_step_as_default_and_read_only():
+    wide, default = grids.energy_grid_wide(), grids.energy_grid()
+    assert (wide[0], wide[-1]) == (EN_MIN, EN_MAX_WIDE)
+    assert abs(np.diff(wide)[0] - np.diff(default)[0]) < 1e-3 * np.diff(default)[0]
+    assert not wide.flags.writeable
+
+
+def test_energy_prior_log_uniform_proper_and_proportional_to_inverse_energy():
+    en_grid = grids.energy_grid_wide()
+    p = priors.energy_prior_log_uniform(en_grid)
+    assert abs(trapezoid(p, en_grid) - 1.0) < 1e-10
+    np.testing.assert_allclose(p * en_grid, p[0] * en_grid[0])
 
 def test_loglik_roundtrip_argmax_near_truth():
     rng = np.random.default_rng(SEED)
