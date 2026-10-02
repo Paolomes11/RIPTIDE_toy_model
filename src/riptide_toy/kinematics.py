@@ -7,7 +7,7 @@ degli eventi, rotazioni attorno alla direzione del neutrone, smearing della trac
 """
 import numpy as np
 
-from riptide_toy.constants import M_NEUTRON, M_PROTON
+from riptide_toy.constants import BIMODAL_HALF_SEPARATION, M_NEUTRON, M_PROTON
 
 def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
     """Energia del protone di rinculo, Ep = En * cos(theta_p)**2.
@@ -109,6 +109,40 @@ def sample_recoil_events(rng: np.random.Generator, En: np.ndarray,
     phi = rng.uniform(0.0, 2 * np.pi, n)
     axis = np.broadcast_to(omega_n_hat, (n, 3))
     return proton_energy(En, theta_p), direction_around_axis(axis, theta_p, phi)
+
+
+def sample_energy_spectrum(rng: np.random.Generator, shape: str, mean: float,
+                           sd: float, n: int) -> np.ndarray:
+    """Energie vere dei neutroni da uno spettro di forma data, con media e
+    deviazione standard fissate (stress test dell'ipotesi di spettro gaussiano).
+
+    Args:
+        rng: generatore numpy.
+        shape: "gauss", "uniform", "bimodal" o "lognormal".
+        mean: media dello spettro, MeV, > 0.
+        sd: deviazione standard dello spettro, MeV, > 0.
+        n: numero di eventi.
+
+    Ritorna:
+        array (n,), E_n in MeV; media e sd attese uguali a mean e sd per ogni forma.
+    """
+    if shape == "gauss":
+        # stessa chiamata della generazione standard: a parita' di seme si
+        # riottengono esattamente gli stessi dataset
+        return rng.normal(mean, sd, n)
+    if shape == "uniform":
+        half_width = np.sqrt(3.0) * sd  # varianza di U(-h, h) = h^2 / 3
+        return rng.uniform(mean - half_width, mean + half_width, n)
+    if shape == "bimodal":
+        # varianza = a^2 sd^2 (fra righe) + (1 - a^2) sd^2 (entro riga) = sd^2
+        a = BIMODAL_HALF_SEPARATION
+        side = rng.choice(np.array([-1.0, 1.0]), n)
+        return rng.normal(mean + side * a * sd, sd * np.sqrt(1.0 - a ** 2))
+    if shape == "lognormal":
+        # momenti della lognormale: mean = exp(m + s^2/2), (sd/mean)^2 = exp(s^2) - 1
+        s2 = np.log1p((sd / mean) ** 2)
+        return rng.lognormal(np.log(mean) - s2 / 2, np.sqrt(s2), n)
+    raise ValueError(f"forma di spettro sconosciuta: {shape}")
 
 
 def smear_direction(rng: np.random.Generator, track: np.ndarray,

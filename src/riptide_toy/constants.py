@@ -12,6 +12,12 @@ EN_MIN, EN_MAX = 0.5, 6.0
 # test di robustezza al prior su E_n (la verita' resta in [EN_MIN, EN_MAX])
 EN_MAX_WIDE = 10.0
 
+# spettro bimodale degli stress test sull'assunzione 3 (solo generazione): due righe
+# a media +- BIMODAL_HALF_SEPARATION * sd, ciascuna larga sd * sqrt(1 - a^2), cosi'
+# media e sd coincidono con la gaussiana di riferimento; a = 0.9 > sqrt(1 - a^2) ~ 0.44
+# tiene le due righe separate (due picchi distinti, non una gaussiana appiattita)
+BIMODAL_HALF_SEPARATION = 0.9
+
 # risoluzioni toy del detector, usate nel caso di riferimento R1
 SIGMA_EP = 0.10     # MeV
 SIGMA_THETA = 0.08  # rad
