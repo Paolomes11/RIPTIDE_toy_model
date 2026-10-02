@@ -433,6 +433,29 @@ def test_refine_shared_direction_hierarchical_near_truth_and_narrower():
     assert spreads[1] < spreads[0]
 
 
+
+def test_refine_with_prior_fn_matches_default_and_vmf_pulls_toward_axis():
+    rng = np.random.default_rng(SEED)
+    D_B, omega_true = case_C_dataset(20, rng)
+    Ep_hat, track_hat = D_B
+    theta_grid, phi_grid = grids.sphere_grid(1500)
+    table = posterior_C.case_B_track_table(Ep_hat)
+    # prior uniforme come funzione: stesso risultato della funzione esistente
+    reference = posterior_C.refine_direction_from_table(
+        table, track_hat, theta_grid, phi_grid, priors.direction_prior(theta_grid, phi_grid), n_cap=2000)
+    result = posterior_C.refine_direction_from_table_with_prior(
+        table, track_hat, theta_grid, phi_grid, priors.direction_prior, n_cap=2000)
+    for a, b in zip(reference, result):
+        np.testing.assert_array_equal(a, b)
+    # prior von Mises-Fisher con asse a 90 gradi dalla stima: la stima si sposta verso l'asse
+    axis = kinematics.direction_around_axis(reference[0], np.array([np.pi / 2]), np.array([0.0]))
+    axis_theta, axis_phi = kinematics.theta_phi_from_direction(axis)
+    omega_vmf = posterior_C.refine_direction_from_table_with_prior(
+        table, track_hat, theta_grid, phi_grid,
+        lambda t, p: priors.direction_prior_von_mises_fisher(t, p, axis_theta[0], axis_phi[0], 20.0),
+        n_cap=2000)[0]
+    assert omega_vmf[0] @ axis[0] > reference[0][0] @ axis[0]
+
 def test_marginal_direction_reduces_to_conditional_for_point_like_cap():
     # Correzione 2: se la calotta dello stadio 1 e' puntiforme (raggio 1e-6 rad),
     # marginalizzare su Omega_n equivale a fissarlo in omega_hat (a meno di una costante).
