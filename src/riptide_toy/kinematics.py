@@ -7,7 +7,7 @@ degli eventi, rotazioni attorno alla direzione del neutrone, smearing della trac
 """
 import numpy as np
 
-from riptide_toy.constants import BIMODAL_HALF_SEPARATION, M_NEUTRON, M_PROTON
+from riptide_toy.constants import BIMODAL_HALF_SEPARATION, M_NEUTRON, M_PROTON, STUDENT_T_DOF
 
 def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
     """Energia del protone di rinculo, Ep = En * cos(theta_p)**2.
@@ -151,7 +151,9 @@ def sample_energy_spectrum(rng: np.random.Generator, shape: str, mean: float,
 
     Args:
         rng: generatore numpy.
-        shape: "gauss", "uniform", "bimodal" o "lognormal".
+        shape: "gauss", "uniform", "bimodal", "lognormal", "laplace" o "student_t"
+            (le ultime due a code pesanti, curtosi 6 e 3 + 6 / (STUDENT_T_DOF - 4);
+            come la lognormale non sono troncate al dominio di energia).
         mean: media dello spettro, MeV, > 0.
         sd: deviazione standard dello spettro, MeV, > 0.
         n: numero di eventi.
@@ -175,6 +177,11 @@ def sample_energy_spectrum(rng: np.random.Generator, shape: str, mean: float,
         # momenti della lognormale: mean = exp(m + s^2/2), (sd/mean)^2 = exp(s^2) - 1
         s2 = np.log1p((sd / mean) ** 2)
         return rng.lognormal(np.log(mean) - s2 / 2, np.sqrt(s2), n)
+    if shape == "laplace":
+        return rng.laplace(mean, sd / np.sqrt(2.0), n)  # varianza = 2 * scala^2
+    if shape == "student_t":
+        # varianza della t standard = dof / (dof - 2)
+        return mean + sd * np.sqrt((STUDENT_T_DOF - 2) / STUDENT_T_DOF) * rng.standard_t(STUDENT_T_DOF, n)
     raise ValueError(f"forma di spettro sconosciuta: {shape}")
 
 

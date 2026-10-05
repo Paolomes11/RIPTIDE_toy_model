@@ -505,7 +505,7 @@ def test_sample_energy_spectrum_matches_mean_sd_and_gauss_stream():
     # ogni forma ha media e sd fissate: con n = 400 000 l'errore sulla media e'
     # sd/sqrt(n) ~ 6e-4 sd e quello relativo sulla sd ~ 1e-3: soglie 5e-3
     mean, sd, n = 3.0, 0.4, 400_000
-    for shape in ("gauss", "uniform", "bimodal", "lognormal"):
+    for shape in ("gauss", "uniform", "bimodal", "lognormal", "laplace", "student_t"):
         En = kinematics.sample_energy_spectrum(np.random.default_rng(SEED), shape, mean, sd, n)
         assert En.shape == (n,)
         assert abs(En.mean() - mean) < 5e-3 * sd
@@ -532,6 +532,13 @@ def test_sample_energy_spectrum_shapes_differ_from_gaussian():
     assert np.abs(z).max() <= np.sqrt(3.0)
     En = kinematics.sample_energy_spectrum(rng, "lognormal", mean, sd, n)
     assert stats.skew(En) > 0.0
+    # code pesanti: curtosi 6 per la Laplace (errore campionario ~0.08 a questo n);
+    # per la Student-t la curtosi campionaria converge lentamente (momento ottavo
+    # infinito), basta che superi nettamente quella della Laplace
+    En = kinematics.sample_energy_spectrum(rng, "laplace", mean, sd, n)
+    assert abs(stats.kurtosis(En, fisher=False) - 6.0) < 0.3
+    En = kinematics.sample_energy_spectrum(rng, "student_t", mean, sd, n)
+    assert stats.kurtosis(En, fisher=False) > 7.0
 
 
 def test_direction_from_tangent_is_exponential_map():

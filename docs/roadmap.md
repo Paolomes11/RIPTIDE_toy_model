@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.17 — 2026-10-03
+v0.18 — 2026-10-05
 
 Sintesi dei risultati: `docs/resoconto.md`.
 
@@ -252,7 +252,13 @@ progetto è partito (non pubblicata).
   `validate.canonical_correlations`. Costanti nuove: `EN_MAX_WIDE`, `BIMODAL_HALF_SEPARATION`,
   `N_LAPLACE_NEWTON`.
 
-## Punti aperti (v0.17, 2026-10-03)
+- **Verifiche della v0.18** (2026-10-05): quattro ipotesi chiuse con una previsione scritta prima del
+  calcolo (punti 4, 5, 6, 8 sotto). Codice nuovo solo additivo: forme `"laplace"` e `"student_t"`
+  in `kinematics.sample_energy_spectrum`, costante `STUDENT_T_DOF`. Script di analisi:
+  `prior_B_rumore.py`, `mu_N1000_diag.py`, `curtosi_log_sigma.py`, `asimmetria_log_sigma.py`,
+  `modo_log_sigma.py`.
+
+## Punti aperti (v0.18, 2026-10-05)
 
 Nessun punto aperto sul codice. I punti 1–3 erano chiusi nella v0.16; i punti 4–8 chiudono o
 quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoconto.md` §4–§6.
@@ -284,7 +290,12 @@ quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoco
    alternativo/default è ~costante con N (1.6–1.75), da cui lo spostamento costante (c).
 6. **Spettro non gaussiano, Caso C: chiuso (c).** `scripts/stress_spettro.py`. μ_E e Ω_n sono
    robusti. log σ_E è sovra-coperto per spettri a curtosi bassa (uniforme, bimodale): coverage 68%
-   0.75–0.81 a N = 150–300.
+   0.75–0.81 a N = 150–300. Con code pesanti (`"laplace"`, `"student_t"` in
+   `kinematics.sample_energy_spectrum`, run `stress_spettro.py ... code`) è sotto-coperto: coverage
+   68% 0.56–0.65, larghezza del pull 1.17–1.39 a N = 150–300. La previsione scritta prima,
+   var(log s) ≈ (κ − 1)/(4N) aggiunta alla larghezza gaussiana (`scripts/curtosi_log_sigma.py`),
+   regge fino a N = 300 (c); a N = 1000 l'osservato è più largo di ~2.3σ (M = 40, d). Con la
+   Student-t μ_E ha pull medio +0.16 ± 0.04 (c, causa non indagata).
 7. **Sorgente unica, Casi B e C: quantificato (c).** `scripts/stress_sorgente.py`. Ω̂_n si sposta
    verso la seconda sorgente di circa f·Δ. La coverage crolla con N: per f = 0.05 a 30° la coverage
    68% scende da 0.41 a N = 30 a 0.16 a N = 300. La diagnostica KS ha potenza al livello del falso
@@ -304,8 +315,9 @@ quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoco
 - **Assunzione 1 necessaria e non verificabile per sorgenti vicine (c).** Basta una contaminazione
   di pochi per cento a Δ ≲ 30° per perdere la calibrazione di Ω_n e σ_E a N grande, senza che la
   diagnostica KS se ne accorga. Un modello a mistura che stimi f è sviluppo futuro.
-- **Assunzione 3:** la coverage di log σ_E dipende dalla curtosi dello spettro (c). Spettri a code
-  pesanti non sono stati provati (d).
+- **Assunzione 3:** la coverage di log σ_E dipende dalla curtosi dello spettro (c, κ da 1.7 a 9):
+  sovra-coperto per spettri piatti, sotto-coperto per code pesanti (coverage 68% ~0.6). μ_E e Ω_n
+  restano calibrati; con la Student-t μ_E ha un bias di +0.16 σ (c).
 - **Prior su E_n nel Caso B** da scegliere sullo spettro fisico atteso: non si dimentica con N (c).
   Nel Caso C log σ_E dipende dal prior (0.3 σ a N = 50, < 0.1 σ da N ≈ 300, c).
 - **Nuisance `z` del Caso A** fuori scope (nessun osservabile); **isotropia in CM** assunta nel

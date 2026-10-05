@@ -1,7 +1,8 @@
 """Stress test dell'assunzione 3 (spettro gaussiano) nel Caso C.
 
 Le energie vere sono generate da spettri con la stessa media e deviazione standard
-di N(mu_E, sigma_E) ma forma diversa (gaussiana, uniforme, bimodale, lognormale);
+di N(mu_E, sigma_E) ma forma diversa (gaussiana, uniforme, bimodale, lognormale;
+con l'argomento "code", Laplace e Student-t, a code pesanti);
 la ricostruzione resta quella del Caso C (modello gaussiano, stadio 1 -> stadio 2 ->
 stadio 1 iterato), invariata. Bersagli: mu_E = media vera dello spettro,
 log sigma_E = log della sd vera, Omega_n.
@@ -11,9 +12,10 @@ la forma dello spettro; con "gauss" si riottengono esattamente i dataset (e i nu
 della checklist.
 
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
-         python scripts/stress_spettro.py [n_processi]
+         python scripts/stress_spettro.py [n_processi] [code]
      (picco ~0.6 GB per processo a N=1000, come la checklist del Caso C)
-Produce: outputs/stress_spettro_results.pkl e la tabella su stdout.
+Produce: outputs/stress_spettro_results.pkl (con "code": outputs/stress_spettro_code_results.pkl,
+così le quattro forme già fatte non si rifanno) e la tabella su stdout.
 """
 import pickle
 import sys
@@ -26,6 +28,7 @@ from riptide_toy import grids, kinematics, posterior_C, priors, validate
 from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
 
 SHAPES = ["gauss", "uniform", "bimodal", "lognormal"]
+HEAVY_TAILED_SHAPES = ["laplace", "student_t"]
 N_M = [(1000, 40), (300, 100), (150, 200), (50, 200)]  # come la checklist del Caso C
 MU_RANGE = (2.5, 4.0)       # MeV, come la checklist del Caso C
 SIGMA_RANGE = (0.2, 0.6)    # MeV, log-uniforme, come la checklist del Caso C
@@ -90,7 +93,7 @@ def rms(x: np.ndarray) -> float:
     return float(np.sqrt(np.mean(x ** 2)))
 
 
-def print_table(rows: list[dict]) -> None:
+def print_table(rows: list[dict], shapes: list[str]) -> None:
     """Per forma e N: bias, risoluzione, pull e coverage di mu_E, log sigma_E e Omega_n.
 
     Ritorna:
@@ -100,7 +103,7 @@ def print_table(rows: list[dict]) -> None:
           " bias = media dei residui +- errore sulla media")
     for n_events in sorted({r["N"] for r in rows}):
         print(f"\nN={n_events}")
-        for shape in SHAPES:
+        for shape in shapes:
             sel = [r for r in rows if r["N"] == n_events and r["shape"] == shape]
             m = len(sel)
             line = f"  {shape:9s} (M={m:3d})"
@@ -132,14 +135,17 @@ def main() -> None:
         None (pkl in outputs/, tabella su stdout).
     """
     n_proc = int(sys.argv[1]) if len(sys.argv) > 1 else 3
-    tasks = [(shape, n, i) for n, m in N_M for shape in SHAPES for i in range(m)]
+    heavy = len(sys.argv) > 2 and sys.argv[2] == "code"
+    shapes = HEAVY_TAILED_SHAPES if heavy else SHAPES
+    tasks = [(shape, n, i) for n, m in N_M for shape in shapes for i in range(m)]
     with Pool(n_proc) as pool:
         rows = pool.map(run_experiment, tasks, chunksize=1)
     out_dir = Path(__file__).resolve().parent.parent / "outputs"
     out_dir.mkdir(exist_ok=True)
-    with open(out_dir / "stress_spettro_results.pkl", "wb") as f:
-        pickle.dump({"SHAPES": SHAPES, "N_M": N_M, "LEVELS": LEVELS, "results": rows}, f)
-    print_table(rows)
+    name = "stress_spettro_code_results.pkl" if heavy else "stress_spettro_results.pkl"
+    with open(out_dir / name, "wb") as f:
+        pickle.dump({"SHAPES": shapes, "N_M": N_M, "LEVELS": LEVELS, "results": rows}, f)
+    print_table(rows, shapes)
 
 
 if __name__ == "__main__":
