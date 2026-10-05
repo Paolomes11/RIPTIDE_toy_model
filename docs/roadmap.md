@@ -277,6 +277,9 @@ quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoco
 5. **Robustezza al prior: chiuso (c).** `scripts/robustezza_prior.py`. I prior sui parametri
    condivisi vengono dimenticati con N. Il prior su E_n per evento del Caso B no: Ω̂_n si sposta di
    ~1 σ a ogni N con un prior largo, ~0.3 σ con uno log-uniforme. La coverage resta nominale.
+   `scripts/prior_B_rumore.py`: lo spostamento è rumore a media nulla, non bias; con il prior
+   largo vale la relazione tipo Hausman da N = 30 e il rapporto delle rms degli errori
+   alternativo/default è ~costante con N (1.6–1.75), da cui lo spostamento costante (c).
 6. **Spettro non gaussiano, Caso C: chiuso (c).** `scripts/stress_spettro.py`. μ_E e Ω_n sono
    robusti. log σ_E è sovra-coperto per spettri a curtosi bassa (uniforme, bimodale): coverage 68%
    0.75–0.81 a N = 150–300.

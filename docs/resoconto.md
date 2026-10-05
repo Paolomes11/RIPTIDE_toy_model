@@ -135,10 +135,20 @@ log-uniforme su [0.5, 6] e su [0.5, 10] MeV; Ω_n von Mises–Fisher con κ = 2 
 - Il prior sul **nuisance per evento** (E_n nel Caso B) non viene dimenticato: lo spostamento di Ω̂_n
   resta ~1 σ (prior largo) o ~0.3 σ (log-uniforme) a ogni N (c). Col prior largo l'errore rms
   cresce (17.0° contro 9.8° a N = 10, 2.0° contro 1.3° a N = 300) ma la std posteriore cresce
-  con esso: pull rms 0.90–0.99, coverage nominale o sopra. Il motivo proposto (d) è che ogni
-  evento porta il proprio prior su E_n, quindi il loro peso non diminuisce rispetto ai dati
-  all'aumentare di N. In pratica il prior su E_n del Caso B va scelto sullo spettro fisico
-  atteso: un prior sbagliato costa precisione, non calibrazione.
+  con esso: pull rms 0.90–0.99, coverage nominale o sopra. Il meccanismo è stato verificato
+  (`scripts/prior_B_rumore.py`, sugli stessi esperimenti). Lo spostamento d = Ω̂_alt − Ω̂_def nel
+  piano tangente è **rumore, non bias**: il vettore medio è compatibile con zero a ogni N e per
+  entrambi i prior (c). Col default uguale al prior del generatore la stima di default è
+  efficiente, quindi vale la relazione tipo Hausman rms|d|² ≈ rms(err_alt)² − rms(err_def)². Col
+  prior largo regge a N ≥ 30: rms|d|/σ osservato contro previsto 1.38/1.43 (N = 30), 1.18/1.20
+  (100), 1.40/1.29 ± 0.1 (300) (c). Il rapporto rms(err_alt)/rms(err_def) è ~costante con N
+  (1.74 / 1.75 / 1.60 / 1.58): ogni evento spreca la stessa frazione d'informazione su Ω_n, ed è
+  questo che tiene lo spostamento ~1 σ a ogni N (c). Fanno eccezione N = 10 col prior largo
+  (correlazione err_def·d = +0.26 ± 0.05; lì il posterior non è gaussiano e il MAP non è la
+  media) e il log-uniforme a N ≤ 30, dove non è meno efficiente del default (rapporto 0.98 /
+  1.03): lo spostamento di ~0.3 σ è rumore fra due stime equivalenti. In pratica il prior su
+  E_n del Caso B va scelto sullo spettro fisico atteso: un prior sbagliato costa precisione,
+  non calibrazione (c).
 - σ_E: la dipendenza dal prior di log σ_E scende da 0.32 σ (N = 50) a 0.06 σ (N = 1000) (c).
 
 ### 6.2 Spettro non gaussiano, Caso C (`scripts/stress_spettro.py`)
@@ -256,7 +266,9 @@ Pull (media / larghezza; Ω: rms):
 - **Assunzione 3 (spettro gaussiano):** μ_E e Ω_n robusti alla forma (c); la coverage di log σ_E
   dipende dalla curtosi dello spettro (c per le forme provate, curtosi da ~1.7 a poco sopra 3; d per code pesanti, §6.2).
 - **Prior sul nuisance per evento (Caso B):** il prior su E_n non viene dimenticato al crescere di N
-  (spostamento di Ω̂_n ~1 σ costante con un prior largo, c); va scelto sullo spettro fisico atteso.
+  (spostamento di Ω̂_n ~1 σ costante con un prior largo, c). Lo spostamento è rumore a media nulla
+  che si somma in quadratura all'errore (relazione tipo Hausman, c da N ≈ 30, §6.1): costa
+  precisione, non calibrazione. Va scelto sullo spettro fisico atteso.
   Nel Caso C log σ_E dipende dal prior di 0.3 σ a N = 50 e di meno di 0.1 σ da N ≈ 300 (c, §6.1).
 - **Caso C, due stadi:** chiuso come limite. La correlazione fra Ω_n e (μ_E, σ_E) trascurata dai due
   stadi costa ≤ 1% sulle incertezze in media (≤ 6% nel caso peggiore) a N ≥ 50 (c, §6.4).
