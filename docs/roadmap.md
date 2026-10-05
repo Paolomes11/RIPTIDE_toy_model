@@ -299,8 +299,11 @@ quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoco
    Laplace locale 4D (`posterior_C.joint_laplace`). La correlazione canonica fra Ω_n e (μ_E, log σ_E) ha mediana
    0.17 / 0.10 / 0.08 a N = 50 / 150 / 300. Marginalizzare invece di fissare allarga le incertezze in
    media dell'1.3% / 0.4% / 0.3% (massimo 6%), quindi la fattorizzazione è giustificata. Il modo
-   congiunto di log σ_E è meno centrato della media dei due stadi (pull −0.27 a N = 50): è
-   l'asimmetria del marginale (d).
+   congiunto di log σ_E è meno centrato della media dei due stadi (pull −0.27 a N = 50). Non è
+   l'asimmetria del marginale: Pearson prevede il segno opposto (`scripts/asimmetria_log_sigma.py`).
+   `scripts/modo_log_sigma.py` scompone lo scarto. Asimmetria (+) e volume di μ_E (−) quasi si
+   cancellano; domina il termine dovuto a Ω_n lasciata libera nel massimo congiunto (−0.28 / −0.20
+   / −0.14 s), con scala ~s², come un effetto di volume (c; interpretazione d).
 
 ## Limiti dichiarati (da riportare nell'articolo)
 

@@ -250,9 +250,25 @@ Pull (media / larghezza; Ω: rms):
 - Le larghezze di Laplace concordano con le griglie dei due stadi entro l'1–7% (c).
 - Il modo congiunto si discosta dalle stime dei due stadi soprattutto su log σ_E (0.5 σ a N = 50,
   0.2 σ a N = 300). Ha un pull medio negativo (−0.27 → −0.13), mentre la media posteriore dei due
-  stadi è centrata. La differenza è quella fra moda e media di un marginale asimmetrico che si
-  simmetrizza con N (d), non un effetto della correlazione: da questo lato la stima a due stadi è
-  migliore.
+  stadi è centrata. **Non è l'asimmetria del marginale** (`scripts/asimmetria_log_sigma.py`): il
+  marginale ha la coda verso σ_E piccoli (media < mediana), quindi la relazione di Pearson
+  moda ≈ media − 3(media − mediana) prevede un modo *sopra* la media (+0.25 / +0.14 / +0.06 σ a
+  N = 50 / 150 / 300), il segno opposto all'osservato (c). La scomposizione esatta
+  (`scripts/modo_log_sigma.py`, stessi dataset, in unità della std posteriore s) dà:
+
+  | N | asimmetria (modo marg. − media) | volume di μ_E (modo 2D − modo marg.) | direzione (modo 4D − modo 2D) | numerica (Laplace d'uso − convergente) | totale |
+  |---|---|---|---|---|---|
+  | 50 | +0.16 ± 0.03 | −0.10 | −0.28 ± 0.05 | −0.06 ± 0.02 | −0.29 ± 0.04 |
+  | 150 | +0.11 ± 0.01 | −0.07 | −0.20 ± 0.02 | −0.04 ± 0.01 | −0.20 ± 0.03 |
+  | 300 | +0.06 ± 0.01 | −0.05 | −0.14 ± 0.02 | −0.02 | −0.15 ± 0.02 |
+
+  Asimmetria e volume di μ_E quasi si cancellano. Il termine dominante viene dal lasciare libera
+  Ω_n nel massimo congiunto invece di fissarla a ω_0 (c). Tutti i termini scalano circa come s²
+  (rapporto scarto/s² costante entro un fattore 1.5), come un effetto di volume: il modo di una
+  densità a più dimensioni non conta il volume delle direzioni massimizzate. Il modo profilato su Ω_n preferirebbe i σ_E piccoli, dove Ω_n è meglio
+  determinata (interpretazione, d). Il gradiente numerico di `joint_laplace` aggiunge −0.02/−0.06 s.
+  Pull medio delle stime puntuali: media due stadi +0.07 / +0.07 / +0.02, Laplace convergente
+  −0.16 / −0.09 / −0.11. Da questo lato la stima a due stadi (media) è migliore (c).
 
 ## 7. Prestazioni
 
