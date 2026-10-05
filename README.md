@@ -35,17 +35,21 @@ docs/              resoconto, roadmap, report del Caso C
 
 ## Notebook, in ordine di lettura
 
-1. `01_cinematica`: cinematica dello scattering e spettro del protone.
-2. `02_caso_A`: casi di riferimento R1–R3, checklist, contrazione e plateau sistematico.
-3. `03_caso_B`: verosimiglianza di un evento e checklist del Caso B.
-4. `04_caso_C`: modello gerarchico e limiti σ_E → 0 e σ_E → ∞.
-5. `05_validazione_caso_C`: checklist completa del Caso C, letta dai risultati in `outputs/`.
+1. `01_cinematica`: cinematica dello scattering, spettro del protone e distribuzione dell'angolo
+   delle tracce (base della diagnostica di sorgente unica).
+2. `02_caso_A`: casi di riferimento R1–R3, checklist, contrazione, plateau sistematico e robustezza
+   al prior.
+3. `03_caso_B`: verosimiglianza di un evento, checklist del Caso B, robustezza al prior su E_n e
+   stress con una seconda sorgente.
+4. `04_caso_C`: modello gerarchico, limiti σ_E → 0 e σ_E → ∞, spettri non gaussiani.
+5. `05_validazione_caso_C`: checklist completa del Caso C e stress test (N = 1000 a statistica piena,
+   prior, forma dello spettro, seconda sorgente, due stadi contro stima congiunta), letti dai
+   risultati in `outputs/`.
 
-`notebooks/storico/` contiene le versioni intermedie della validazione del Caso C. Sono conservate
-come diario: i numeri validi sono nel notebook 05.
+Le versioni intermedie della validazione del Caso C sono state rimosse; restano nella storia git.
 
 I notebook sono salvati senza output. Eseguili in VS Code/Jupyter, oppure installa nel venv
-`pip install nbclient ipykernel`. Il 05 legge i pkl prodotti da `scripts/caso_C_*.py`.
+`pip install nbclient ipykernel`. I notebook 02, 03 e 05 leggono i pkl prodotti dagli script in `scripts/`.
 
 ## Install
 
