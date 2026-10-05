@@ -28,7 +28,9 @@ w_X^2 - w_gauss^2 = A < (k - 3) / (4 N std^2) >. Per le code pesanti si stampano
 previsioni, con A = 1 (solo termine intrinseco) e con A misurato.
 
 Solo lettura: outputs/stress_spettro_results.pkl (En_ls = log della sd campionaria delle
-energie vere, salvata dallo stress test).
+energie vere, salvata dallo stress test). Se c'e' outputs/stress_spettro_code_results.pkl
+(stress_spettro.py ... code), stampa anche il confronto osservato / previsto per le code
+pesanti e il pull medio di mu_E per forma su tutti gli N.
 
 Uso: python scripts/curtosi_log_sigma.py
 Produce: la tabella su stdout.
@@ -65,6 +67,8 @@ def kurtosis(shape: str, mu_true: np.ndarray, sigma_true: np.ndarray) -> np.ndar
     if shape == "lognormal":
         w = 1.0 + (sigma_true / mu_true) ** 2   # exp(s^2) della lognormale
         return w ** 4 + 2 * w ** 3 + 3 * w ** 2 - 3
+    if shape in KURTOSIS_PREVIEW:
+        return np.full(mu_true.shape, KURTOSIS_PREVIEW[shape])
     raise ValueError(f"forma sconosciuta: {shape}")
 
 
@@ -91,6 +95,43 @@ def var_with_error(x: np.ndarray, rng: np.random.Generator) -> tuple[float, floa
     """
     boot = rng.integers(0, x.size, size=(N_BOOTSTRAP, x.size))
     return float(x.var(ddof=1)), float(x[boot].var(axis=1, ddof=1).std())
+
+
+def check_heavy_tailed(gauss_rows: list[dict], heavy_rows: list[dict],
+                       rng: np.random.Generator) -> None:
+    """Per N e forma a code pesanti: larghezza del pull di log sigma_E osservata (errore
+    bootstrap) contro la previsione con A = 1, termine intrinseco x 4N contro k - 1; poi,
+    per ogni forma, pull medio di mu_E e sua parte di ricostruzione (stima - media campionaria
+    delle energie vere), con l'errore sulla media.
+
+    Ritorna:
+        None (stdout).
+    """
+    print("\nVerifica sulle code pesanti (larghezza del pull di log sigma_E, A = 1)")
+    for n_events in sorted({r["N"] for r in heavy_rows}):
+        g = arrays(gauss_rows, "gauss", n_events)
+        width_g = np.std((g["mean"] - g["ls_true"]) / g["std"])
+        excess_unit = np.mean(1.0 / (4 * n_events * g["std"] ** 2))
+        for shape, k in KURTOSIS_PREVIEW.items():
+            t = arrays(heavy_rows, shape, n_events)
+            pull = (t["mean"] - t["ls_true"]) / t["std"]
+            boot = rng.integers(0, pull.size, size=(N_BOOTSTRAP, pull.size))
+            intr, intr_err = var_with_error(t["En_ls"] - t["ls_true"], rng)
+            f = 4 * n_events
+            print(f"  N={n_events:4d} {shape:9s} oss. {pull.std():.2f} +- {pull[boot].std(axis=1).std():.2f}"
+                  f" / prev. {np.sqrt(width_g ** 2 + (k - 3) * excess_unit):.2f}"
+                  f" | intrinseca x 4N {intr * f:4.2f} +- {intr_err * f:4.2f} ({k - 1:.0f})")
+    print("\nmu_E, tutti gli N: pull medio | parte di ricostruzione (+- errore sulla media)")
+    for rows in (gauss_rows, heavy_rows):
+        for shape in dict.fromkeys(r["shape"] for r in rows):
+            sel = [r for r in rows if r["shape"] == shape]
+            std = np.array([r["mu"]["std"] for r in sel])
+            mean = np.array([r["mu"]["mean"] for r in sel])
+            pull = (mean - np.array([r["mu_true"] for r in sel])) / std
+            reco = (mean - np.array([r["En_mean"] for r in sel])) / std
+            sem = np.sqrt(len(sel))
+            print(f"  {shape:9s} M={len(sel)} {pull.mean():+.3f} +- {pull.std() / sem:.3f}"
+                  f" | {reco.mean():+.3f} +- {reco.std() / sem:.3f}")
 
 
 def main() -> None:
@@ -136,6 +177,10 @@ def main() -> None:
             print(f"  previsione {shape:9s} k={k:.0f}: larghezza del pull"
                   f" ~ {np.sqrt(width_g ** 2 + (k - 3) * excess_unit):.2f} (A = 1)"
                   f" / {np.sqrt(width_g ** 2 + a * (k - 3) * excess_unit):.2f} (A = {a:.1f})")
+    heavy_path = out_dir / "stress_spettro_code_results.pkl"
+    if heavy_path.exists():
+        with open(heavy_path, "rb") as f:
+            check_heavy_tailed(rows, pickle.load(f)["results"], rng)
 
 
 if __name__ == "__main__":
