@@ -101,7 +101,7 @@ log-uniforme in (0.2, 0.6) MeV.
 | Coverage 90% di μ_E a N = 300, ripetuta su seed nuovi | 0.897 ± 0.012 (M = 600); 0.890 ± 0.010 con anche i seed della ripetizione al 68% (M = 900) | (c) |
 | Ω_n a N = 50 col prior predittivo (M = 800) | coverage 0.695 / 0.899 / 0.945, pull rms 1.00 | (c) |
 | Contrazione (pendenza log-log) | μ −0.46 · Ω −0.56 · log σ −0.74 (il bias va a zero) | (c) |
-| N = 1000 con M = 240 (200 esperimenti aggiunti) | coverage 90% μ / log σ / Ω 0.95 / 0.91 / 0.90; pull μ +0.01/0.92, log σ −0.09/0.94, Ω rms 1.01. μ leggermente sovra-coperto al 90% (0.95 ± 0.019): la std posteriore è ~8% più larga della dispersione; causa non indagata | (c) |
+| N = 1000 con M = 240 (200 esperimenti aggiunti) | coverage 90% μ / log σ / Ω 0.95 / 0.91 / 0.90; pull μ +0.01/0.92, log σ −0.09/0.94, Ω rms 1.01. μ leggermente sovra-coperto al 90% (0.95 ± 0.019): la std posteriore è ~8% più larga della dispersione. Compatibile con una fluttuazione (`scripts/mu_N1000_diag.py`): larghezza del pull a −1.7 σ, coverage 90%/95% a +2.6/+2.4 σ ma correlate; con la covarianza di pseudo-esperimenti calibrati la p-value globale è 0.08. Nessuna struttura per terzili di σ_E o μ_E (larghezze 0.89–0.99 ± 0.06); il passo della griglia fine (~0.23 std) non incide sui momenti | (c) |
 | Robustezza al prior, spettro non gaussiano, seconda sorgente, correlazione fra stadi | §6 | |
 
 ## 6. Stress test delle assunzioni
