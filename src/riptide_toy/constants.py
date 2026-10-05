@@ -18,6 +18,11 @@ EN_MAX_WIDE = 10.0
 # tiene le due righe separate (due picchi distinti, non una gaussiana appiattita)
 BIMODAL_HALF_SEPARATION = 0.9
 
+# spettro Student-t degli stessi stress test (code pesanti): gradi di liberta' > 4
+# perche' la curtosi 3 + 6 / (dof - 4) sia finita; con 5 vale 9, ben oltre il 6
+# della Laplace, l'altra forma a code pesanti provata
+STUDENT_T_DOF = 5
+
 # risoluzioni toy del detector, usate nel caso di riferimento R1
 SIGMA_EP = 0.10     # MeV
 SIGMA_THETA = 0.08  # rad
