@@ -273,7 +273,9 @@ quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoco
    0.70 / 0.91 / 0.95. La pendenza di contrazione è −0.53 su 30–1000 e −0.57 su 10–1000 (la −0.59
    veniva da M = 40). A N = 10 la distribuzione del pull ha code pesanti (frazione > 3: 0.023 contro
    0.011 di Rayleigh), quindi il regime non è gaussiano. Caso C: calibrato. μ_E è appena
-   sovra-coperto al 90% (0.95 ± 0.019); causa non indagata.
+   sovra-coperto al 90% (0.95 ± 0.019). `scripts/mu_N1000_diag.py`: p-value globale 0.08 sulle
+   quattro statistiche (larghezza del pull e coverage ai tre livelli, con le loro correlazioni),
+   nessuna struttura per terzili di σ_E o μ_E. È una fluttuazione (c); nessun run aggiuntivo.
 5. **Robustezza al prior: chiuso (c).** `scripts/robustezza_prior.py`. I prior sui parametri
    condivisi vengono dimenticati con N. Il prior su E_n per evento del Caso B no: Ω̂_n si sposta di
    ~1 σ a ogni N con un prior largo, ~0.3 σ con uno log-uniforme. La coverage resta nominale.
