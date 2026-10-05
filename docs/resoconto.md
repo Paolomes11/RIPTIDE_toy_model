@@ -1,6 +1,6 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.17 — 2026-10-03
+v0.18 — 2026-10-05
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi

@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.17 — 2026-10-03
+v0.18 — 2026-10-05
 
 Sintesi dei risultati: `docs/resoconto.md`.
 
@@ -252,7 +252,13 @@ progetto è partito (non pubblicata).
   `validate.canonical_correlations`. Costanti nuove: `EN_MAX_WIDE`, `BIMODAL_HALF_SEPARATION`,
   `N_LAPLACE_NEWTON`.
 
-## Punti aperti (v0.17, 2026-10-03)
+- **Verifiche della v0.18** (2026-10-05): quattro ipotesi chiuse con una previsione scritta prima del
+  calcolo (punti 4, 5, 6, 8 sotto). Codice nuovo solo additivo: forme `"laplace"` e `"student_t"`
+  in `kinematics.sample_energy_spectrum`, costante `STUDENT_T_DOF`. Script di analisi:
+  `prior_B_rumore.py`, `mu_N1000_diag.py`, `curtosi_log_sigma.py`, `asimmetria_log_sigma.py`,
+  `modo_log_sigma.py`.
+
+## Punti aperti (v0.18, 2026-10-05)
 
 Nessun punto aperto sul codice. I punti 1–3 erano chiusi nella v0.16; i punti 4–8 chiudono o
 quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoconto.md` §4–§6.
