@@ -1,14 +1,16 @@
 import numpy as np
 from scipy.stats import norm
 
-from riptide_toy import grids, posterior_A, priors
+from riptide_toy import posterior_A, priors
 from riptide_toy.combine import combine_loglik, expected_sigma_n
 from riptide_toy.validate import run_checklist
 
 
 def test_reference_single_event():
-    # caso di riferimento R1 (singolo evento): Ep_hat=1.40 MeV, theta_p_hat=0.50 rad -> En = 1.82 +/- 0.21 MeV
-    en_grid = grids.energy_grid()
+    # caso di riferimento R1 (singolo evento): Ep_hat=1.40 MeV, theta_p_hat=0.50 rad -> En = 1.82 +/- 0.21 MeV.
+    # Griglia esplicita a bassa energia e non grids.energy_grid(): R1 verifica il motore
+    # statistico, non il dominio fisico (che non contiene 1.82 MeV); stesso numero di punti.
+    en_grid = np.linspace(0.5, 6.0, 500)
     D = (np.array([1.40]), np.array([0.50]))
     prior = priors.energy_prior(en_grid)
 

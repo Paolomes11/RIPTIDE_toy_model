@@ -7,7 +7,7 @@ degli eventi, rotazioni attorno alla direzione del neutrone, smearing della trac
 """
 import numpy as np
 
-from riptide_toy.constants import BIMODAL_HALF_SEPARATION, M_NEUTRON, M_PROTON, STUDENT_T_DOF
+from riptide_toy.constants import BIMODAL_HALF_SEPARATION, PROTON_MASS_MEV, STUDENT_T_DOF
 
 def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
     """Energia del protone di rinculo, Ep = En * cos(theta_p)**2.

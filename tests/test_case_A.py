@@ -90,8 +90,11 @@ def test_energy_prior_log_uniform_proper_and_proportional_to_inverse_energy():
 
 def test_loglik_roundtrip_argmax_near_truth():
     rng = np.random.default_rng(SEED)
-    En_true, theta_true = 2.5, 0.4
+    En_true, theta_true = 15.0, 0.4
     sigma_Ep, sigma_theta = 0.10, 0.08
+    # incertezza propagata su En = Ep / cos^2(theta): a 15 MeV domina il termine
+    # angolare dEn/dtheta = 2 En tan(theta), ~1 MeV per sigma_theta
+    sigma_En = np.hypot(sigma_Ep / np.cos(theta_true) ** 2, 2 * En_true * np.tan(theta_true) * sigma_theta)
 
     Ep_true = np.array([En_true * np.cos(theta_true) ** 2])
     theta_p_true = np.array([theta_true])
@@ -104,7 +107,7 @@ def test_loglik_roundtrip_argmax_near_truth():
     ll = forward_model.loglik(D, en_grid, tp_grid, sigma_Ep, sigma_theta, log_prior_theta)
     assert ll.shape == (1, en_grid.shape[0])
     argmax_En = en_grid[np.argmax(ll[0])]
-    assert abs(argmax_En - En_true) < 3 * sigma_Ep
+    assert abs(argmax_En - En_true) < 3 * sigma_En
 
 
 def test_posterior_A_calibrated_when_truth_drawn_from_prior():

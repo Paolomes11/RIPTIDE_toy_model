@@ -199,12 +199,15 @@ def test_log_track_kernel_sphere_reduces_to_flat_times_curvature_factor():
 def test_loglik_marginal_En_theta_sigma_to_zero_is_sharp_cut_plus_track_term():
     # Limite sigma_theta -> 0: si ritrova il vecchio loglik_marginal_En (taglio
     # netto) piu' log(cos(theta_p)/pi), dove Ep/cos^2 resta dentro il dominio
-    # in energia (vicino a EN_MAX il vincolo in En e' ripido e il limite e'
-    # raggiunto solo come O(sigma_theta)).
+    # in energia (vicino ai bordi EN_MIN, EN_MAX il vincolo in En e' ripido e il
+    # limite e' raggiunto solo come O(sigma_theta)). Gli angoli osservati sono
+    # scelti in modo che Ep/cos^2 percorra l'interno del dominio.
     en_grid = grids.energy_grid()
     log_prior_En = np.log(priors.energy_prior(en_grid))
-    Ep_hat = np.array([1.0, 2.0, 0.5])
-    theta_obs = np.tile(np.linspace(0.05, 1.1, 40), (3, 1))
+    # Ep_hat < min(en_target): theta_obs > 0, lontano dal bordo theta = 0 della griglia
+    Ep_hat = np.array([6.0, 8.0, 10.0])
+    en_target = np.linspace(EN_MIN + 0.1 * (EN_MAX - EN_MIN), EN_MAX - 0.3 * (EN_MAX - EN_MIN), 40)
+    theta_obs = np.arccos(np.sqrt(np.minimum(Ep_hat[:, None] / en_target[None, :], 1.0)))
 
     new = forward_model.loglik_marginal_En_theta(
         Ep_hat, theta_obs, en_grid, SIGMA_EP, 0.003, log_prior_En,
@@ -212,7 +215,8 @@ def test_loglik_marginal_En_theta_sigma_to_zero_is_sharp_cut_plus_track_term():
     )
     sharp = (forward_model.loglik_marginal_En(Ep_hat, theta_obs, en_grid, SIGMA_EP, log_prior_En)
              + forward_model.log_track_density(theta_obs))
-    interior = Ep_hat[:, None] / np.cos(theta_obs) ** 2 < 0.8 * EN_MAX
+    en_implied = Ep_hat[:, None] / np.cos(theta_obs) ** 2
+    interior = (en_implied > EN_MIN + 0.05 * (EN_MAX - EN_MIN)) & (en_implied < 0.8 * EN_MAX)
     assert interior.sum() > 60
     np.testing.assert_allclose(new[interior], sharp[interior], atol=2e-3)
 
@@ -224,10 +228,12 @@ def test_posterior_B_one_event_flat_prior_matches_analytic_form():
     #   L ∝ cos(theta_p)/pi * [Phi((EN_MAX c - Ep)/s) - Phi((EN_MIN c - Ep)/s)] / c,
     # c = cos^2(theta_p) (integrale analitico del prior piatto su En). Con la
     # risoluzione SIGMA_THETA la forma e' smussata di O(sigma_theta^2): si
-    # confronta a meno di una costante entro 45 gradi. Nessun -inf: oltre
-    # pi/2 + 5 sigma_theta il posterior e' solo fortemente soppresso.
+    # confronta a meno di una costante entro 30 gradi: con Ep = 11 MeV l'energia
+    # implicata Ep/c resta in [11, 14.7] MeV, lontana dai bordi del dominio di
+    # almeno 3 sigma_theta in angolo. Nessun -inf: oltre pi/2 + 5 sigma_theta il
+    # posterior e' solo fortemente soppresso.
     track_hat = np.array([[0.0, 0.0, 1.0]])
-    Ep_hat = np.array([1.0])
+    Ep_hat = np.array([11.0])
 
     theta_grid, phi_grid = grids.sphere_grid(4000)
     prior = priors.direction_prior(theta_grid, phi_grid)
@@ -240,7 +246,7 @@ def test_posterior_B_one_event_flat_prior_matches_analytic_form():
     omega_n_hat = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
     theta_p = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)[0]
 
-    front = theta_p < np.deg2rad(45.0)
+    front = theta_p < np.deg2rad(30.0)
     c = np.cos(theta_p[front]) ** 2
     analytic = (np.log(np.cos(theta_p[front]) / np.pi) - np.log(c)
                 + np.log(stats.norm.cdf((EN_MAX * c - Ep_hat[0]) / SIGMA_EP)
@@ -283,11 +289,14 @@ def test_combine_reuse_angular_contraction_vs_N():
     n_max = 100
 
     omega_n_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([2.1]))
-    en_true = rng.uniform(1.0, 5.0, n_max)
+    en_true = rng.uniform(11.0, 19.0, n_max)
     Ep_hat, track_hat = simulate_case_B_events(rng, omega_n_true[0], en_true)
 
-    theta_grid, phi_grid = grids.sphere_grid(1500)
+    # 6000 pixel (passo ~2.6 gradi): nel dominio 10-20 MeV il prior su E_n, largo
+    # solo un fattore 2, confina theta_p di ogni evento in una banda e a N=100 la
+    # risoluzione angolare (~2 gradi) scende sotto il passo di una griglia da 1500
     en_grid = grids.energy_grid(150)
+    theta_grid, phi_grid = grids.sphere_grid(6000)
     log_prior_En = np.log(priors.energy_prior(en_grid))
     log_prior_dir = np.log(priors.direction_prior(theta_grid, phi_grid))
     omega_n_hat = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
@@ -341,7 +350,7 @@ def test_angular_bias_and_pull_on_simulated_omega_n():
     pulls = np.empty(n_experiments)
     residuals = np.empty(n_experiments)
     for i in range(n_experiments):
-        en_true = rng.uniform(1.0, 5.0, n_events)
+        en_true = rng.uniform(11.0, 19.0, n_events)
         Ep_hat, track_hat = simulate_case_B_events(rng, omega_n_true[0], en_true)
 
         theta_p_candidates = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat_grid)

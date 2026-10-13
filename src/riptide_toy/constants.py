@@ -2,15 +2,17 @@
 griglie e soglie. Unita': MeV, rad. Nessun altro modulo contiene numeri magici."""
 SEED = 20260907
 
-# equal masses, natural units of the toy model
-M_NEUTRON = 1.0
-M_PROTON = 1.0
+# massa del protone (CODATA), MeV; la cinematica usa masse uguali n = p: la
+# differenza di massa cambia l'energia massima di rinculo di un fattore
+# 1 - ((m_n - m_p) / (m_n + m_p))^2 ~ 1 - 5e-7, trascurabile
+PROTON_MASS_MEV = 938.272
 
-# energy range of work for the incident particle, MeV
-EN_MIN, EN_MAX = 0.5, 6.0
+# dominio di lavoro del rivelatore per l'energia del neutrone incidente, MeV;
+# a queste energie T / (2 m) ~ 1% e la cinematica va trattata in modo relativistico
+EN_MIN, EN_MAX = 10.0, 20.0
 # estremo superiore del dominio allargato, usato solo come prior alternativo nei
 # test di robustezza al prior su E_n (la verita' resta in [EN_MIN, EN_MAX])
-EN_MAX_WIDE = 10.0
+EN_MAX_WIDE = 30.0
 
 # spettro bimodale degli stress test sull'assunzione 3 (solo generazione): due righe
 # a media +- BIMODAL_HALF_SEPARATION * sd, ciascuna larga sd * sqrt(1 - a^2), cosi'
