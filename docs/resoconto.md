@@ -1,10 +1,11 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.19 — 2026-10-13
+v0.20 — 2026-10-13
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi
-numerici sono rifatti nei notebook `notebooks/01`–`05`.
+numerici sono rifatti nei notebook `notebooks/01`–`05`; il notebook `06_modifiche_10_20_MeV` spiega
+cosa è cambiato col passaggio a 10–20 MeV e il punto aperto del Caso C.
 
 Etichette: **(a)** fatto consolidato · **(b)** stima toy con assunzioni esplicite · **(c)** verificato
 con Monte Carlo · **(d)** ipotesi da testare.
@@ -25,7 +26,7 @@ rivelatore: σ_Ep = 0.10 MeV, σ_θ = 0.08 rad. Prior sempre propri (E_n piatto 
 σ_E log-uniforme su [0.01, 50] MeV; θ_p con densità sin 2θ_p nel Caso A). I casi di riferimento
 R1–R3 restano alle energie con cui sono definiti (R1 su una griglia 0.5–6 MeV).
 
-## 2. Cinematica (notebook 01)
+## 2. Cinematica (notebooks 01, 06)
 
 | Risultato | Valore | |
 |---|---|---|
@@ -119,11 +120,29 @@ Checklist `scripts/caso_C_checklist.py`, v0.19:
 - **log σ_E**: pull medio positivo crescente con N (+0.10 → +0.61), coverage 68% 0.55–0.60 (c).
 - Stessi numeri con generazione isotropa e anisotropa (§6.5): non è l'anisotropia.
 - A 0.5–6 MeV (v0.18) lo stesso codice era calibrato (μ_E pull ≈ N(0, 1) a ogni N, log σ_E con
-  coverage nominale su seed nuovi). Il cambio di dominio ha rotto la calibrazione. Ipotesi da
-  indagare in una modifica separata (d): a 10–20 MeV la risoluzione per evento su E_n (~1.3 MeV) è
-  paragonabile a σ_E, quindi σ_E è poco vincolato e il posterior si appoggia al bordo della
-  finestra o al prior; il passo e l'estensione della finestra fine dello stadio 2 vanno
-  ricontrollati sulle nuove scale.
+  coverage nominale su seed nuovi). Il cambio di dominio ha rotto la calibrazione.
+- **Causa candidata: spettro vero fuori dal dominio di ricostruzione** (notebook 05 §6, notebook
+  06 §5). Il generatore estrae μ_E ~ U(13, 17) e σ_E ~ log-U(0.8, 2.4) senza troncatura, mentre la
+  ricostruzione integra E_n solo su [10, 20] MeV. La frazione fuori dominio è
+  p_out = Φ((10 − μ_E)/σ_E) + 1 − Φ((20 − μ_E)/σ_E); nel caso peggiore (μ_E = 13, σ_E = 2.4)
+  vale Φ(−1.25) + 1 − Φ(2.92) = 0.106 + 0.002 = 0.107 (a). A 0.5–6 MeV il margine c'era
+  (μ_E ± 3σ_E ⊂ [0.7, 5.8] ⊂ [0.5, 6]); il passaggio ha conservato σ_E/μ_E ma non il margine
+  di 3σ_E (13 − 7.2 = 5.8 < 10). p_out ≥ 1% in circa un terzo degli esperimenti (a).
+  Separando gli esperimenti della checklist (c):
+
+  | N | M con p_out ≥ 1% / < 1% | pull medio log σ_E, p_out ≥ 1% | pull medio log σ_E, p_out < 1% | larghezza pull μ_E, p_out < 1% |
+  |---|---|---|---|---|
+  | 50 | 57 / 143 | +0.55 | −0.08 | 0.96 |
+  | 150 | 71 / 129 | +0.79 | −0.07 | 0.79 |
+  | 300 | 30 / 70 | +0.84 | +0.12 | 1.18 |
+  | 1000 | 14 / 26 | +1.36 | +0.20 | 1.00 |
+
+  Nel gruppo con p_out ≥ 1% il pull di μ_E è correlato con μ_vero − 15 (0.68–0.76): gli spettri
+  vicini a un bordo vengono tirati verso il centro. La divisione è (c); che sia la causa è (d),
+  da confermare cambiando solo questo e rifacendo la checklist. Correzioni possibili, non ancora
+  scelte: generatore con σ_E ≤ 1 MeV (margine di 3σ_E dentro [10, 20]) oppure griglia di E_n
+  del Caso C più larga. L'ipotesi precedente (risoluzione per evento su E_n ~1.3 MeV paragonabile
+  a σ_E) resta da escludere se la correzione non basta (d).
 - Robustezza al prior su σ_E (N = 150): spostamento di μ_E +0.005 σ, di log σ_E +0.23 σ (c).
 
 La tabella e le verifiche della v0.18 (0.5–6 MeV) restano valide per quel dominio e sono nella
@@ -327,6 +346,10 @@ modello resta isotropo. Il bias su μ_E cresce con N (0.15 σ a N = 1000, vicino
 N ≈ 1000 va ricontrollato o messo nella verosimiglianza. Il Caso C ha la stessa calibrazione mancata
 con le due generazioni (§5), quindi quel difetto non viene dall'isotropia.
 
+Nota: il pkl in `outputs/` contiene oggi solo il Caso A, rilanciato dopo il cambio del prior su
+θ_p (`stress_anisotropia.py 3 A`); le righe B e C della tabella vengono dal run precedente con i
+tre casi e non sono rilette dal notebook 06.
+
 ## 7. Prestazioni
 
 Tempi di `loglik` del Caso A misurati a 10–20 MeV (cinematica relativistica, buffer unico riusato
@@ -359,7 +382,8 @@ in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV 
 - **Nuisance z** (profondità d'interazione) del Caso A fuori scope: nessun osservabile definito.
 - **Isotropia in CM** a 10–20 MeV: la distribuzione angolare vera (ENDF/B-VIII.0) non cambia la
   ricostruzione (c, §6.5); il modello resta isotropo.
-- **Calibrazione del Caso C a 10–20 MeV:** non raggiunta per μ_E e log σ_E (c, §5), da indagare.
+- **Calibrazione del Caso C a 10–20 MeV:** non raggiunta per μ_E e log σ_E (c, §5). Causa
+  candidata: spettro vero fuori da [10, 20] MeV fino al 10.7% (d); correzione da decidere.
 - **Fuori scope:** sezione d'urto n–p decrescente con E_n (spettro rivelato ≠ spettro incidente),
   soglia su E_p basse.
 - I limiti su assunzione 1, assunzione 3 e due stadi sono quantificati a 0.5–6 MeV (§6.2–6.4).

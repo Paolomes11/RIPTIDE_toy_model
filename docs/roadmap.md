@@ -1,8 +1,9 @@
 # Roadmap — riptide-toy
 
-v0.19 — 2026-10-13
+v0.20 — 2026-10-13
 
-Sintesi dei risultati: `docs/resoconto.md`.
+Sintesi dei risultati: `docs/resoconto.md`. Le modifiche del passaggio a 10–20 MeV sono spiegate
+nel notebook `notebooks/06_modifiche_10_20_MeV`; i notebook 01–05 sono rifatti a 10–20 MeV.
 
 ## Stato
 
@@ -296,21 +297,36 @@ progetto è partito (non pubblicata).
   `prior_B_rumore.py`, `mu_N1000_diag.py`, `curtosi_log_sigma.py`, `asimmetria_log_sigma.py`,
   `modo_log_sigma.py`.
 
-## Punti aperti (v0.19, 2026-10-13)
+## Punti aperti (v0.20, 2026-10-13)
 
 Dalla v0.19 il dominio è 10–20 MeV. I punti 1–8 sono stati chiusi o quantificati a 0.5–6 MeV
 (v0.16–v0.18); i numeri riportati sotto sono di quel dominio salvo dove indicato. Rifatti a
 10–20 MeV: checklist A, B, C, figura di contrazione, robustezza al prior, stress
-dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5). Da rifare: `n1000_extra.py`,
-`stress_spettro.py`, `stress_sorgente.py`, `correlazione_stadi.py` e le diagnostiche del Caso C.
+dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5). Da rifare a 10–20 MeV, col via e dopo aver
+chiuso il punto 9: `n1000_extra.py`, `stress_spettro.py`, `stress_sorgente.py`,
+`correlazione_stadi.py`, `modo_log_sigma.py`, `caso_C_cov68.py`, `caso_C_cov90_mu.py`,
+`caso_C_diag_omega_N50.py` (il notebook 05 §8 ne riassume le conclusioni a 0.5–6 MeV).
 
 9. **Calibrazione del Caso C a 10–20 MeV: aperto (c).** Checklist v0.19: Ω_n calibrata; μ_E con
    larghezza del pull 1.24–1.30 e coverage 68% 0.51–0.55 a N ≥ 300; log σ_E con pull medio da
    +0.10 (N = 50) a +0.61 (N = 1000) e coverage 68% 0.55–0.60. Uguale con generazione isotropa e
-   anisotropa. A 0.5–6 MeV lo stesso codice era calibrato. Ipotesi (d): risoluzione per evento su
-   E_n (~1.3 MeV) paragonabile a σ_E, quindi σ_E poco vincolato, con stadio 2 sensibile a
-   finestra fine e prior. Da indagare in una modifica separata.
+   anisotropa. A 0.5–6 MeV lo stesso codice era calibrato. **Causa candidata (v0.20):** il
+   generatore estrae μ_E ~ U(13, 17), σ_E ~ log-U(0.8, 2.4) senza troncatura, la ricostruzione
+   integra E_n su [10, 20]; la frazione dello spettro fuori dominio arriva a 0.107 (μ_E = 13,
+   σ_E = 2.4) e supera l'1% in un terzo degli esperimenti (a). Il vecchio dominio aveva il margine
+   di 3σ_E, il nuovo no. Con p_out < 1% il pull medio di log σ_E è −0.08 … +0.20 e la larghezza del
+   pull di μ_E 0.79–1.18; con p_out ≥ 1% il pull di log σ_E è +0.55 … +1.36 (c, notebook 05 §6,
+   `docs/resoconto.md` §5). Causa (d). Correzioni da scegliere: σ_E ≤ 1 MeV nel generatore, oppure
+   griglia di E_n del Caso C più larga; entrambe richiedono di rifare la checklist del Caso C e di
+   allineare gli intervalli in `caso_C_checklist`, `stress_sorgente`, `stress_anisotropia`,
+   `stress_spettro`, `robustezza_prior`, `correlazione_stadi`, `modo_log_sigma` (importati da
+   `caso_C_cov68` e `caso_C_diag_omega_N50`). Ipotesi alternativa, se non basta: risoluzione per
+   evento su E_n (~1.3 MeV) paragonabile a σ_E (d).
 10. **Prior fisico su θ_p del Caso A: chiuso (c).** Vedi Scelte di implementazione.
+11. **Pkl dello stress di isotropia: solo Caso A.** `outputs/stress_anisotropia_results.pkl` è stato
+   sovrascritto dal rilancio `stress_anisotropia.py 3 A` dopo il cambio del prior su θ_p; i numeri
+   di B e C in `docs/resoconto.md` §6.5 vengono dal run precedente. Da rilanciare per B e C insieme
+   al punto 9.
 
 1. **Calibrazione del Caso A: chiuso (c).** `scripts/caso_A_checklist.py`, 20 000 eventi. Con la
    verità estratta dal prior (E_n ~ U(0.5, 6), θ_p ~ U(0, π/2)): pull +0.003 / 0.998, coverage
