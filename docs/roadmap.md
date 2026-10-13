@@ -286,6 +286,10 @@ progetto è partito (non pubblicata).
   ENDF/B-VIII.0, prior fisico su θ_p nel Caso A (Scelte di implementazione). Le righe 1–14 restano
   valide; la riga 14 descrive la validazione a 0.5–6 MeV: a 10–20 MeV il Caso C ha un punto aperto
   sulla calibrazione di μ_E e log σ_E (punto 9 sotto). Casi A e B ricalibrati a 10–20 MeV (c).
+  `loglik` del Caso A riportato sotto il target: con la cinematica relativistica era ~1.0 ms per
+  evento; un terzo del tempo erano page fault su tabelle (500 × 500) allocate a ogni passo, più una
+  copia difensiva di numpy su viste sovrapposte. Ora un solo buffer riusato in place: 1 evento
+  0.67 ms, 1000 eventi 0.71 s, stesso risultato entro 4·10⁻⁶ relativo (float32) (c).
 - **Verifiche della v0.18** (2026-10-05): quattro ipotesi chiuse con una previsione scritta prima del
   calcolo (punti 4, 5, 6, 8 sotto). Codice nuovo solo additivo: forme `"laplace"` e `"student_t"`
   in `kinematics.sample_energy_spectrum`, costante `STUDENT_T_DOF`. Script di analisi:

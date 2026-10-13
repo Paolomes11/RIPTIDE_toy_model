@@ -329,13 +329,13 @@ con le due generazioni (§5), quindi quel difetto non viene dall'isotropia.
 
 ## 7. Prestazioni
 
-Tempi misurati a 0.5–6 MeV; a 10–20 MeV `loglik` del Caso A per evento è ~1.0 ms (al limite del
-target, il test di prestazione è marginale), la checklist del Caso C completa ~7 min con 3 processi.
+Tempi di `loglik` del Caso A misurati a 10–20 MeV (cinematica relativistica, buffer unico riusato
+in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV (~7 min con 3 processi).
 
 | Operazione | Tempo | |
 |---|---|---|
-| `loglik` Caso A, 1 evento | 0.64 ms (target < 1 ms) | (c) |
-| `loglik` Caso A, 1000 eventi | 1.0–1.2 s (target ridefinito a 2 s) | (c) |
+| `loglik` Caso A, 1 evento | 0.67 ms (target < 1 ms) | (c) |
+| `loglik` Caso A, 1000 eventi | 0.71 s (target ridefinito a 2 s) | (c) |
 | Esperimento Caso C a N = 300 | ~2 s (prima 19 s) | (c) |
 | Checklist Caso C completa | ~8 min con 3 processi | (c) |
 
