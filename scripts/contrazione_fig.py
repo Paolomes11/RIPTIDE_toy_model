@@ -47,16 +47,14 @@ def main() -> None:
     rng = np.random.default_rng(SEED)
     n_max = max(N_VALUES_SHIFT)
 
-    # theta_p campionato direttamente Uniform(0, pi/2), coerente con il
-    # log_prior_theta uniforme usato sotto per il Caso A (non il generatore
-    # fisico kinematics.sample_recoil_events, isotropo in CM).
-    theta_p_true = rng.uniform(0.0, np.pi / 2, n_max)
-    ep_true = kinematics.proton_energy(EN_TRUE, theta_p_true)
+    # theta_p dalla cinematica isotropa in CM, coerente con il prior fisico
+    # sin(2 theta_p) usato sotto per marginalizzarlo
+    ep_true, theta_p_true = kinematics.sample_recoil_angle(rng, np.full(n_max, EN_TRUE))
     D = forward_model.measure(ep_true, theta_p_true, SIGMA_EP, SIGMA_THETA, rng)
 
     en_grid = grids.energy_grid()
     theta_p_grid = grids.theta_p_grid()
-    log_prior_theta = np.full(theta_p_grid.shape, -np.log(theta_p_grid.shape[0]))
+    log_prior_theta = priors.log_recoil_angle_prior(theta_p_grid)
     log_prior_en = np.log(priors.energy_prior(en_grid))
 
     ll_matrix = forward_model.loglik(D, en_grid, theta_p_grid, SIGMA_EP, SIGMA_THETA, log_prior_theta)

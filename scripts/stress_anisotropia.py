@@ -8,8 +8,7 @@ flusso RNG (un uniforme per evento per l'angolo in CM), quindi i due dataset dif
 solo per l'anisotropia e la differenza appaiata isola il suo effetto. Le righe isotrope
 di B e C coincidono con i dataset delle rispettive checklist.
   A: E_n ~ U(11, 19) per esperimento, condivisa; Omega_n = z nota; rinculi generati
-     dal CM (non da theta_p ~ U(0, pi/2) come nella checklist del Caso A), posterior_A
-     + combine_loglik. Bersaglio: E_n.
+     dal CM, posterior_A (prior fisico sin(2 theta_p)) + combine_loglik. Bersaglio: E_n.
   B: come la checklist del Caso B. Bersaglio: Omega_n.
   C: come la checklist del Caso C (spettro gaussiano). Bersagli: mu_E, log sigma_E, Omega_n.
 Criterio: anisotropia trascurabile se, al N massimo, |bias aniso - bias iso| < 0.2 volte
@@ -94,9 +93,7 @@ def experiment_A(rng: np.random.Generator, n_events: int, anisotropic: bool) -> 
     """
     En_true = rng.uniform(*EN_RANGE_A)
     En = np.full(n_events, En_true)
-    Ep_true, track = kinematics.sample_recoil_events(rng, En, np.array([0.0, 0.0, 1.0]),
-                                                     legendre_table(anisotropic))
-    theta_p = np.arccos(np.clip(track[:, 2], -1.0, 1.0))
+    Ep_true, theta_p = kinematics.sample_recoil_angle(rng, En, legendre_table(anisotropic))
     Ep_hat, theta_hat = forward_model.measure(Ep_true, theta_p, SIGMA_EP, SIGMA_THETA, rng)
     en_grid = grids.energy_grid()
     log_prior = np.log(priors.energy_prior(en_grid))

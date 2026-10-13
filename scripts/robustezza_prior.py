@@ -64,9 +64,8 @@ def run_case_A(task: tuple[int, int]) -> dict:
     n_events, index = task
     rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(CASE_A_TAG, n_events, index)))
     En_true = rng.uniform(EN_MIN, EN_MAX)
-    theta = rng.uniform(0.0, np.pi / 2, n_events)
-    D = forward_model.measure(kinematics.proton_energy(np.full(n_events, En_true), theta), theta,
-                              SIGMA_EP, SIGMA_THETA, rng)
+    Ep_true, theta = kinematics.sample_recoil_angle(rng, np.full(n_events, En_true))
+    D = forward_model.measure(Ep_true, theta, SIGMA_EP, SIGMA_THETA, rng)
     out = {"N": n_events, "truth": En_true}
     for name, (en_grid, prior) in energy_priors().items():
         # prior contato una volta: si somma il log-posterior per evento e si tolgono N-1 prior

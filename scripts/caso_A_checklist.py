@@ -1,8 +1,10 @@
 """Checklist di validazione del posterior di singolo evento del Caso A.
 
 Ordine della checklist: bias -> pull -> coverage.
-Due generatori della verita' E_n, con lo stesso posterior (prior piatto su [EN_MIN, EN_MAX]):
-  (i)  E_n ~ U(EN_MIN, EN_MAX), theta_p ~ U(0, pi/2): la verita' e' estratta dal prior stesso.
+Due generatori della verita' E_n, con lo stesso posterior (prior piatto su [EN_MIN, EN_MAX],
+prior fisico sin(2 theta_p) su theta_p); theta_p e Ep sono sempre generati dalla cinematica
+isotropa in CM:
+  (i)  E_n ~ U(EN_MIN, EN_MAX): la verita' e' estratta dal prior stesso.
        Gli intervalli credibili devono coprire esattamente al livello nominale (media sul prior).
   (ii) E_n ~ U(11, 19): sotto-popolazione interna, lontana dai bordi del dominio. La coverage
        non e' piu' garantita, perche' si media su una distribuzione diversa dal prior.
@@ -35,10 +37,9 @@ def reconstruct(truth: np.ndarray, rng: np.random.Generator) -> tuple[np.ndarray
     """
     en_grid = grids.energy_grid()
     prior = priors.energy_prior(en_grid)
-    # theta_p ~ U(0, pi/2): lo stesso prior su theta usato dalla verosimiglianza del Caso A
-    theta = rng.uniform(0.0, np.pi / 2, truth.size)
-    Ep_hat, theta_hat = forward_model.measure(kinematics.proton_energy(truth, theta), theta,
-                                              SIGMA_EP, SIGMA_THETA, rng)
+    # theta_p dalla cinematica isotropa in CM: densita' sin(2 theta_p), il prior di posterior_A
+    Ep_true, theta = kinematics.sample_recoil_angle(rng, truth)
+    Ep_hat, theta_hat = forward_model.measure(Ep_true, theta, SIGMA_EP, SIGMA_THETA, rng)
     log_post = np.concatenate([
         posterior_A.single_event_posterior((Ep_hat[i:i + CHUNK], theta_hat[i:i + CHUNK]), en_grid, prior)
         for i in range(0, truth.size, CHUNK)
