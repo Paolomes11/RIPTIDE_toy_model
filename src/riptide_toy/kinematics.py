@@ -8,8 +8,9 @@ Qui: generazione degli eventi, rotazioni attorno alla direzione del neutrone,
 smearing della traccia.
 """
 import numpy as np
+from numpy.polynomial import legendre
 
-from riptide_toy.constants import BIMODAL_HALF_SEPARATION, PROTON_MASS_MEV, STUDENT_T_DOF
+from riptide_toy.constants import BIMODAL_HALF_SEPARATION, N_CM_NEWTON, PROTON_MASS_MEV, STUDENT_T_DOF
 
 def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
     """Energia cinetica del protone di rinculo, relativistica a masse uguali:
@@ -105,6 +106,37 @@ def sample_cm_angle(rng: np.random.Generator, n: int) -> np.ndarray:
     return np.arccos(rng.uniform(-1.0, 1.0, n))
 
 
+def sample_cm_angle_anisotropic(rng: np.random.Generator, En: np.ndarray, energies: np.ndarray,
+                                coeffs: np.ndarray) -> np.ndarray:
+    """Angolo polare di scattering del neutrone nel CM da una distribuzione
+    angolare in serie di Legendre dipendente dall'energia:
+    f(mu | En) = sum_l (2l+1)/2 a_l(En) P_l(mu), a_0 = 1, mu = cos(theta_CM).
+
+    Args:
+        rng: generatore numpy (un numero uniforme per evento, come sample_cm_angle).
+        En: energia cinetica del neutrone incidente per evento, MeV, forma (n,).
+        energies: energie della tabella dei coefficienti, MeV, crescenti, forma (n_E,).
+        coeffs: coefficienti (a_1, ..., a_L) a ciascuna energia, forma (n_E, L);
+            interpolati linearmente in En, costanti fuori da [energies[0], energies[-1]].
+
+    Ritorna:
+        array (n,), theta_CM in rad, in [0, pi]; con coeffs nulli coincide
+        (a meno dell'arrotondamento) con l'isotropo di sample_cm_angle.
+    """
+    a = np.stack([np.interp(En, energies, coeffs[:, l]) for l in range(coeffs.shape[1])])
+    degree = np.arange(coeffs.shape[1] + 1)[:, None]
+    density = (2 * degree + 1) / 2 * np.concatenate([np.ones((1, En.shape[0])), a])
+    cdf = legendre.legint(density, lbnd=-1.0, axis=0)
+    u = rng.uniform(0.0, 1.0, En.shape[0])
+    # inversione della CDF con Newton per evento, vettorizzata: f > 0 e lontana da
+    # zero (scostamento dall'isotropia di pochi %), quindi il passo e' ben definito
+    mu = 2.0 * u - 1.0
+    for _ in range(N_CM_NEWTON):
+        mu -= (legendre.legval(mu, cdf, tensor=False) - u) / legendre.legval(mu, density, tensor=False)
+        np.clip(mu, -1.0, 1.0, out=mu)
+    return np.arccos(mu)
+
+
 def recoil_angle_from_cm(theta_cm: np.ndarray, En: np.ndarray) -> np.ndarray:
     """Angolo del protone di rinculo in lab dall'angolo del neutrone in CM,
     relativistico a masse uguali (per En << m: theta_p = (pi - theta_CM) / 2).
@@ -161,16 +193,19 @@ def direction_around_axis(axis: np.ndarray, theta: np.ndarray,
             + sin_theta * np.sin(phi)[:, None] * e2)
 
 
-def sample_recoil_events(rng: np.random.Generator, En: np.ndarray,
-                         omega_n_hat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Eventi di rinculo veri per scattering n-p isotropo in CM, con
-    neutroni incidenti lungo omega_n_hat (Caso B/C).
+def sample_recoil_events(rng: np.random.Generator, En: np.ndarray, omega_n_hat: np.ndarray,
+                         legendre_table: tuple[np.ndarray, np.ndarray] | None = None
+                         ) -> tuple[np.ndarray, np.ndarray]:
+    """Eventi di rinculo veri per scattering n-p in CM, isotropo o anisotropo,
+    con neutroni incidenti lungo omega_n_hat (Caso B/C).
 
     Args:
         rng: generatore numpy.
         En: energia vera del neutrone per evento, MeV, forma (n,).
         omega_n_hat: direzione del neutrone incidente, versore, forma (3,)
             (comune a tutti gli eventi) o (n, 3) (una per evento).
+        legendre_table: None = isotropo in CM (sample_cm_angle); altrimenti
+            (energies, coeffs) di sample_cm_angle_anisotropic.
 
     Ritorna:
         (Ep_true, track_true): energia del protone in MeV, forma (n,), e
@@ -178,7 +213,9 @@ def sample_recoil_events(rng: np.random.Generator, En: np.ndarray,
         theta_p <= pi/2 rispetto a omega_n_hat.
     """
     n = En.shape[0]
-    theta_p = recoil_angle_from_cm(sample_cm_angle(rng, n), En)
+    theta_cm = (sample_cm_angle(rng, n) if legendre_table is None
+                else sample_cm_angle_anisotropic(rng, En, *legendre_table))
+    theta_p = recoil_angle_from_cm(theta_cm, En)
     phi = rng.uniform(0.0, 2 * np.pi, n)
     axis = np.broadcast_to(omega_n_hat, (n, 3))
     return proton_energy(En, theta_p), direction_around_axis(axis, theta_p, phi)

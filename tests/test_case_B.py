@@ -1,10 +1,12 @@
 import numpy as np
 from scipy import stats
 from scipy.integrate import trapezoid
+from numpy.polynomial import legendre
 from scipy.special import logsumexp
 
 from riptide_toy import combine, forward_model, grids, kinematics, posterior_B, priors, validate
-from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP, SIGMA_THETA
+from riptide_toy.constants import (EN_MAX, EN_MIN, NP_LEGENDRE_COEFFS, NP_LEGENDRE_ENERGIES, SEED,
+                                   SIGMA_EP, SIGMA_THETA)
 
 
 def test_direction_from_theta_phi_unit_norm():
@@ -449,6 +451,50 @@ def test_sample_recoil_events_per_event_axes_same_stream():
                                                 np.broadcast_to(omega, (50, 3)))
     for a, b in zip(common, per_event):
         np.testing.assert_allclose(a, b)
+
+
+
+def test_sample_cm_angle_anisotropic_zero_coeffs_is_isotropic():
+    # a_l = 0 per l >= 1: stessa variabile uniforme, stesso angolo di sample_cm_angle
+    En = np.random.default_rng(1).uniform(9.0, 21.0, 1000)
+    energies, coeffs = np.array(NP_LEGENDRE_ENERGIES), np.zeros((len(NP_LEGENDRE_ENERGIES), 6))
+    aniso = kinematics.sample_cm_angle_anisotropic(np.random.default_rng(SEED), En, energies, coeffs)
+    np.testing.assert_allclose(aniso, kinematics.sample_cm_angle(np.random.default_rng(SEED), 1000),
+                               atol=1e-12)
+
+
+def test_sample_cm_angle_anisotropic_inverts_cdf_and_matches_legendre_moments():
+    energies, coeffs = np.array(NP_LEGENDRE_ENERGIES), np.array(NP_LEGENDRE_COEFFS)
+    # inversione esatta: F(mu) ricostruisce la variabile uniforme, anche fra i nodi
+    # della tabella e fuori da essa (coefficienti tenuti costanti)
+    En = np.random.default_rng(1).uniform(9.0, 21.0, 10_000)
+    mu = np.cos(kinematics.sample_cm_angle_anisotropic(np.random.default_rng(SEED), En, energies, coeffs))
+    u = np.random.default_rng(SEED).uniform(0.0, 1.0, En.shape[0])
+    a = np.stack([np.interp(En, energies, coeffs[:, l]) for l in range(coeffs.shape[1])])
+    density = (2 * np.arange(7)[:, None] + 1) / 2 * np.concatenate([np.ones((1, En.shape[0])), a])
+    cdf = legendre.legint(density, lbnd=-1.0, axis=0)
+    np.testing.assert_allclose(legendre.legval(mu, cdf, tensor=False), u, atol=1e-12)
+    # (a) per f = sum (2l+1)/2 a_l P_l, ortogonalita': E[P_l(mu)] = a_l. A 20 MeV
+    # a_1 = -0.016 e' ~40 errori MC da zero: il test distingue dall'isotropo.
+    n = 1_000_000
+    mu = np.cos(kinematics.sample_cm_angle_anisotropic(np.random.default_rng(SEED), np.full(n, 20.0),
+                                                       energies, coeffs))
+    for degree, sd in ((1, np.sqrt(1 / 3)), (2, np.sqrt(1 / 5))):
+        moment = legendre.legval(mu, np.eye(degree + 1)[degree]).mean()
+        assert abs(moment - coeffs[-1, degree - 1]) < 4 * sd / np.sqrt(n)
+
+
+def test_sample_recoil_events_anisotropic_energy_mean():
+    # Ep = En (1 - mu) / 2 => E[Ep] = En (1 - a_1) / 2: a 20 MeV +0.8% sull'isotropo
+    n = 1_000_000
+    En = np.full(n, 20.0)
+    table = (np.array(NP_LEGENDRE_ENERGIES), np.array(NP_LEGENDRE_COEFFS))
+    Ep, track = kinematics.sample_recoil_events(np.random.default_rng(SEED), En,
+                                                np.array([0.0, 0.0, 1.0]), table)
+    theta_p = np.arccos(track[:, 2])
+    np.testing.assert_allclose(Ep, kinematics.proton_energy(En, theta_p), atol=1e-9)
+    expected = 20.0 * (1.0 - NP_LEGENDRE_COEFFS[-1][0]) / 2.0
+    assert abs(Ep.mean() - expected) < 4 * 20.0 / np.sqrt(12.0 * n)
 
 
 def test_track_angle_cdf_limit_and_montecarlo():
