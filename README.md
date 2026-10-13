@@ -47,14 +47,18 @@ docs/              resoconto, roadmap, report del Caso C
 3. `03_caso_B`: verosimiglianza di un evento, checklist del Caso B, robustezza al prior su E_n e
    stress con una seconda sorgente.
 4. `04_caso_C`: modello gerarchico, limiti σ_E → 0 e σ_E → ∞, spettri non gaussiani.
-5. `05_validazione_caso_C`: checklist completa del Caso C e stress test (N = 1000 a statistica piena,
-   prior, forma dello spettro, seconda sorgente, due stadi contro stima congiunta), letti dai
+5. `05_validazione_caso_C`: checklist completa del Caso C a 10–20 MeV, diagnostica dello spettro
+   fuori dal dominio, robustezza al prior, e riassunto degli stress test fatti a 0.5–6 MeV, letti dai
    risultati in `outputs/`.
+6. `06_modifiche_10_20_MeV`: cosa è cambiato col passaggio a 10–20 MeV e perché (cinematica
+   relativistica, anisotropia ENDF/B-VIII.0, prior sin 2θ_p nel Caso A, `loglik` sotto 1 ms) e il punto
+   aperto del Caso C.
 
 Le versioni intermedie della validazione del Caso C sono state rimosse; restano nella storia git.
 
 I notebook sono salvati senza output. Eseguili in VS Code/Jupyter, oppure installa nel venv
-`pip install nbclient ipykernel`. I notebook 02, 03 e 05 leggono i pkl prodotti dagli script in `scripts/`.
+`pip install nbclient ipykernel`. I notebook 02, 03, 05 e 06 leggono i pkl prodotti dagli script in
+`scripts/`.
 
 ## Install
 
