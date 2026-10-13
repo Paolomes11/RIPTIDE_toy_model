@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import trapezoid
 
 from riptide_toy import forward_model, grids, kinematics, priors
-from riptide_toy.constants import EN_MAX_WIDE, EN_MIN, SEED
+from riptide_toy.constants import EN_MAX_WIDE, EN_MIN, PROTON_MASS_MEV, SEED
 
 
 def test_energy_grid_monotone_and_immutable():
@@ -33,11 +33,29 @@ def test_theta_p_grid_domain():
 
 
 def test_proton_energy_known_angles():
-    # Ep = En*cos^2(theta_p): 0 -> Ep=En, pi/4 -> Ep=En/2, pi/2 -> Ep=0
-    En = np.array([1.0, 2.0, 4.0])
+    # limite non relativistico Ep = En*cos^2(theta_p): 0 -> En, pi/4 -> En/2, pi/2 -> 0
+    En = np.array([1.0, 2.0, 4.0]) * 1e-6
     theta = np.array([0.0, np.pi / 4, np.pi / 2])
     Ep = kinematics.proton_energy(En, theta)
-    np.testing.assert_allclose(Ep, [1.0, 1.0, 0.0], atol=1e-10)
+    np.testing.assert_allclose(Ep, [1.0e-6, 1.0e-6, 0.0], rtol=1e-8, atol=1e-18)
+    # gli estremi restano esatti anche a 20 MeV
+    np.testing.assert_allclose(kinematics.proton_energy(20.0, np.array([0.0, np.pi / 2])),
+                               [20.0, 0.0], atol=1e-12)
+
+
+def test_proton_energy_conserves_four_momentum():
+    # oracolo indipendente dalla formula chiusa: con Ep da proton_energy, il
+    # neutrone uscente (energia cinetica En - Ep) ha il momento che chiude il
+    # triangolo p_n = p_p + p_n' (teorema del coseno), p^2 = T^2 + 2 m T
+    m = PROTON_MASS_MEV
+    En = np.array([10.0, 15.0, 20.0])[:, None]
+    theta = np.linspace(0.0, np.pi / 2, 7)[None, :]
+    Ep = kinematics.proton_energy(En, theta)
+    p_in, p_p, p_out = (np.sqrt(t ** 2 + 2 * m * t) for t in (En, Ep, En - Ep))
+    np.testing.assert_allclose(p_out ** 2, p_in ** 2 + p_p ** 2 - 2 * p_in * p_p * np.cos(theta),
+                               rtol=1e-10, atol=1e-8)
+    # lo scarto dalla forma non relativistica a 20 MeV e 45 gradi e' ~0.05 MeV
+    assert 0.03 < 10.0 - kinematics.proton_energy(20.0, np.pi / 4) < 0.08
 
 
 def test_proton_energy_montecarlo_mean_var():

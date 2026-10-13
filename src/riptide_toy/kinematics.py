@@ -1,25 +1,93 @@
-"""Cinematica dello scattering elastico n-p a masse uguali.
+"""Cinematica relativistica dello scattering elastico n-p a masse uguali m.
 
-E_p = E_n cos^2(theta_p), con theta_p <= 90 gradi. Con scattering isotropo nel
-centro di massa cos(theta_CM) ~ U(-1, 1) e theta_p = (pi - theta_CM)/2, quindi
-cos^2(theta_p) = (1 - cos theta_CM)/2 ~ U(0, 1) e E_p ~ U(0, E_n). Qui: generazione
-degli eventi, rotazioni attorno alla direzione del neutrone, smearing della traccia.
+E_p = 2 m E_n cos^2(theta_p) / (2 m + E_n sin^2(theta_p)), con theta_p <= 90 gradi
+(E_n, E_p energie cinetiche); per E_n << m si riduce a E_n cos^2(theta_p). L'energia
+del protone resta lineare in cos(theta_CM): E_p = E_n (1 - cos theta_CM) / 2, quindi
+con scattering isotropo nel centro di massa E_p ~ U(0, E_n) anche relativisticamente.
+Qui: generazione degli eventi, rotazioni attorno alla direzione del neutrone,
+smearing della traccia.
 """
 import numpy as np
 
 from riptide_toy.constants import BIMODAL_HALF_SEPARATION, PROTON_MASS_MEV, STUDENT_T_DOF
 
 def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
-    """Energia del protone di rinculo, Ep = En * cos(theta_p)**2.
+    """Energia cinetica del protone di rinculo, relativistica a masse uguali:
+    Ep = 2 m En cos^2(theta_p) / (2 m + En sin^2(theta_p)), m = PROTON_MASS_MEV.
 
     Args:
-        En: energia del neutrone incidente, MeV, forma (n,) o scalare.
+        En: energia cinetica del neutrone incidente, MeV, forma (n,) o scalare.
         theta_p: angolo di rinculo in lab, rad, stessa forma di En.
 
     Ritorna:
-        Ep in MeV, stessa forma degli input (broadcasting numpy).
+        Ep in MeV, stessa forma degli input (broadcasting numpy); per En << m
+        tende a En * cos(theta_p)**2.
     """
-    return En * (np.cos(theta_p) ** 2)
+    # (a) conservazione del quadrimpulso, bersaglio fermo; a 20 MeV e 45 gradi lo
+    # scarto dalla forma non relativistica e' ~0.05 MeV, comune a tutti gli eventi.
+    # Forma cos^2 / (1/En + sin^2/2m): con griglie (n_En, 1) x (1, n_theta) le
+    # operazioni sulla tabella piena sono due invece di cinque (path caldo del Caso A).
+    # En = 0 da' 1/En = inf ed Ep = 0, il limite corretto.
+    with np.errstate(divide="ignore"):
+        inv_En = np.divide(1.0, En)
+    return np.cos(theta_p) ** 2 / (inv_En + np.sin(theta_p) ** 2 / (2.0 * PROTON_MASS_MEV))
+
+
+def recoil_cos2_from_energy(Ep: np.ndarray, En: np.ndarray) -> np.ndarray:
+    """Inversa di proton_energy in theta_p: cos^2(theta_p) dato (Ep, En),
+    cos^2(theta_p) = Ep (2 m + En) / (En (2 m + Ep)).
+
+    Args:
+        Ep: energia cinetica del protone, MeV, forma qualsiasi, in [0, En].
+        En: energia cinetica del neutrone, MeV, > 0, forma compatibile (broadcasting).
+
+    Ritorna:
+        cos^2(theta_p), adimensionale, in [0, 1], forma del broadcasting.
+    """
+    two_m = 2.0 * PROTON_MASS_MEV
+    return Ep * (two_m + En) / (En * (two_m + Ep))
+
+
+def log_recoil_density_ratio(theta_p: np.ndarray, En: np.ndarray) -> np.ndarray:
+    """log del rapporto fra la densita' relativistica della direzione del protone
+    (log_recoil_direction_density) e il suo limite non relativistico cos(theta_p)/pi:
+    log[2 m (2 m + En) / (2 m + En sin^2(theta_p))^2].
+
+    Serve a separare la parte che dipende da En (questo fattore, finito ovunque)
+    da quella che non ne dipende (cos(theta_p)/pi), cosi' le tabelle in theta_p
+    restano indipendenti da En.
+
+    Args:
+        theta_p: angolo di rinculo in lab, rad, forma qualsiasi.
+        En: energia cinetica del neutrone, MeV, forma compatibile (broadcasting).
+
+    Ritorna:
+        log-rapporto adimensionale, forma del broadcasting; 0 per En -> 0,
+        |.| <~ 0.011 a 20 MeV.
+    """
+    two_m = 2.0 * PROTON_MASS_MEV
+    return np.log(two_m * (two_m + En)) - 2.0 * np.log(two_m + En * np.sin(theta_p) ** 2)
+
+
+def log_recoil_direction_density(theta_p: np.ndarray, En: np.ndarray) -> np.ndarray:
+    """log della densita' per steradiante della direzione del protone attorno a
+    Omega_n per scattering isotropo in CM, relativistica a masse uguali:
+    p = 4 m c (2 m + En) / (2 pi (2 m + En - En c^2)^2), c = cos(theta_p).
+
+    Args:
+        theta_p: angolo di rinculo in lab, rad, forma qualsiasi.
+        En: energia cinetica del neutrone, MeV, forma compatibile (broadcasting).
+
+    Ritorna:
+        log-densita' per steradiante, forma del broadcasting; -inf per
+        theta_p >= pi/2. Per En << m tende a log(cos(theta_p) / pi).
+    """
+    # (a) Ep ~ U(0, En) e cambio di variabile Ep -> c (proton_energy), azimut
+    # uniforme: p = (dEp/dc) / (2 pi En)
+    with np.errstate(divide="ignore"):
+        return (np.log(np.clip(np.cos(theta_p), 0.0, None) / np.pi)
+                + log_recoil_density_ratio(theta_p, En))
+
 
 def sample_cm_angle(rng: np.random.Generator, n: int) -> np.ndarray:
     """Angolo polare di scattering del neutrone nel CM, isotropo in angolo
@@ -37,19 +105,23 @@ def sample_cm_angle(rng: np.random.Generator, n: int) -> np.ndarray:
     return np.arccos(rng.uniform(-1.0, 1.0, n))
 
 
-def recoil_angle_from_cm(theta_cm: np.ndarray) -> np.ndarray:
+def recoil_angle_from_cm(theta_cm: np.ndarray, En: np.ndarray) -> np.ndarray:
     """Angolo del protone di rinculo in lab dall'angolo del neutrone in CM,
-    theta_p = (pi - theta_CM) / 2.
+    relativistico a masse uguali (per En << m: theta_p = (pi - theta_CM) / 2).
 
     Args:
         theta_cm: angolo di scattering del neutrone nel CM, rad, forma (n,).
+        En: energia cinetica del neutrone incidente, MeV, forma (n,) o scalare.
 
     Ritorna:
         array (n,), theta_p in rad, in [0, pi/2].
     """
-    # (a) masse uguali: il protone rincula a pi - theta_CM nel CM e l'angolo
-    # in lab e' la meta'. Con cos(theta_CM) uniforme segue Ep ~ U(0, En).
-    return 0.5 * (np.pi - theta_cm)
+    # (a) Ep = En (1 - cos theta_CM) / 2 vale anche relativisticamente (energia
+    # trasferita lineare nel quadrato del momento trasferito); l'angolo in lab
+    # segue dall'inversa di proton_energy. Con cos(theta_CM) uniforme Ep ~ U(0, En).
+    Ep = 0.5 * En * (1.0 - np.cos(theta_cm))
+    cos2 = np.clip(recoil_cos2_from_energy(Ep, En), 0.0, 1.0)
+    return np.arccos(np.sqrt(cos2))
 
 
 def perpendicular_basis(axis: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -106,7 +178,7 @@ def sample_recoil_events(rng: np.random.Generator, En: np.ndarray,
         theta_p <= pi/2 rispetto a omega_n_hat.
     """
     n = En.shape[0]
-    theta_p = recoil_angle_from_cm(sample_cm_angle(rng, n))
+    theta_p = recoil_angle_from_cm(sample_cm_angle(rng, n), En)
     phi = rng.uniform(0.0, 2 * np.pi, n)
     axis = np.broadcast_to(omega_n_hat, (n, 3))
     return proton_energy(En, theta_p), direction_around_axis(axis, theta_p, phi)
