@@ -3,7 +3,8 @@
 Ordine della checklist: bias -> risoluzione -> pull ->
 coverage -> contrazione ~1/sqrt(N) -> robustezza al prior.
 M esperimenti indipendenti per ciascun N; per ogni esperimento verita' nuova:
-mu_E ~ U(13, 17) MeV, sigma_E ~ log-U(0.8, 2.4) MeV, Omega_n isotropa.
+mu_E ~ U(13, 17) MeV, sigma_E ~ log-U(0.8, 2.4) MeV, Omega_n isotropa; E_n per evento dalla
+gaussiana troncata a [EN_MIN, EN_MAX], come il prior gerarchico della ricostruzione.
 
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/caso_C_checklist.py [n_processi]
