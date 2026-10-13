@@ -330,6 +330,18 @@ punto 9 è chiuso: `n1000_extra.py`, `stress_spettro.py`, `stress_sorgente.py`,
    sovrascritto dal rilancio `stress_anisotropia.py 3 A` dopo il cambio del prior su θ_p; i numeri
    di B e C in `docs/resoconto.md` §6.5 vengono dal run precedente. Da rilanciare per B e C col
    generatore troncato (punto 9).
+12. **Prossimi passi (da riprendere, v0.21).** Decisione aperta prima di rilanciare
+   `stress_spettro.py`: con μ_E ~ U(13, 17) e σ_E fino a 2.4 MeV anche le forme non gaussiane
+   (`"uniform"`, `"bimodal"`, `"lognormal"`, `"laplace"`, `"student_t"`) escono da [10, 20] MeV,
+   mentre `"gauss"` ora è troncata; lo stress mescolerebbe l'effetto della forma con quello dello
+   spettro fuori dominio. Opzioni: (i) troncare al dominio tutte le forme, così da isolare la forma,
+   e studiare lo sconfinamento in uno stress test dedicato (proposta); (ii) restringere i range di
+   μ_E e σ_E forma per forma, a costo di uscire dai range della checklist. Nota: con media 15 e
+   sd 2 la `"gauss"` troncata ha sd effettiva 1.91 e curtosi 2.62 (a); va scelto se il confronto
+   tra forme si fa a pari sd nominale o effettiva. Dopo la decisione, rilanci uno per volta col
+   via e col tetto di memoria: `robustezza_prior.py` (Caso C), `stress_anisotropia.py` (B e C),
+   `stress_spettro.py`, poi gli altri script elencati in testa a questa sezione; per ciascuno
+   aggiornare `docs/resoconto.md` (§6.1–§6.5) e il notebook 05.
 
 1. **Calibrazione del Caso A: chiuso (c).** `scripts/caso_A_checklist.py`, 20 000 eventi. Con la
    verità estratta dal prior (E_n ~ U(0.5, 6), θ_p ~ U(0, π/2)): pull +0.003 / 0.998, coverage
