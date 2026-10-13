@@ -193,6 +193,28 @@ def direction_around_axis(axis: np.ndarray, theta: np.ndarray,
             + sin_theta * np.sin(phi)[:, None] * e2)
 
 
+def sample_recoil_angle(rng: np.random.Generator, En: np.ndarray,
+                        legendre_table: tuple[np.ndarray, np.ndarray] | None = None
+                        ) -> tuple[np.ndarray, np.ndarray]:
+    """Energia e angolo di rinculo veri per scattering n-p in CM, isotropo o
+    anisotropo, rispetto alla direzione incidente (Caso A: direzione nota).
+
+    Args:
+        rng: generatore numpy.
+        En: energia vera del neutrone per evento, MeV, forma (n,).
+        legendre_table: None = isotropo in CM (sample_cm_angle); altrimenti
+            (energies, coeffs) di sample_cm_angle_anisotropic.
+
+    Ritorna:
+        (Ep_true, theta_p): energia del protone in MeV e angolo di rinculo in
+        lab in rad, in [0, pi/2], entrambi forma (n,).
+    """
+    theta_cm = (sample_cm_angle(rng, En.shape[0]) if legendre_table is None
+                else sample_cm_angle_anisotropic(rng, En, *legendre_table))
+    theta_p = recoil_angle_from_cm(theta_cm, En)
+    return proton_energy(En, theta_p), theta_p
+
+
 def sample_recoil_events(rng: np.random.Generator, En: np.ndarray, omega_n_hat: np.ndarray,
                          legendre_table: tuple[np.ndarray, np.ndarray] | None = None
                          ) -> tuple[np.ndarray, np.ndarray]:
@@ -213,12 +235,10 @@ def sample_recoil_events(rng: np.random.Generator, En: np.ndarray, omega_n_hat: 
         theta_p <= pi/2 rispetto a omega_n_hat.
     """
     n = En.shape[0]
-    theta_cm = (sample_cm_angle(rng, n) if legendre_table is None
-                else sample_cm_angle_anisotropic(rng, En, *legendre_table))
-    theta_p = recoil_angle_from_cm(theta_cm, En)
+    Ep_true, theta_p = sample_recoil_angle(rng, En, legendre_table)
     phi = rng.uniform(0.0, 2 * np.pi, n)
     axis = np.broadcast_to(omega_n_hat, (n, 3))
-    return proton_energy(En, theta_p), direction_around_axis(axis, theta_p, phi)
+    return Ep_true, direction_around_axis(axis, theta_p, phi)
 
 
 def mixed_source_axes(rng: np.random.Generator, omega_n_hat: np.ndarray, n_events: int,

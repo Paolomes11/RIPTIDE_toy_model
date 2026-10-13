@@ -128,9 +128,20 @@ def test_loglik_roundtrip_argmax_near_truth():
     assert abs(argmax_En - En_true) < 3 * sigma_En
 
 
+def test_log_recoil_angle_prior_normalized_and_matches_sin_2theta():
+    tp_grid = grids.theta_p_grid()
+    w = np.exp(priors.log_recoil_angle_prior(tp_grid))
+    assert np.all(np.isfinite(np.log(w)))
+    assert abs(w.sum() - 1.0) < 1e-12
+    # all'interno la massa della cella e' ~ sin(2 theta) * passo
+    step = tp_grid[1] - tp_grid[0]
+    np.testing.assert_allclose(w[1:-1], np.sin(2 * tp_grid[1:-1]) * step, rtol=1e-4, atol=1e-9)
+
+
 def test_posterior_A_calibrated_when_truth_drawn_from_prior():
     # Se la verita' e' estratta dal prior del posterior (E_n ~ U(EN_MIN, EN_MAX),
-    # theta_p ~ U(0, pi/2)), gli intervalli credibili coprono al livello nominale in media.
+    # theta_p dalla cinematica isotropa in CM, densita' sin(2 theta_p)), gli intervalli
+    # credibili coprono al livello nominale in media.
     # Con 2000 eventi l'errore binomiale al 68% e' sqrt(0.68*0.32/2000) = 0.010: soglia 3 errori.
     from riptide_toy import posterior_A, validate
     from riptide_toy.constants import EN_MAX, EN_MIN, SIGMA_EP, SIGMA_THETA
@@ -139,9 +150,8 @@ def test_posterior_A_calibrated_when_truth_drawn_from_prior():
     n = 2000
     levels = np.array([0.68, 0.90])
     truth = rng.uniform(EN_MIN, EN_MAX, n)
-    theta = rng.uniform(0.0, np.pi / 2, n)
-    Ep_hat, theta_hat = forward_model.measure(kinematics.proton_energy(truth, theta), theta,
-                                              SIGMA_EP, SIGMA_THETA, rng)
+    Ep_true, theta = kinematics.sample_recoil_angle(rng, truth)
+    Ep_hat, theta_hat = forward_model.measure(Ep_true, theta, SIGMA_EP, SIGMA_THETA, rng)
     en_grid = grids.energy_grid()
     prior = priors.energy_prior(en_grid)
     log_post = np.concatenate([
@@ -151,3 +161,41 @@ def test_posterior_A_calibrated_when_truth_drawn_from_prior():
     _, coverage = validate.coverage_curve(truth, validate.credible_interval(log_post, en_grid, levels), levels)
     binomial = np.sqrt(levels * (1 - levels) / n)
     assert np.all(np.abs(coverage - levels) < 3 * binomial)
+
+
+def test_posterior_A_combined_unbiased_with_physical_recoil_kinematics():
+    # Regressione: con eventi generati dalla cinematica isotropa in CM, il prior
+    # piatto su theta_p dava un plateau di bias su E_n combinato (pull medio ~ -4 a
+    # N = 1000); col prior fisico sin(2 theta_p) il pull medio resta ~0.
+    # 5 ripetizioni: errore sulla media dei pull ~ 1/sqrt(5) = 0.45, soglia ~3 errori.
+    from riptide_toy import combine, posterior_A, validate
+    from riptide_toy.constants import SIGMA_EP, SIGMA_THETA
+
+    en_grid = grids.energy_grid()
+    log_prior = np.log(priors.energy_prior(en_grid))
+    n_events, n_rep, chunk = 1000, 5, 50
+    pulls = []
+    for i in range(n_rep):
+        rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(n_events, i)))
+        En_true = rng.uniform(11.0, 19.0)
+        Ep_true, theta = kinematics.sample_recoil_angle(rng, np.full(n_events, En_true))
+        Ep_hat, theta_hat = forward_model.measure(Ep_true, theta, SIGMA_EP, SIGMA_THETA, rng)
+        # il prior su E_n va contato una volta sola: lo si toglie dal posterior per evento
+        loglik = np.concatenate([
+            posterior_A.single_event_posterior((Ep_hat[j:j + chunk], theta_hat[j:j + chunk]),
+                                               en_grid, np.exp(log_prior)) - log_prior[None, :]
+            for j in range(0, n_events, chunk)
+        ])
+        mean, std = validate.posterior_mean_std(combine.combine_loglik(loglik, log_prior)[None], en_grid)
+        pulls.append((mean[0] - En_true) / std[0])
+    assert abs(np.mean(pulls)) < 1.4
+
+
+def test_sample_recoil_angle_consistent_with_recoil_events():
+    # stesso flusso RNG: l'angolo coincide con quello della traccia attorno a z
+    En = np.full(1000, 15.0)
+    Ep_a, theta_a = kinematics.sample_recoil_angle(np.random.default_rng(SEED), En)
+    Ep_e, track = kinematics.sample_recoil_events(np.random.default_rng(SEED), En, np.array([0.0, 0.0, 1.0]))
+    np.testing.assert_allclose(Ep_a, Ep_e)
+    np.testing.assert_allclose(np.cos(theta_a), track[:, 2], atol=1e-12)
+    assert np.all((theta_a >= 0.0) & (theta_a <= np.pi / 2))

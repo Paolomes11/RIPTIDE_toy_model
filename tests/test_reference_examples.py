@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 
-from riptide_toy import posterior_A, priors
+from riptide_toy import grids, posterior_A, priors
 from riptide_toy.combine import combine_loglik, expected_sigma_n
 from riptide_toy.validate import run_checklist
 
@@ -13,8 +13,12 @@ def test_reference_single_event():
     en_grid = np.linspace(0.5, 6.0, 500)
     D = (np.array([1.40]), np.array([0.50]))
     prior = priors.energy_prior(en_grid)
+    # R1 e' definito per linearizzazione, senza prior fisico su theta_p: lo si
+    # valida col prior piatto (con sin(2 theta_p) sigma sale a 0.222 MeV)
+    n_theta = grids.theta_p_grid().shape[0]
+    flat_theta = np.full(n_theta, -np.log(n_theta))
 
-    logpost = posterior_A.single_event_posterior(D, en_grid, prior)
+    logpost = posterior_A.single_event_posterior(D, en_grid, prior, flat_theta)
     assert logpost.shape == (1, en_grid.shape[0])
 
     argmax_En = en_grid[np.argmax(logpost[0])]

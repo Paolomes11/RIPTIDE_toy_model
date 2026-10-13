@@ -1,5 +1,6 @@
 """Prior, tutti propri (normalizzati su un dominio finito): un prior improprio non
-garantisce un posterior normalizzabile. E_n piatto su [EN_MIN, EN_MAX], direzione
+garantisce un posterior normalizzabile. E_n piatto su [EN_MIN, EN_MAX], theta_p
+con la densita' fisica sin(2 theta_p) (Caso A), direzione
 uniforme sulla sfera, E_n | (mu_E, sigma_E) gaussiana troncata, iperparametri
 uniformi in mu_E e in log sigma_E (sigma_E e' un parametro di scala).
 Le prior alternative (uniforme in sigma_E, log-uniforme su E_n, von Mises-Fisher
@@ -24,6 +25,36 @@ def energy_prior(en_grid: np.ndarray) -> np.ndarray:
     """
     width = en_grid[-1] - en_grid[0]
     return np.full_like(en_grid, 1.0 / width)
+
+
+def log_recoil_angle_prior(theta_p_grid: np.ndarray) -> np.ndarray:
+    """log p(theta_p): prior fisico sull'angolo di rinculo per scattering
+    isotropo in CM, densita' sin(2 theta_p) su [0, pi/2] (Caso A).
+
+    (a) Con cos(theta_CM) uniforme, Ep e' uniforme in (0, En), quindi
+    cos^2(theta_p) e' uniforme e p(theta_p) = sin(2 theta_p). Un prior piatto
+    in theta_p sovrappesa gli angoli piccoli e grandi rispetto a questa
+    densita': con eventi generati dalla cinematica fisica, il posterior
+    combinato su E_n resta biasato anche a N grande. Limite non
+    relativistico: la correzione relativistica dipende da En (~1% a 20 MeV)
+    e non si fattorizza in un prior su theta_p indipendente da En.
+
+    Pesi = massa di probabilita' esatta della cella di ogni punto, intersecata
+    con [0, pi/2], cosi' i pesi agli estremi restano positivi (log finito) e
+    la somma vale 1 per costruzione.
+
+    Args:
+        theta_p_grid: griglia sull'angolo di rinculo, rad, forma (n,),
+            uniforme su [0, pi/2] (grids.theta_p_grid).
+
+    Ritorna:
+        array (n,), log dei pesi per punto (adimensionali); exp somma a 1.
+    """
+    half_step = 0.5 * (theta_p_grid[1] - theta_p_grid[0])
+    lo = np.clip(theta_p_grid - half_step, 0.0, np.pi / 2)
+    hi = np.clip(theta_p_grid + half_step, 0.0, np.pi / 2)
+    # primitiva di sin(2 theta) = -cos(2 theta) / 2
+    return np.log(0.5 * (np.cos(2 * lo) - np.cos(2 * hi)))
 
 
 def direction_prior(theta_grid: np.ndarray, phi_grid: np.ndarray) -> np.ndarray:
