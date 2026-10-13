@@ -197,6 +197,8 @@ verità è generata dalla cinematica in CM e il prior su θ_p è quello fisico.
 
 > **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
 > metodo; vanno rilanciati sul nuovo dominio, ora che la calibrazione del Caso C è chiusa (§5).
+> Prima del rilancio va deciso come trattare le forme che escono da [10, 20] MeV (la `"gauss"` ora
+> è troncata, le altre no): `docs/roadmap.md`, punto aperto 12.
 
 Energie vere da spettri con la stessa media e sd di N(μ_E, σ_E) ma forma uniforme, bimodale (due
 righe a ±0.9 sd), lognormale, Laplace (curtosi 6) o Student-t con 5 gradi di libertà (curtosi 9);
