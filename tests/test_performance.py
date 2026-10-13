@@ -43,26 +43,26 @@ def case_B_events(n: int) -> tuple[np.ndarray, np.ndarray]:
     """
     rng = np.random.default_rng(SEED)
     Ep_true, track = kinematics.sample_recoil_events(
-        rng, rng.uniform(1.0, 5.0, n), np.array([0.0, 0.0, 1.0])
+        rng, rng.uniform(11.0, 19.0, n), np.array([0.0, 0.0, 1.0])
     )
     return rng.normal(Ep_true, SIGMA_EP), kinematics.smear_direction(rng, track, SIGMA_THETA)
 
 
 def case_A_events(n: int) -> tuple[np.ndarray, np.ndarray]:
-    """Osservabili sintetici Caso A (Ep_hat, theta_p_hat), En ~ U(1, 5).
+    """Osservabili sintetici Caso A (Ep_hat, theta_p_hat), En ~ U(11, 19).
 
     Ritorna:
         (Ep_hat, theta_p_hat): MeV e rad, ciascuno forma (n,).
     """
     rng = np.random.default_rng(SEED)
     theta_p = rng.uniform(0.0, np.pi / 2, n)
-    Ep_true = kinematics.proton_energy(rng.uniform(1.0, 5.0, n), theta_p)
+    Ep_true = kinematics.proton_energy(rng.uniform(11.0, 19.0, n), theta_p)
     return forward_model.measure(Ep_true, theta_p, SIGMA_EP, SIGMA_THETA, rng)
 
 
 def test_sample_recoil_events_1e5_under_100ms():
     rng = np.random.default_rng(SEED)
-    En = rng.uniform(1.0, 5.0, 100_000)
+    En = rng.uniform(11.0, 19.0, 100_000)
     omega = np.array([0.0, 0.0, 1.0])
     assert best_time(lambda: kinematics.sample_recoil_events(rng, En, omega)) < 0.1
 
@@ -76,7 +76,7 @@ def test_run_checklist_20000_events_under_1_minute():
     # scala del caso di riferimento R3; ricostruzione analitica (quella di R3), per
     # misurare il costo di validate e non quello del motore del Caso A.
     rng = np.random.default_rng(SEED)
-    truth = rng.uniform(1.0, 5.0, 20_000)
+    truth = rng.uniform(11.0, 19.0, 20_000)
 
     def reconstruction(t: np.ndarray, rng: np.random.Generator):
         sigma = 0.08 * t
@@ -122,7 +122,7 @@ def test_posterior_A_one_event_under_1ms():
 
 # Target ridefinito (R4, docs/roadmap.md): l'obiettivo iniziale era 50 ms, ma la
 # marginalizzazione esatta su theta_p tocca 1000 x 500 x 500 = 2.5e8 celle,
-# ~1.0-1.2 s con numpy denso float32 (c). Una finestra su theta_p non e'
+# ~0.7 s con numpy denso float32 (c). Una finestra su theta_p non e'
 # esatta (differenze di loglik fino a 18.6 nelle code), numba non adottato.
 def test_posterior_A_1000_events_under_2s():
     en_grid = grids.energy_grid()

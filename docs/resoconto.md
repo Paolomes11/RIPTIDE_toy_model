@@ -1,6 +1,6 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.18 — 2026-10-05
+v0.19 — 2026-10-13
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi
@@ -20,18 +20,23 @@ Un neutrone di energia E_n diffonde elasticamente su un protone; si misura il pr
 | B | Ω_n (direzione del neutrone) | E_n (prior largo) | 1 sorgente unica + 2 campo lontano |
 | C | Ω_n e (μ_E, σ_E) | E_n^(k) ~ N(μ_E, σ_E) | 1 + 2 + 3 energie simili |
 
-Risoluzioni del rivelatore: σ_Ep = 0.10 MeV, σ_θ = 0.08 rad. Prior sempre propri (E_n piatto su
-[0.5, 6] MeV; σ_E log-uniforme su [0.01, 50] MeV).
+Dominio di energia 10–20 MeV (dalla v0.19; fino alla v0.18 era 0.5–6 MeV). Risoluzioni del
+rivelatore: σ_Ep = 0.10 MeV, σ_θ = 0.08 rad. Prior sempre propri (E_n piatto su [10, 20] MeV;
+σ_E log-uniforme su [0.01, 50] MeV; θ_p con densità sin 2θ_p nel Caso A). I casi di riferimento
+R1–R3 restano alle energie con cui sono definiti (R1 su una griglia 0.5–6 MeV).
 
 ## 2. Cinematica (notebook 01)
 
 | Risultato | Valore | |
 |---|---|---|
-| Energia del protone | E_p = E_n cos²θ_p, θ_p ≤ 90° | (a) |
-| Isotropia in CM ⇒ spettro del protone | E_p ~ U(0, E_n): ⟨E_p⟩ = E_n/2, Var = E_n²/12 | (a) |
-| Densità delle tracce attorno a Ω_n | cosθ_p/π per steradiante | (a) |
+| Energia del protone (relativistica, masse uguali m) | E_p = 2m E_n cos²θ_p / (2m + E_n sin²θ_p), θ_p ≤ 90° | (a) |
+| Limite non relativistico (E_n ≪ 2m) | E_p = E_n cos²θ_p; a 20 MeV e 45° lo scarto è 0.05 MeV = 0.5 σ_Ep | (a) |
+| Isotropia in CM ⇒ spettro del protone | E_p ~ U(0, E_n) esattamente, anche relativistico: ⟨E_p⟩ = E_n/2, Var = E_n²/12 | (a) |
+| Isotropia in CM ⇒ angolo di rinculo | cos²θ_p uniforme nel limite non relativistico: p(θ_p) = sin 2θ_p | (a) |
+| Densità delle tracce attorno a Ω_n | cosθ_p/π per steradiante nel limite non relativistico; correzione relativistica ±1% a 20 MeV | (a) |
+| Isotropia in CM a 10–20 MeV (ENDF/B-VIII.0, H-1) | anisotropia presente ma senza effetto sulla ricostruzione (§6.5) | (c) |
 | Tracce misurate oltre 90° per lo smearing | σ_θ²/2 = 0.0032 | (b) |
-| Esempio: E_n = 3 MeV, θ_p = 30° | E_p = 2.25 MeV | (a) |
+| Esempio: E_n = 20 MeV, θ_p = 45° | E_p = 9.947 MeV (non relativistico: 10.000) | (a) |
 
 ## 3. Caso A — energia condivisa (notebook 02)
 
@@ -40,69 +45,89 @@ Risoluzioni del rivelatore: σ_Ep = 0.10 MeV, σ_θ = 0.08 rad. Prior sempre pro
 | R1, un evento (Ê_p = 1.40, θ̂_p = 0.50) | E_n = 1.82 ± 0.21 MeV (codice: σ pesata 0.219) | (c) |
 | R2, due eventi 2.70 ± 0.45 e 2.35 ± 0.20 | E_n = 2.40 ± 0.18 MeV (codice: 2.408 ± 0.183) | (c) |
 | R3, ricostruzione difettosa (+3%, +0.05 MeV, σ dichiarate −30%) | pull medio 0.90, larghezza 1.44, coverage 68% → 0.433 | (c) |
-| Checklist, 20 000 eventi, verità estratta dal prior | pull +0.003 / 0.998; coverage 0.683 / 0.899 / 0.949 (nominale) | (c) |
-| Stessa checklist, verità E_n ~ U(1, 5) | pull +0.115 / 0.927; coverage 0.735 / 0.925 / 0.964 | (c) |
-| Bias per bin di E_n (verità dal prior) | +0.51, +0.30, +0.08, −0.20, −0.69 MeV: attrazione verso il centro del prior | (c) |
-| Contrazione con N eventi | σ_N ≈ σ_1/√N | (c) |
-| Shift sistematico del 2% su E_p | l'offset si ferma a ≈ 0.05 MeV (= 0.02·E_n); σ continua a scendere: plateau | (c) |
+| Checklist, 20 000 eventi, E_n ~ U(10, 20) (= prior), θ_p ed E_p dalla cinematica in CM | pull −0.000 / 1.001; coverage 0.680 / 0.898 / 0.950 (nominale) | (c) |
+| Stessa checklist, verità E_n ~ U(11, 19) | pull +0.031 / 0.929; coverage 0.755 / 0.943 / 0.975 | (c) |
+| Bias per bin di E_n (verità dal prior) | +1.63, +0.83, +0.11, −0.70, −1.83 MeV: attrazione verso il centro del prior | (c) |
+| E_n combinato, N = 1000 a 15 MeV, prior piatto su θ_p (20 ripetizioni) | bias −0.101 ± 0.009 MeV, pull medio −3.9: plateau | (c) |
+| Stesso, prior fisico sin 2θ_p (default dalla v0.19) | bias −0.006 ± 0.008 MeV, pull medio −0.17 | (c) |
+| E_n combinato a N = 10 / 100 / 1000, E_n ~ U(11, 19) (M = 400 / 200 / 40) | rms 0.45 / 0.094 / 0.029 MeV, std post. 0.44 / 0.098 / 0.029; pull +0.15/0.96, +0.07/0.94, −0.00/0.97 | (c) |
+| Contrazione con N eventi | std·√N = 1.38 / 0.98 / 0.93 MeV: ≈ 1/√N da N ≈ 100, nessun plateau; a N = 10 il posterior non è ancora gaussiano | (c) |
+| Shift sistematico del 2% su E_p, 15 MeV | l'offset sale verso 0.02·E_n = 0.3 MeV (0.17 a N = 100, 0.25 a N = 1000, una realizzazione); σ scende a 0.03 MeV: plateau | (c) |
 
-Lettura: il posterior del Caso A è calibrato. La sovra-copertura vista prima (vecchio punto aperto 1)
-non è un difetto. Nasce dal generatore U(1, 5), più stretto del prior: in media la verità sta più
-vicino al centro del prior di quanto il prior preveda.
+Lettura: il posterior del Caso A è calibrato per evento e, dalla v0.19, anche combinato. La
+sovra-copertura col generatore U(11, 19) non è un difetto: il generatore è più stretto del prior, e
+in media la verità sta più vicino al centro del prior di quanto il prior preveda. A 10–20 MeV la
+risoluzione per evento su E_n (~1.3 MeV, dominata da σ_θ) è larga rispetto al dominio, per cui
+l'attrazione verso il centro è più forte che a bassa energia.
+
+Il prior piatto su θ_p usato fino alla v0.18 era incoerente con la cinematica a ogni energia: con
+scattering isotropo in CM cos²θ_p è uniforme, quindi p(θ_p) = sin 2θ_p (a); l'entità del bias a
+0.5–6 MeV non è stata misurata. Le checklist precedenti non lo
+vedevano perché generavano θ_p ~ U(0, π/2), coerente con quel prior. Generando dalla cinematica
+fisica, il prior piatto dà un bias comune a tutti gli eventi che non si riduce con N. Il caso di
+riferimento R1 resta definito col prior piatto e il test lo passa esplicitamente.
 
 ## 4. Caso B — direzione condivisa (notebook 03)
 
-Verità: Ω_n isotropa; E_n di ogni evento ~ U(0.5, 6) MeV, cioè distribuita come il suo prior.
+Verità: Ω_n isotropa; E_n di ogni evento ~ U(10, 20) MeV, cioè distribuita come il suo prior.
 Stima = MAP sulla calotta raffinata. Errori in gradi; M = numero di esperimenti.
 
 | N (M) | errore medio | rms errore | risoluzione dichiarata | pull rms | coverage HPD 68/90/95 |
 |---|---|---|---|---|---|
-| 10 (400) | 7.80 | 9.49 | 8.99 | 1.01 | 0.66 / 0.90 / 0.95 |
-| 30 (300) | 3.71 | 4.24 | 4.20 | 0.99 | 0.68 / 0.88 / 0.95 |
-| 100 (200) | 1.93 | 2.15 | 2.16 | 1.00 | 0.69 / 0.90 / 0.95 |
-| 300 (100) | 1.15 | 1.25 | 1.23 | 1.03 | 0.66 / 0.89 / 0.96 |
-| 1000 (40) | 0.53 | 0.59 | 0.68 | 0.88 | 0.78 / 0.95 / 1.00 |
-| 1000 (240) | — | 0.65 | 0.67 | 0.96 | 0.70 / 0.91 / 0.95 |
+| 10 (400) | 4.30 | 4.94 | 4.76 | 1.02 | 0.68 / 0.90 / 0.95 |
+| 30 (300) | 2.31 | 2.60 | 2.57 | 1.00 | 0.67 / 0.90 / 0.94 |
+| 100 (200) | 1.21 | 1.36 | 1.37 | 0.99 | 0.66 / 0.92 / 0.95 |
+| 300 (100) | 0.76 | 0.84 | 0.79 | 1.07 | 0.63 / 0.84 / 0.92 |
+| 1000 (40) | 0.35 | 0.37 | 0.43 | 0.85 | 0.80 / 0.98 / 1.00 |
 
-- Calibrato a ogni N (c). A N = 1000 la riga con M = 40 è quella della checklist; quella con
-  M = 240 aggiunge 200 esperimenti su seed disgiunti (`scripts/n1000_extra.py`, errore binomiale
-  ±0.03 al 68%) e riporta pull e coverage al nominale.
-- Contrazione: rms·√N = 0.52 / 0.41 / 0.38 / 0.38 / 0.36 rad per N = 10 / 30 / 100 / 300 / 1000.
-  Pendenza log-log −0.53 su N = 30–1000 e −0.57 su N = 10–1000 (attesa −0.5) (c). La pendenza più
-  ripida della v0.16 (−0.59) veniva dal punto a N = 1000 con M = 40.
-- A N = 10 il regime non è ancora gaussiano (c): la frazione di pull angolari oltre 3 è 0.023
-  contro 0.011 attesa per una Rayleigh, con mediana vicina all'attesa (1.12 contro 1.18). Le code
-  pesanti alzano rms·√N, non la larghezza tipica.
+- Calibrato a ogni N entro gli errori binomiali (±0.02 … ±0.07 al 68%) (c). A N = 1000 con M = 40
+  pull e coverage sono quelli già visti a 0.5–6 MeV con lo stesso M, rientrati al nominale con
+  M = 240; il controllo con più esperimenti (`scripts/n1000_extra.py`) non è stato rifatto a
+  10–20 MeV.
+- Contrazione: rms·√N = 0.27 / 0.25 / 0.24 / 0.25 / 0.20 rad per N = 10 / 30 / 100 / 300 / 1000,
+  pendenza log-log −0.55 (attesa −0.5) (c).
+- A 10–20 MeV la direzione è ricostruita circa due volte meglio che a 0.5–6 MeV (rms·√N
+  0.24 contro 0.38 rad a N = 100) (c): E_p è più grande rispetto a σ_Ep, quindi l'energia per
+  evento è meno incerta e pesa meno sulla ricostruzione angolare (interpretazione, d).
+- Le code pesanti del pull a N = 10 (frazione oltre 3) sono state misurate a 0.5–6 MeV e non
+  rifatte.
 - Un evento singolo riproduce la verosimiglianza analitica L ∝ π(E_n*)/cos θ (c).
 
 ## 5. Caso C — direzione ed energia gerarchica (notebooks 04, 05)
 
 Ricostruzione a due stadi, senza griglia 4D. Stadio 1: Ω_n come nel Caso B. Stadio 2:
 (μ_E, σ_E) su una griglia 2D con Ω_n fissata. Lo stadio 1 viene poi ripetuto con il prior
-predittivo, solo per raffinare Ω_n. La verità è generata con μ_E ~ U(2.5, 4) MeV e σ_E
-log-uniforme in (0.2, 0.6) MeV.
+predittivo, solo per raffinare Ω_n. La verità è generata con μ_E ~ U(13, 17) MeV e σ_E
+log-uniforme in (0.8, 2.4) MeV (stessa σ/μ della v0.18, che usava U(2.5, 4) e (0.2, 0.6)).
 
-| N (M) | bias μ_E [MeV] | bias log σ_E | rms Ω_n [°] (dichiarata) | coverage 68% μ / log σ / Ω |
-|---|---|---|---|---|
-| 50 (200) | +0.002 | −0.154 ± 0.033 | 1.97 (1.87) | 0.68 / 0.66 / 0.70 |
-| 150 (200) | +0.001 | −0.055 ± 0.019 | 1.11 (1.06) | 0.70 / 0.60 / 0.65 |
-| 300 (100) | −0.001 | −0.017 ± 0.017 | 0.75 (0.75) | 0.66 / 0.64 / 0.66 |
-| 1000 (40) | +0.002 | +0.008 ± 0.008 | 0.37 (0.41) | 0.55 / 0.70 / 0.78 |
-| 1000 (240) | +0.0002 ± 0.0012 | −0.006 ± 0.004 | 0.42 (0.41) | 0.69 / 0.71 / 0.67 |
+**Stato a 10–20 MeV: calibrazione di μ_E e log σ_E non raggiunta, punto aperto (c).**
+Checklist `scripts/caso_C_checklist.py`, v0.19:
 
-| Verifica | Risultato | |
-|---|---|---|
-| Esempio guidato: μ = 3, σ = 0.4, θ = 30° | E_p ~ N(2.25, 0.316) MeV | (a) |
-| Limiti σ_E → 0 e σ_E → ∞ | si ritrovano il Caso A e il Caso B | (c) |
-| μ_E | bias ≈ 0 e pull ≈ N(0, 1) a ogni N | (c) |
-| Ω_n | pull rms 1.00–1.05 per N ≤ 300 | (c) |
-| Bias di log σ_E a N piccolo | effetto del prior largo su σ_E; nullo col prior del generatore | (c) |
-| Coverage 68% di log σ_E a N = 150–300, ripetuta su seed nuovi | 0.680 ± 0.016 (era una fluttuazione) | (c) |
-| Coverage 90% di μ_E a N = 300, ripetuta su seed nuovi | 0.897 ± 0.012 (M = 600); 0.890 ± 0.010 con anche i seed della ripetizione al 68% (M = 900) | (c) |
-| Ω_n a N = 50 col prior predittivo (M = 800) | coverage 0.695 / 0.899 / 0.945, pull rms 1.00 | (c) |
-| Contrazione (pendenza log-log) | μ −0.46 · Ω −0.56 · log σ −0.74 (il bias va a zero) | (c) |
-| N = 1000 con M = 240 (200 esperimenti aggiunti) | coverage 90% μ / log σ / Ω 0.95 / 0.91 / 0.90; pull μ +0.01/0.92, log σ −0.09/0.94, Ω rms 1.01. μ leggermente sovra-coperto al 90% (0.95 ± 0.019): la std posteriore è ~8% più larga della dispersione. Compatibile con una fluttuazione (`scripts/mu_N1000_diag.py`): larghezza del pull a −1.7 σ, coverage 90%/95% a +2.6/+2.4 σ ma correlate; con la covarianza di pseudo-esperimenti calibrati la p-value globale è 0.08. Nessuna struttura per terzili di σ_E o μ_E (larghezze 0.89–0.99 ± 0.06); il passo della griglia fine (~0.23 std) non incide sui momenti | (c) |
-| Robustezza al prior, spettro non gaussiano, seconda sorgente, correlazione fra stadi | §6 | |
+| N (M) | bias μ_E [MeV] | rms μ_E (std post.) | bias log σ_E | pull log σ_E | rms Ω_n [°] (dichiarata) | coverage 68% μ / log σ / Ω |
+|---|---|---|---|---|---|---|
+| 50 (200) | +0.05 ± 0.04 | 0.59 (0.80) | −0.05 ± 0.06 | +0.10 / 0.99 | 1.77 (1.74) | 0.62 / 0.55 / 0.73 |
+| 150 (200) | +0.05 ± 0.04 | 0.52 (0.39) | +0.05 ± 0.02 | +0.24 / 1.05 | 0.99 (0.95) | 0.72 / 0.55 / 0.64 |
+| 300 (100) | −0.04 ± 0.05 | 0.47 (0.21) | +0.02 ± 0.03 | +0.33 / 1.16 | 0.65 (0.66) | 0.51 / 0.56 / 0.68 |
+| 1000 (40) | +0.02 ± 0.03 | 0.18 (0.10) | +0.04 ± 0.01 | +0.61 / 1.09 | 0.35 (0.36) | 0.55 / 0.60 / 0.72 |
+
+- **Ω_n calibrata** a ogni N: pull rms 0.97–1.03, coverage HPD nei limiti binomiali, pendenza di
+  contrazione −0.55 (c).
+- **μ_E**: bias compatibile con zero, ma a N ≥ 300 larghezza del pull 1.24–1.30 e coverage 68%
+  0.51–0.55. Il rapporto fra errore rms e std posteriore media è più grande (2.2 a N = 300) perché
+  la std varia fra esperimenti; la misura della calibrazione è il pull. L'errore rms quasi non
+  contrae fra N = 50 e 300 (pendenza −0.39 su tutto il range) (c).
+- **log σ_E**: pull medio positivo crescente con N (+0.10 → +0.61), coverage 68% 0.55–0.60 (c).
+- Stessi numeri con generazione isotropa e anisotropa (§6.5): non è l'anisotropia.
+- A 0.5–6 MeV (v0.18) lo stesso codice era calibrato (μ_E pull ≈ N(0, 1) a ogni N, log σ_E con
+  coverage nominale su seed nuovi). Il cambio di dominio ha rotto la calibrazione. Ipotesi da
+  indagare in una modifica separata (d): a 10–20 MeV la risoluzione per evento su E_n (~1.3 MeV) è
+  paragonabile a σ_E, quindi σ_E è poco vincolato e il posterior si appoggia al bordo della
+  finestra o al prior; il passo e l'estensione della finestra fine dello stadio 2 vanno
+  ricontrollati sulle nuove scale.
+- Robustezza al prior su σ_E (N = 150): spostamento di μ_E +0.005 σ, di log σ_E +0.23 σ (c).
+
+La tabella e le verifiche della v0.18 (0.5–6 MeV) restano valide per quel dominio e sono nella
+storia git di questo file.
 
 ## 6. Stress test delle assunzioni
 
@@ -114,44 +139,39 @@ quella standard.
 ### 6.1 Robustezza al prior (`scripts/robustezza_prior.py`)
 
 Metrica: spostamento della stima in unità della std posteriore del prior di default, e coverage
-col prior alternativo. Prior alternativi, tutti propri: E_n piatto su [0.5, 10] MeV ("largo"),
-log-uniforme su [0.5, 6] e su [0.5, 10] MeV; Ω_n von Mises–Fisher con κ = 2 (larga ~40°) e asse a
-90° dalla verità; σ_E uniforme in σ invece che in log σ.
+col prior alternativo. Prior alternativi, tutti propri: E_n piatto su [10, 30] MeV ("largo"),
+log-uniforme su [10, 20] e su [10, 30] MeV; Ω_n von Mises–Fisher con κ = 2 (larga ~40°) e asse a
+90° dalla verità; σ_E uniforme in σ invece che in log σ. Numeri v0.19, 10–20 MeV; nel Caso A la
+verità è generata dalla cinematica in CM e il prior su θ_p è quello fisico.
 
 | Caso, parametro | Prior alternativo | Spostamento medio / std (N crescente) | Coverage 68% | |
 |---|---|---|---|---|
-| A, E_n | piatto largo | +0.49 / +0.18 / +0.02 / +0.01 / +0.01 (N = 1 / 3 / 10 / 30 / 100) | 0.67–0.71 | (c) |
-| A, E_n | log-uniforme | −0.24 / −0.09 / −0.03 / −0.02 / −0.01 | 0.65–0.71 | (c) |
-| B, Ω_n | von Mises–Fisher a 90° | 0.21 / 0.09 / 0.04 / 0.02 (N = 10 / 30 / 100 / 300) | 0.60–0.72 | (c) |
-| B, Ω_n | E_n piatto largo | 1.12 / 1.18 / 1.04 / 1.22 | 0.68–0.75 | (c) |
-| B, Ω_n | E_n log-uniforme | 0.46 / 0.34 / 0.32 / 0.29 | 0.62–0.67 | (c) |
-| C, μ_E | σ_E uniforme | −0.02 / −0.01 / −0.00 / −0.00 (N = 50 / 150 / 300 / 1000) | 0.66–0.71 (0.55 a N = 1000, M = 40, uguale al default) | (c) |
-| C, log σ_E | σ_E uniforme | +0.32 / +0.17 / +0.11 / +0.06 | 0.59–0.70 | (c) |
+| A, E_n | piatto largo | +0.79 / +0.36 / +0.09 / +0.05 / +0.03 (N = 1 / 3 / 10 / 30 / 100) | 0.66–0.70 | (c) |
+| A, E_n | log-uniforme | −0.12 / −0.06 / −0.03 / −0.01 / −0.01 | 0.65–0.70 | (c) |
+| B, Ω_n | von Mises–Fisher a 90° | 0.11 / 0.05 / 0.03 / 0.03 (N = 10 / 30 / 100 / 300) | 0.60–0.70 | (c) |
+| B, Ω_n | E_n piatto largo | 0.78 / 0.74 / 0.72 / 0.75 | 0.62–0.73 | (c) |
+| B, Ω_n | E_n log-uniforme | 0.13 / 0.11 / 0.12 / 0.08 | 0.56–0.69 | (c) |
+| C, μ_E | σ_E uniforme | −0.02 / +0.01 / −0.00 / +0.00 (N = 50 / 150 / 300 / 1000) | 0.50–0.75, uguale al default a N ≥ 150 | (c) |
+| C, log σ_E | σ_E uniforme | +0.76 / +0.28 / +0.14 / +0.07 | 0.50–0.60 | (c) |
 
-- Il prior sui **parametri condivisi** (E_n nel Caso A, Ω_n nel Caso B, (μ_E, σ_E) nel Caso C) viene
-  dimenticato come atteso: lo spostamento scende con N (c). Nel Caso A col prior largo restano
-  spostamenti massimi di 1.5–2 σ anche a N = 30–100, nei pochi esperimenti con verità vicina a
-  6 MeV, dove il prior di default tronca il posterior.
-- Il prior sul **nuisance per evento** (E_n nel Caso B) non viene dimenticato: lo spostamento di Ω̂_n
-  resta ~1 σ (prior largo) o ~0.3 σ (log-uniforme) a ogni N (c). Col prior largo l'errore rms
-  cresce (17.0° contro 9.8° a N = 10, 2.0° contro 1.3° a N = 300) ma la std posteriore cresce
-  con esso: pull rms 0.90–0.99, coverage nominale o sopra. Il meccanismo è stato verificato
-  (`scripts/prior_B_rumore.py`, sugli stessi esperimenti). Lo spostamento d = Ω̂_alt − Ω̂_def nel
-  piano tangente è **rumore, non bias**: il vettore medio è compatibile con zero a ogni N e per
-  entrambi i prior (c). Col default uguale al prior del generatore la stima di default è
-  efficiente, quindi vale la relazione tipo Hausman rms|d|² ≈ rms(err_alt)² − rms(err_def)². Col
-  prior largo regge a N ≥ 30: rms|d|/σ osservato contro previsto 1.38/1.43 (N = 30), 1.18/1.20
-  (100), 1.40/1.29 ± 0.1 (300) (c). Il rapporto rms(err_alt)/rms(err_def) è ~costante con N
-  (1.74 / 1.75 / 1.60 / 1.58): ogni evento spreca la stessa frazione d'informazione su Ω_n, ed è
-  questo che tiene lo spostamento ~1 σ a ogni N (c). Fanno eccezione N = 10 col prior largo
-  (correlazione err_def·d = +0.26 ± 0.05; lì il posterior non è gaussiano e il MAP non è la
-  media) e il log-uniforme a N ≤ 30, dove non è meno efficiente del default (rapporto 0.98 /
-  1.03): lo spostamento di ~0.3 σ è rumore fra due stime equivalenti. In pratica il prior su
-  E_n del Caso B va scelto sullo spettro fisico atteso: un prior sbagliato costa precisione,
-  non calibrazione (c).
-- σ_E: la dipendenza dal prior di log σ_E scende da 0.32 σ (N = 50) a 0.06 σ (N = 1000) (c).
+- Il prior sui **parametri condivisi** viene dimenticato con N, come a 0.5–6 MeV (c). Nel Caso A
+  col prior largo restano spostamenti massimi di 2–4 σ a N = 10–30, negli esperimenti con verità
+  vicina a 20 MeV, dove il prior di default tronca il posterior; la risoluzione per evento (~1.3 MeV)
+  è larga rispetto al dominio, quindi la troncatura conta più che a bassa energia.
+- Il prior sul **nuisance per evento** (E_n nel Caso B) non viene dimenticato: Ω̂_n si sposta di
+  ~0.75 σ (prior largo) o ~0.1 σ (log-uniforme) a ogni N (c), meno che a 0.5–6 MeV (~1.1 e ~0.3 σ).
+  Col prior largo l'errore rms cresce (7.1° contro 4.8° a N = 10, 1.05° contro 0.87° a N = 300),
+  pull rms 0.94–1.00: costa precisione, non calibrazione (c). L'analisi tipo Hausman
+  (`scripts/prior_B_rumore.py`) è stata fatta a 0.5–6 MeV e non rifatta.
+- σ_E: la dipendenza dal prior di log σ_E scende da 0.76 σ (N = 50) a 0.07 σ (N = 1000) (c), più forte
+  che a 0.5–6 MeV (0.32 σ a N = 50): coerente con un σ_E meno vincolato dai dati (§5, d).
+- Il Caso C eredita la calibrazione mancata di §5 con entrambi i prior: la robustezza dice che il
+  difetto non viene dalla scelta del prior su σ_E a N ≥ 150 (c).
 
 ### 6.2 Spettro non gaussiano, Caso C (`scripts/stress_spettro.py`)
+
+> **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
+> metodo; vanno rilanciati sul nuovo dominio, dopo aver chiuso la calibrazione del Caso C (§5).
 
 Energie vere da spettri con la stessa media e sd di N(μ_E, σ_E) ma forma uniforme, bimodale (due
 righe a ±0.9 sd), lognormale, Laplace (curtosi 6) o Student-t con 5 gradi di libertà (curtosi 9);
@@ -188,6 +208,9 @@ il modello resta gaussiano. Bersagli: media e sd vere dello spettro.
   comporta come la gaussiana, con coverage appena più bassa (c).
 
 ### 6.3 Sorgente unica, Casi B e C (`scripts/stress_sorgente.py`)
+
+> **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
+> metodo; vanno rilanciati sul nuovo dominio, dopo aver chiuso la calibrazione del Caso C (§5).
 
 Una frazione f di eventi viene da una seconda sorgente puntiforme a separazione Δ (10°, 30°, 90°)
 o da un fondo isotropo; la ricostruzione resta a sorgente unica. Diagnostica: test KS fra gli
@@ -232,6 +255,9 @@ Caso B, N = 300 (σ posteriore ≈ 1.2°):
   scope).
 
 ### 6.4 Due stadi contro stima congiunta, Caso C (`scripts/correlazione_stadi.py`)
+
+> **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
+> metodo; vanno rilanciati sul nuovo dominio, dopo aver chiuso la calibrazione del Caso C (§5).
 
 Sugli stessi dataset della checklist del Caso C (M = 100 per N), si parte dalle stime dei due
 stadi e si calcola l'approssimazione di Laplace del posterior congiunto 4D (Ω_n nel piano tangente,
@@ -280,12 +306,36 @@ Pull (media / larghezza; Ω: rms):
   Pull medio delle stime puntuali: media due stadi +0.07 / +0.07 / +0.02, Laplace convergente
   −0.16 / −0.09 / −0.11. Da questo lato la stima a due stadi (media) è migliore (c).
 
+### 6.5 Isotropia in CM, Casi A, B e C (`scripts/stress_anisotropia.py`)
+
+Generazione con la distribuzione angolare n–p vera (coefficienti di Legendre di H-1, ENDF/B-VIII.0,
+10–20 MeV), ricostruzione isotropa. Esperimenti appaiati: stesso seme e stesso flusso RNG con
+generazione isotropa e anisotropa, quindi la differenza isola l'effetto dell'anisotropia.
+Criterio fissato prima: trascurabile se il bias aggiunto è < 0.2 std posteriore al N massimo e la
+coverage resta nei limiti binomiali.
+
+| Caso, parametro | Bias aggiunto (aniso − iso), in std post. | Effetto su pull / coverage | |
+|---|---|---|---|
+| A, E_n | 0.01 / 0.04 / 0.12 (N = 10 / 100 / 1000) | nessuno (pull −0.00 → +0.11 a N = 1000, larghezza 0.97) | (c) |
+| B, Ω_n | — (simmetria azimutale) | pull rms e coverage invariati a ogni N | (c) |
+| C, μ_E | 0.02 / 0.04 / 0.07 / 0.15 (N = 50 / 150 / 300 / 1000) | invariati entro gli errori | (c) |
+| C, log σ_E | ≤ 0.02 | invariati | (c) |
+| C, Ω_n | — | invariati | (c) |
+
+Verdetto: l'anisotropia vera a 10–20 MeV non cambia la ricostruzione al livello del toy (c), e il
+modello resta isotropo. Il bias su μ_E cresce con N (0.15 σ a N = 1000, vicino alla soglia): oltre
+N ≈ 1000 va ricontrollato o messo nella verosimiglianza. Il Caso C ha la stessa calibrazione mancata
+con le due generazioni (§5), quindi quel difetto non viene dall'isotropia.
+
 ## 7. Prestazioni
+
+Tempi di `loglik` del Caso A misurati a 10–20 MeV (cinematica relativistica, buffer unico riusato
+in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV (~7 min con 3 processi).
 
 | Operazione | Tempo | |
 |---|---|---|
-| `loglik` Caso A, 1 evento | 0.64 ms (target < 1 ms) | (c) |
-| `loglik` Caso A, 1000 eventi | 1.0–1.2 s (target ridefinito a 2 s) | (c) |
+| `loglik` Caso A, 1 evento | 0.67 ms (target < 1 ms) | (c) |
+| `loglik` Caso A, 1000 eventi | 0.71 s (target ridefinito a 2 s) | (c) |
 | Esperimento Caso C a N = 300 | ~2 s (prima 19 s) | (c) |
 | Checklist Caso C completa | ~8 min con 3 processi | (c) |
 
@@ -307,5 +357,10 @@ Pull (media / larghezza; Ω: rms):
 - **Caso C, due stadi:** chiuso come limite. La correlazione fra Ω_n e (μ_E, σ_E) trascurata dai due
   stadi costa ≤ 1% sulle incertezze in media (≤ 6% nel caso peggiore) a N ≥ 50 (c, §6.4).
 - **Nuisance z** (profondità d'interazione) del Caso A fuori scope: nessun osservabile definito.
-- **Isotropia in CM** assunta nel range 0.5–6 MeV; oltre ~10 MeV va verificata (d).
+- **Isotropia in CM** a 10–20 MeV: la distribuzione angolare vera (ENDF/B-VIII.0) non cambia la
+  ricostruzione (c, §6.5); il modello resta isotropo.
+- **Calibrazione del Caso C a 10–20 MeV:** non raggiunta per μ_E e log σ_E (c, §5), da indagare.
+- **Fuori scope:** sezione d'urto n–p decrescente con E_n (spettro rivelato ≠ spettro incidente),
+  soglia su E_p basse.
+- I limiti su assunzione 1, assunzione 3 e due stadi sono quantificati a 0.5–6 MeV (§6.2–6.4).
 - **Target di prestazione** di `loglik` per N = 1000 ridefinito da 50 ms a 2 s: il limite è il numpy denso.

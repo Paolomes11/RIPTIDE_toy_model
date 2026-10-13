@@ -57,27 +57,40 @@ def loglik(D: tuple[np.ndarray, np.ndarray], En_grid: np.ndarray,
         array (n_events, n_En), log-verosimiglianza (float32).
     """
     Ep_hat, theta_p_hat = D
-    Ep_hat = Ep_hat.astype(np.float32)
     theta_p_hat = theta_p_hat.astype(np.float32)
     n_events, n_En = Ep_hat.shape[0], En_grid.shape[0]
 
     theta = theta_p_grid[None, :].astype(np.float32)
     En = En_grid[:, None].astype(np.float32)
-    Ep_pred = (En * np.cos(theta) ** 2)[None]
-    inv_sigma_Ep = np.float32(1.0 / sigma_Ep)
+    # residuo scalato per sqrt(0.5)/sigma_Ep: il suo quadrato e' gia' -1 volte il
+    # termine gaussiano in Ep, e la moltiplicazione per -0.5 sulla tabella piena sparisce
+    scale = np.float32(np.sqrt(0.5) / sigma_Ep)
+    Ep_hat_scaled = Ep_hat.astype(np.float32) * scale
+    Ep_pred_scaled = kinematics.proton_energy(En, theta)[None]  # (1, n_En, n_theta), float32
+    Ep_pred_scaled *= scale
     # termine in theta per evento, (n_events, 1, n_theta): non dipende da En
     second = (-0.5 * ((theta_p_hat[:, None] - theta) / sigma_theta) ** 2
               + log_prior_theta[None, :]).astype(np.float32)[:, None, :]
+
+    # un solo buffer per tutti i chunk, operazioni in place: allocare tabelle
+    # nuove a ogni passo costava un terzo del tempo in page fault (profilo).
+    # Con un evento solo il buffer e' la tabella delle predizioni stessa, con la
+    # stessa vista (1, n_En, n_theta): viste diverse della stessa memoria fanno
+    # copiare a numpy l'input per prudenza, e la tabella in piu' si riallocava.
+    if n_events == 1:
+        buffer = Ep_pred_scaled
+    else:
+        buffer = np.empty((min(chunk_size, n_events), n_En, theta.shape[1]), dtype=np.float32)
 
     out = np.empty((n_events, n_En), dtype=np.float32)
     for start in range(0, n_events, chunk_size):
         end = min(start + chunk_size, n_events)
         # log-sum-exp su theta a mano e in place: scipy.special.logsumexp era il
         # 75% del tempo (conversioni e passate extra, profilo in docs/roadmap.md)
-        joint = (Ep_hat[start:end, None, None] - Ep_pred) * inv_sigma_Ep  # (chunk, n_En, n_theta)
+        joint = buffer[:end - start]  # (chunk, n_En, n_theta)
+        np.subtract(Ep_hat_scaled[start:end, None, None], Ep_pred_scaled, out=joint)
         joint *= joint
-        joint *= np.float32(-0.5)
-        joint += second[start:end]
+        np.subtract(second[start:end], joint, out=joint)
         joint_max = joint.max(axis=2, keepdims=True)  # finito: il prior su theta e' finito
         joint -= joint_max
         np.exp(joint, out=joint)
@@ -91,9 +104,12 @@ def loglik_marginal_En(Ep_hat: np.ndarray, theta_p: np.ndarray, En_grid: np.ndar
     theta_p gia' noto per ogni evento/candidato (calcolato geometricamente
     da kinematics.recoil_angle_from_direction, non marginalizzato qui).
 
-    Fisica: Ep = En*cos^2(theta_p), theta_lab <= pi/2 (scattering elastico a masse uguali: il rinculo e' sempre in avanti). I
+    Fisica: Ep da kinematics.proton_energy (relativistica), theta_lab <= pi/2
+    (scattering elastico a masse uguali: il rinculo e' sempre in avanti). I
     candidati con theta_p > pi/2 sono cinematicamente vietati e ricevono
-    log-verosimiglianza -inf.
+    log-verosimiglianza -inf. Della densita' della traccia p(theta_p | En) si
+    tiene solo il fattore relativistico che dipende da En: il limite cos/pi non
+    dipende da En e lo aggiunge chi confronta direzioni candidate.
 
     Args:
         Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
@@ -105,9 +121,10 @@ def loglik_marginal_En(Ep_hat: np.ndarray, theta_p: np.ndarray, En_grid: np.ndar
     Ritorna:
         array (n_events, n_candidates), log-verosimiglianza marginalizzata su En.
     """
-    Ep_pred = En_grid[None, None, :] * np.cos(theta_p)[:, :, None] ** 2
+    Ep_pred = kinematics.proton_energy(En_grid[None, None, :], theta_p[:, :, None])
     joint = -0.5 * ((Ep_hat[:, None, None] - Ep_pred) / sigma_Ep) ** 2
-    joint = joint + log_prior_En[None, None, :]
+    joint = joint + log_prior_En[None, None, :] + kinematics.log_recoil_density_ratio(
+        theta_p[:, :, None], En_grid[None, None, :])
     joint = np.where(theta_p[:, :, None] <= np.pi / 2, joint, -np.inf)
     return logsumexp_axis(joint, axis=2)
 
@@ -128,7 +145,8 @@ def loglik_marginal_En_hierarchical(Ep_hat: np.ndarray, theta_p: np.ndarray,
     iperparametro ha la propria pi(En | mu_E, sigma_E)
     (priors.energy_prior_given_hyperparams): il prior varia lungo l'asse
     dei candidati, da cui la funzione separata invece di riusare quella
-    del Caso B.
+    del Caso B. Come la', della densita' della traccia si tiene solo il
+    fattore relativistico che dipende da En.
 
     Args:
         Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
@@ -148,8 +166,9 @@ def loglik_marginal_En_hierarchical(Ep_hat: np.ndarray, theta_p: np.ndarray,
     n_events = Ep_hat.shape[0]
     n_hyper = log_prior_En_grid.shape[0]
 
-    Ep_pred = En_grid[None, :] * np.cos(theta_p)[:, None] ** 2  # (n_events, n_En)
-    base = -0.5 * ((Ep_hat[:, None] - Ep_pred) / sigma_Ep) ** 2
+    Ep_pred = kinematics.proton_energy(En_grid[None, :], theta_p[:, None])  # (n_events, n_En)
+    base = (-0.5 * ((Ep_hat[:, None] - Ep_pred) / sigma_Ep) ** 2
+            + kinematics.log_recoil_density_ratio(theta_p[:, None], En_grid[None, :]))
     base = np.where((theta_p <= np.pi / 2)[:, None], base, -np.inf)
 
     return marginalize_En_hierarchical(base, log_prior_En_grid, chunk_size)
@@ -245,8 +264,10 @@ def marginalize_En_hierarchical(base: np.ndarray, log_prior_En_grid: np.ndarray,
 
 
 def log_track_density(theta_p: np.ndarray) -> np.ndarray:
-    """log p(traccia | Omega_n) per scattering isotropo in CM: cos(theta_p)/pi
-    per steradiante sull'emisfero anteriore, 0 su quello posteriore.
+    """log p(traccia | Omega_n) per scattering isotropo in CM nel limite non
+    relativistico: cos(theta_p)/pi per steradiante sull'emisfero anteriore, 0 su
+    quello posteriore. Il fattore relativistico, che dipende da En
+    (kinematics.log_recoil_density_ratio), si aggiunge nel termine in energia.
 
     Args:
         theta_p: angolo fra traccia e Omega_n, rad, forma qualsiasi.
@@ -340,8 +361,10 @@ def track_angle_cdf(sigma_theta: float, n_theta: int = N_THETA_TRACK,
                     n_theta_obs: int = N_THETA_OBS) -> tuple[np.ndarray, np.ndarray]:
     """Funzione di ripartizione dell'angolo osservato fra traccia e Omega_n
     per sorgente unica: densita' cos(theta_p)/pi per steradiante convoluta con
-    la risoluzione angolare (log_track_kernel_sphere). Non dipende da E_n
-    (cos^2 theta_p ~ U(0, 1) per ogni E_n), quindi vale nei Casi B e C.
+    la risoluzione angolare (log_track_kernel_sphere). Usa il limite non
+    relativistico, indipendente da E_n, quindi vale nei Casi B e C: il fattore
+    relativistico sposta la ripartizione di al piu' 0.003 a 20 MeV, sotto la
+    soglia di un test KS fino a ~10^5 eventi.
 
     Args:
         sigma_theta: risoluzione angolare per componente, rad.
@@ -387,14 +410,17 @@ def track_energy_table(Ep_hat: np.ndarray, En_grid: np.ndarray, sigma_Ep: float,
     theta_grid = np.linspace(0.0, np.pi / 2, n_theta)
     obs_grid = np.linspace(0.0, np.pi, n_theta_obs)
     kernel = log_track_kernel_sphere(obs_grid, theta_grid, sigma_theta)  # (n_obs, n_theta)
+    Ep_pred = kinematics.proton_energy(En_grid[None, :], theta_grid[:, None])  # (n_theta, n_En)
+    # fattore relativistico della densita' della traccia: dipende da En, quindi sta
+    # nel termine in energia e non nel kernel angolare (che porta solo cos(theta_p)/pi)
+    log_weight_En = kinematics.log_recoil_density_ratio(theta_grid[:, None], En_grid[None, :]) + log_prior_En
 
     n_events = Ep_hat.shape[0]
     table = np.empty((n_events, n_theta_obs), dtype=np.float64)
     for start in range(0, n_events, chunk_size):
         end = min(start + chunk_size, n_events)
-        theta_true = np.broadcast_to(theta_grid, (end - start, n_theta))
-        energy = loglik_marginal_En(Ep_hat[start:end], theta_true, En_grid,
-                                    sigma_Ep, log_prior_En)          # (chunk, n_theta)
+        joint = -0.5 * ((Ep_hat[start:end, None, None] - Ep_pred[None]) / sigma_Ep) ** 2 + log_weight_En
+        energy = logsumexp_axis(joint, axis=2)                       # (chunk, n_theta)
         table[start:end] = log_matmul_exp(energy, kernel)
     return table
 
@@ -487,13 +513,16 @@ def hierarchical_base(Ep_hat: np.ndarray, theta_obs: np.ndarray, En_grid: np.nda
         array (n_events, n_En), log-verosimiglianza (a meno di una costante comune).
     """
     theta_grid = np.linspace(0.0, np.pi / 2, n_theta)
-    Ep_pred = En_grid[None, :] * np.cos(theta_grid)[:, None] ** 2    # (n_theta, n_En)
+    Ep_pred = kinematics.proton_energy(En_grid[None, :], theta_grid[:, None])  # (n_theta, n_En)
+    # fattore relativistico della densita' della traccia: dipende da En, quindi sta
+    # qui e non nel kernel angolare (che porta solo cos(theta_p)/pi)
+    density_ratio = kinematics.log_recoil_density_ratio(theta_grid[:, None], En_grid[None, :])
     n_events = Ep_hat.shape[0]
     base = np.empty((n_events, En_grid.shape[0]), dtype=np.float64)
     for start in range(0, n_events, event_chunk_size):
         end = min(start + event_chunk_size, n_events)
         kernel = log_track_kernel_sphere(theta_obs[start:end], theta_grid, sigma_theta)
-        energy = -0.5 * ((Ep_hat[start:end, None, None] - Ep_pred[None]) / sigma_Ep) ** 2
+        energy = -0.5 * ((Ep_hat[start:end, None, None] - Ep_pred[None]) / sigma_Ep) ** 2 + density_ratio
         base[start:end] = logsumexp_axis(kernel[:, :, None] + energy, axis=1)
     return base
 

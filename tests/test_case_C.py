@@ -50,7 +50,7 @@ def test_log_energy_prior_given_hyperparams_matches_and_stays_finite_at_small_si
 
     # sigma_E piccolo: la densita' lineare va a 0 (log -> -inf con warning),
     # la versione log resta finita su tutta la griglia.
-    tiny = priors.log_energy_prior_given_hyperparams(en_grid, np.array([3.0]), np.array([0.01]))
+    tiny = priors.log_energy_prior_given_hyperparams(en_grid, np.array([15.0]), np.array([0.01]))
     assert np.all(np.isfinite(tiny))
 
 
@@ -115,10 +115,11 @@ def test_sigma_E_to_zero_recovers_shared_true_energy():
     # riga 13, secondo test di limite: sigma_E -> 0 => Caso A (En condiviso e
     # quasi fisso). N eventi mono-energetici (stesso En_true per tutti):
     # il MAP di mu_E sulla colonna a sigma_E piu' piccolo deve avvicinarsi a
-    # En_true (gia' verificato in REPL: errore assoluto 0.042 MeV su N=40).
+    # En_true entro un passo della griglia di mu_E (la precisione del MAP e'
+    # limitata dalla griglia, non dalla statistica di N=40 eventi a theta_p noto).
     rng = np.random.default_rng(SEED)
     n_events = 40
-    en_true_shared = 2.5
+    en_true_shared = 15.0
 
     theta_p = rng.uniform(0.0, np.pi / 2 - 0.05, n_events)
     Ep_hat = kinematics.proton_energy(
@@ -139,21 +140,22 @@ def test_sigma_E_to_zero_recovers_shared_true_energy():
     mu_1d = mu_grid.reshape(60, 60)[:, 0]
     map_mu_E = mu_1d[map_mu_idx]
 
-    assert abs(map_mu_E - en_true_shared) < 0.1
+    assert abs(map_mu_E - en_true_shared) <= np.diff(mu_1d)[0]
 
 
 def test_posterior_C_end_to_end_direction_and_hyperparams():
     # Integrazione riga 13: estimate_shared_direction (stadio 1, riuso Caso B)
     # seguito da single_event_posterior (stadio 2, griglia 2D su mu_E,sigma_E),
     # su un dataset sintetico con Omega_n e (mu_E, sigma_E) noti. Tolleranze
-    # larghe: singola realizzazione MC con N modesto, non una media d'insieme.
+    # larghe: singola realizzazione MC con N modesto, non una media d'insieme;
+    # quella su mu_E e' 5/3 sigma_E_true, scala con l'energia insieme alla verita'.
     rng = np.random.default_rng(SEED)
     n_events = 60
     true_theta, true_phi = 0.9, 2.1
     omega_n_true = kinematics.direction_from_theta_phi(
         np.array([true_theta]), np.array([true_phi])
     )[0]
-    mu_E_true, sigma_E_true = 3.0, 0.3
+    mu_E_true, sigma_E_true = 15.0, 1.5
 
     # generatore fisico isotropo in CM + risoluzioni SIGMA_EP, SIGMA_THETA
     # (R3; prima: tracce isotrope in lab tagliate a theta_p <= pi/2, senza
@@ -182,7 +184,7 @@ def test_posterior_C_end_to_end_direction_and_hyperparams():
 
     combined = combine.combine_loglik(loglik, np.log(hprior))
     best = np.argmax(combined)
-    assert abs(mu_grid[best] - mu_E_true) < 0.5
+    assert abs(mu_grid[best] - mu_E_true) < 5.0 / 3.0 * sigma_E_true
 
 
 def test_stage1_error_contracts_at_large_N():
@@ -192,7 +194,7 @@ def test_stage1_error_contracts_at_large_N():
     rng = np.random.default_rng(SEED)
     n_events = 300
     omega_n_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([2.1]))[0]
-    En_k = rng.normal(3.0, 0.3, n_events)
+    En_k = rng.normal(15.0, 1.5, n_events)
     Ep_true, track_true = kinematics.sample_recoil_events(rng, En_k, omega_n_true)
     track_hat = kinematics.smear_direction(rng, track_true, SIGMA_THETA)
     Ep_hat = rng.normal(Ep_true, SIGMA_EP)
@@ -242,10 +244,10 @@ def test_estimate_shared_direction_finite_when_no_direction_has_all_tracks_forwa
 
 
 def test_hyperparameter_grid_window_layout_and_clipping():
-    mu_grid, sigma_grid = grids.hyperparameter_grid_window(2.0, 3.0, 0.2, 0.8, 11, 7)
+    mu_grid, sigma_grid = grids.hyperparameter_grid_window(12.0, 13.0, 0.2, 0.8, 11, 7)
     assert mu_grid.shape == sigma_grid.shape == (77,)
     assert not mu_grid.flags.writeable and not sigma_grid.flags.writeable
-    np.testing.assert_allclose(mu_grid.reshape(11, 7)[:, 0], np.linspace(2.0, 3.0, 11))
+    np.testing.assert_allclose(mu_grid.reshape(11, 7)[:, 0], np.linspace(12.0, 13.0, 11))
     np.testing.assert_allclose(sigma_grid.reshape(11, 7)[0], np.geomspace(0.2, 0.8, 7))
     # finestra oltre il dominio globale: tagliata a [EN_MIN, EN_MAX] x [SIGMA_E_MIN, SIGMA_E_MAX]
     mu_wide, sigma_wide = grids.hyperparameter_grid_window(-1.0, 99.0, 1e-5, 1e5, 5, 5)
@@ -290,7 +292,7 @@ def test_direction_cap_radius_not_degenerate_when_map_self_angle_rounds_above_ze
 
 def test_hyperparameter_window_contains_region_above_threshold():
     mu_grid, sigma_grid = grids.hyperparameter_grid(30, 30)
-    log_post = -0.5 * ((mu_grid - 3.0) / 0.2) ** 2 - 0.5 * (np.log(sigma_grid / 0.4) / 0.3) ** 2
+    log_post = -0.5 * ((mu_grid - 15.0) / 1.0) ** 2 - 0.5 * (np.log(sigma_grid / 2.0) / 0.3) ** 2
     mu_lo, mu_hi, sigma_lo, sigma_hi = posterior_C.hyperparameter_window(log_post, mu_grid, sigma_grid, 10.0)
     keep = log_post > log_post.max() - 10.0
     assert mu_lo < mu_grid[keep].min() and mu_hi > mu_grid[keep].max()
@@ -303,13 +305,15 @@ def test_hyperparameter_window_contains_region_above_threshold():
 def case_C_dataset(n_events: int, rng: np.random.Generator
                    ) -> tuple[tuple[np.ndarray, np.ndarray], np.ndarray]:
     """Dataset sintetico Caso C (generatore fisico + risoluzioni), verita'
-    Omega_n = (0.9, 2.1), mu_E = 3.0, sigma_E = 0.4 (setup del report).
+    Omega_n = (0.9, 2.1), mu_E = 15.0, sigma_E = 1.2 (sigma_E piccola rispetto alla
+    larghezza del dominio, 10 MeV: altrimenti la gaussiana troncata e' quasi piatta
+    e sigma_E grande non e' distinguibile dal limite Caso B).
 
     Ritorna:
         ((Ep_hat MeV (n,), track_hat versori (n, 3)), omega_true versore (3,)).
     """
     omega_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([2.1]))[0]
-    Ep_true, track = kinematics.sample_recoil_events(rng, rng.normal(3.0, 0.4, n_events), omega_true)
+    Ep_true, track = kinematics.sample_recoil_events(rng, rng.normal(15.0, 1.2, n_events), omega_true)
     track_hat = kinematics.smear_direction(rng, track, SIGMA_THETA)
     return (rng.normal(Ep_true, SIGMA_EP), track_hat), omega_true
 
@@ -338,8 +342,9 @@ def test_refined_stages_negligible_mass_at_window_edges():
     edge = np.concatenate([grid_2d[0], grid_2d[-1], grid_2d[:, 0], grid_2d[:, -1]])
     assert np.max(edge) < log_post.max() - 5.0
     best = np.argmax(log_post)
-    assert abs(mu_fine[best] - 3.0) < 0.3
-    assert 0.2 < sigma_fine[best] < 0.8
+    # tolleranze in unita' di sigma_E vera (1.2 MeV): 0.75 sigma su mu_E, fattore 2 su sigma_E
+    assert abs(mu_fine[best] - 15.0) < 0.9
+    assert 0.6 < sigma_fine[best] < 2.4
 
 
 def test_marginalize_En_hierarchical_independent_of_chunk_sizes():
@@ -400,7 +405,7 @@ def test_hierarchical_track_table_reduces_to_case_B_when_sigma_E_large():
     # Limite sigma_E -> inf => Caso B: la gaussiana troncata diventa il prior piatto proprio.
     rng = np.random.default_rng(SEED)
     D_B, _ = case_C_dataset(30, rng)
-    np.testing.assert_allclose(posterior_C.hierarchical_track_table(D_B[0], 3.0, 1e5),
+    np.testing.assert_allclose(posterior_C.hierarchical_track_table(D_B[0], 15.0, 1e5),
                                posterior_C.case_B_track_table(D_B[0]), rtol=1e-8, atol=1e-8)
 
 
@@ -426,7 +431,7 @@ def test_refine_shared_direction_hierarchical_near_truth_and_narrower():
     spreads = []
     for result in (posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, dprior, n_cap=2000),
                    posterior_C.refine_shared_direction_hierarchical(D_B, theta_grid, phi_grid, dprior,
-                                                                    3.0, 0.4, n_cap=2000)):
+                                                                    15.0, 1.2, n_cap=2000)):
         omega_hat, cap_log_post, cap_theta, cap_phi = result
         cap_grid = kinematics.direction_from_theta_phi(cap_theta, cap_phi)
         spreads.append(validate.posterior_angular_resolution(cap_log_post[None, :], cap_grid, omega_hat)[0])
@@ -480,10 +485,13 @@ def test_marginal_direction_reduces_to_conditional_for_point_like_cap():
 
 
 def test_marginal_direction_not_narrower_than_conditional():
-    # Propagare l'incertezza su Omega_n (qualche grado a N=60) non restringe il
-    # posterior su log(sigma_E) rispetto allo stadio 2 condizionato su omega_hat.
+    # Propagare l'incertezza su Omega_n (qualche grado) non restringe il posterior
+    # su log(sigma_E) rispetto allo stadio 2 condizionato su omega_hat. N=120: con
+    # meno eventi, a 15 MeV, il posterior su sigma_E arriva spesso al bordo inferiore
+    # della griglia (risoluzione per evento su E_n ~1.6 MeV > sigma_E) e il confronto
+    # delle larghezze perde senso.
     rng = np.random.default_rng(SEED)
-    D_B, _ = case_C_dataset(60, rng)
+    D_B, _ = case_C_dataset(120, rng)
     theta_grid, phi_grid = grids.sphere_grid(1500)
     dprior = priors.direction_prior(theta_grid, phi_grid)
     stage_1 = posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, dprior, n_cap=2000)
@@ -584,9 +592,11 @@ def test_conditional_covariance_and_canonical_correlations():
 
 def test_joint_laplace_matches_two_stage_widths():
     rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(50, 0)))
-    mu_true, sigma_true = 3.2, 0.4
+    # N=100: con pochi eventi, a 15 MeV, il posterior su sigma_E non e' ancora
+    # gaussiano (si appoggia al bordo inferiore) e Laplace non puo' riprodurlo
+    mu_true, sigma_true = 16.0, 1.2
     omega_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([1.7]))
-    Ep_true, track = kinematics.sample_recoil_events(rng, rng.normal(mu_true, sigma_true, 50), omega_true[0])
+    Ep_true, track = kinematics.sample_recoil_events(rng, rng.normal(mu_true, sigma_true, 100), omega_true[0])
     D_B = (rng.normal(Ep_true, SIGMA_EP), kinematics.smear_direction(rng, track, SIGMA_THETA))
     theta_grid, phi_grid = grids.sphere_grid()
     direction_prior = priors.direction_prior(theta_grid, phi_grid)

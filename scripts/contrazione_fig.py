@@ -13,16 +13,16 @@ from scipy.integrate import trapezoid
 
 from riptide_toy import forward_model, grids, kinematics, priors
 from riptide_toy.combine import combine_loglik, expected_sigma_n
-from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
+from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP, SIGMA_THETA
 
-EN_TRUE = 2.5  # MeV, energia condivisa degli eventi simulati
+EN_TRUE = 15.0  # MeV, energia condivisa degli eventi simulati
 N_VALUES = [1, 2, 10, 100]  # range della figura di contrazione
 
-# il plateau di contrazione sotto sistematico non e' ancora visibile a N=100 (lo shift
-# in Ep e' piccolo rispetto a sigma_Ep, quindi a N=100 e' ancora sotto il rumore
-# statistico): serve un range di N piu' esteso per renderlo visibile (verificato in
-# REPL: offset ~0.028 a N=100, ~0.050 a N=1000/5000, mentre sigma continua a scendere).
-N_VALUES_SHIFT = [1, 2, 10, 100, 1000, 5000]
+# a 15 MeV lo shift del 2% vale ~0.3 MeV, gia' sopra la sigma statistica a N=100
+# (~0.045 MeV): il plateau si vede gia' entro N=1000. Fino a N=1000 media e sigma
+# lette sulla griglia di energia coincidono con quelle su una griglia 4 volte piu'
+# fine; a N=5000 no (sigma 0.0026 contro 0.0065 MeV): il passo (0.02 MeV) e' troppo largo.
+N_VALUES_SHIFT = [1, 2, 10, 100, 1000]
 
 
 def weighted_mean_sigma(logpost: np.ndarray, en_grid: np.ndarray) -> tuple[float, float]:
@@ -47,16 +47,14 @@ def main() -> None:
     rng = np.random.default_rng(SEED)
     n_max = max(N_VALUES_SHIFT)
 
-    # theta_p campionato direttamente Uniform(0, pi/2), coerente con il
-    # log_prior_theta uniforme usato sotto per il Caso A (non il generatore
-    # fisico kinematics.sample_recoil_events, isotropo in CM).
-    theta_p_true = rng.uniform(0.0, np.pi / 2, n_max)
-    ep_true = kinematics.proton_energy(EN_TRUE, theta_p_true)
+    # theta_p dalla cinematica isotropa in CM, coerente con il prior fisico
+    # sin(2 theta_p) usato sotto per marginalizzarlo
+    ep_true, theta_p_true = kinematics.sample_recoil_angle(rng, np.full(n_max, EN_TRUE))
     D = forward_model.measure(ep_true, theta_p_true, SIGMA_EP, SIGMA_THETA, rng)
 
     en_grid = grids.energy_grid()
     theta_p_grid = grids.theta_p_grid()
-    log_prior_theta = np.full(theta_p_grid.shape, -np.log(theta_p_grid.shape[0]))
+    log_prior_theta = priors.log_recoil_angle_prior(theta_p_grid)
     log_prior_en = np.log(priors.energy_prior(en_grid))
 
     ll_matrix = forward_model.loglik(D, en_grid, theta_p_grid, SIGMA_EP, SIGMA_THETA, log_prior_theta)
@@ -70,7 +68,7 @@ def main() -> None:
         w = np.exp(combined - combined.max())
         axes[0].plot(en_grid, w / trapezoid(w, en_grid), label=f"N={n}")
     axes[0].axvline(EN_TRUE, color="k", linestyle=":", label="En (true)")
-    axes[0].set_xlim(1.5, 4.0)
+    axes[0].set_xlim(EN_MIN, EN_MAX)
     axes[0].set_xlabel("neutron energy En [MeV]")
     axes[0].set_ylabel("posterior P(En | D1:N)")
     axes[0].set_title("(a) combined posterior vs event count")

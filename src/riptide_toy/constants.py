@@ -2,15 +2,17 @@
 griglie e soglie. Unita': MeV, rad. Nessun altro modulo contiene numeri magici."""
 SEED = 20260907
 
-# equal masses, natural units of the toy model
-M_NEUTRON = 1.0
-M_PROTON = 1.0
+# massa del protone (CODATA), MeV; la cinematica usa masse uguali n = p: la
+# differenza di massa cambia l'energia massima di rinculo di un fattore
+# 1 - ((m_n - m_p) / (m_n + m_p))^2 ~ 1 - 5e-7, trascurabile
+PROTON_MASS_MEV = 938.272
 
-# energy range of work for the incident particle, MeV
-EN_MIN, EN_MAX = 0.5, 6.0
+# dominio di lavoro del rivelatore per l'energia del neutrone incidente, MeV;
+# a queste energie T / (2 m) ~ 1% e la cinematica va trattata in modo relativistico
+EN_MIN, EN_MAX = 10.0, 20.0
 # estremo superiore del dominio allargato, usato solo come prior alternativo nei
 # test di robustezza al prior su E_n (la verita' resta in [EN_MIN, EN_MAX])
-EN_MAX_WIDE = 10.0
+EN_MAX_WIDE = 30.0
 
 # spettro bimodale degli stress test sull'assunzione 3 (solo generazione): due righe
 # a media +- BIMODAL_HALF_SEPARATION * sd, ciascuna larga sd * sqrt(1 - a^2), cosi'
@@ -54,3 +56,38 @@ N_DIRECTION_MARGINAL = 100
 # passi di Newton dal punto dei due stadi; il secondo ricentra lo stencil sul
 # modo, cosi' l'Hessiana e' valutata a ~0 passi da esso.
 N_LAPLACE_NEWTON = 2
+
+# distribuzione angolare dello scattering elastico n-p nel CM (angolo del neutrone),
+# dalla valutazione ENDF/B-VIII.0 dell'idrogeno-1 (MAT 125, MF4/MT2, coefficienti di
+# Legendre nel CM, interpolazione lineare in energia): f(mu) = sum_l (2l+1)/2 a_l P_l(mu),
+# a_0 = 1, mu = cos(theta_CM). NP_LEGENDRE_COEFFS[i] = (a_1, ..., a_6) all'energia
+# NP_LEGENDRE_ENERGIES[i] (MeV). Lo scostamento dall'isotropia cresce con l'energia:
+# f(-1)/f(0) = 1.034 a 10 MeV, 1.061 a 14 MeV, 1.117 a 20 MeV (eccesso di neutroni
+# all'indietro, cioe' di protoni di alta energia).
+NP_LEGENDRE_ENERGIES = tuple(10.0 + 0.5 * i for i in range(21))
+NP_LEGENDRE_COEFFS = (
+    (-1.064356e-2, 1.473377e-4, -1.442281e-4, 2.423436e-5, 5.413201e-7, 8.242175e-8),
+    (-1.121995e-2, 2.876282e-4, -1.625681e-4, 2.980216e-5, 6.884312e-7, 1.130710e-7),
+    (-1.177142e-2, 4.506402e-4, -1.820425e-4, 3.624842e-5, 8.632534e-7, 1.527899e-7),
+    (-1.229564e-2, 6.372463e-4, -2.026620e-4, 4.364756e-5, 1.068460e-6, 2.036315e-7),
+    (-1.279057e-2, 8.482258e-4, -2.244438e-4, 5.207324e-5, 1.306554e-6, 2.679803e-7),
+    (-1.325446e-2, 1.084264e-3, -2.474127e-4, 6.159778e-5, 1.579782e-6, 3.485844e-7),
+    (-1.368587e-2, 1.345951e-3, -2.716015e-4, 7.229158e-5, 1.890050e-6, 4.485896e-7),
+    (-1.408360e-2, 1.633782e-3, -2.970518e-4, 8.422266e-5, 2.238830e-6, 5.715733e-7),
+    (-1.444675e-2, 1.948155e-3, -3.238143e-4, 9.745618e-5, 2.627058e-6, 7.215796e-7),
+    (-1.477470e-2, 2.289372e-3, -3.519488e-4, 1.120541e-4, 3.055044e-6, 9.031553e-7),
+    (-1.506708e-2, 2.657640e-3, -3.815239e-4, 1.280747e-4, 3.522365e-6, 1.121386e-6),
+    (-1.532378e-2, 3.053070e-3, -4.126174e-4, 1.455727e-4, 4.027769e-6, 1.381933e-6),
+    (-1.554496e-2, 3.475677e-3, -4.453150e-4, 1.645984e-4, 4.569070e-6, 1.691070e-6),
+    (-1.573101e-2, 3.925383e-3, -4.797104e-4, 1.851985e-4, 5.143058e-6, 2.055720e-6),
+    (-1.588255e-2, 4.402021e-3, -5.159036e-4, 2.074152e-4, 5.745397e-6, 2.483493e-6),
+    (-1.600045e-2, 4.905330e-3, -5.540007e-4, 2.312868e-4, 6.370542e-6, 2.982727e-6),
+    (-1.608578e-2, 5.434964e-3, -5.941119e-4, 2.568478e-4, 7.011651e-6, 3.562518e-6),
+    (-1.613981e-2, 5.990493e-3, -6.363509e-4, 2.841290e-4, 7.660509e-6, 4.232764e-6),
+    (-1.616401e-2, 6.571401e-3, -6.808325e-4, 3.131579e-4, 8.307460e-6, 5.004201e-6),
+    (-1.616003e-2, 7.177100e-3, -7.276719e-4, 3.439591e-4, 8.941345e-6, 5.888439e-6),
+    (-1.612968e-2, 7.806923e-3, -7.769820e-4, 3.765550e-4, 9.549454e-6, 6.898001e-6),
+)
+# iterazioni di Newton per invertire la CDF angolare: partendo dalla soluzione
+# isotropa l'errore iniziale e' <~ 0.05 in mu e la convergenza e' quadratica
+N_CM_NEWTON = 5

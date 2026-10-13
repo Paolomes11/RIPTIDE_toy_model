@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import trapezoid
 
 from riptide_toy import forward_model, grids, kinematics, priors
-from riptide_toy.constants import EN_MAX_WIDE, EN_MIN, SEED
+from riptide_toy.constants import EN_MAX_WIDE, EN_MIN, PROTON_MASS_MEV, SEED
 
 
 def test_energy_grid_monotone_and_immutable():
@@ -33,11 +33,29 @@ def test_theta_p_grid_domain():
 
 
 def test_proton_energy_known_angles():
-    # Ep = En*cos^2(theta_p): 0 -> Ep=En, pi/4 -> Ep=En/2, pi/2 -> Ep=0
-    En = np.array([1.0, 2.0, 4.0])
+    # limite non relativistico Ep = En*cos^2(theta_p): 0 -> En, pi/4 -> En/2, pi/2 -> 0
+    En = np.array([1.0, 2.0, 4.0]) * 1e-6
     theta = np.array([0.0, np.pi / 4, np.pi / 2])
     Ep = kinematics.proton_energy(En, theta)
-    np.testing.assert_allclose(Ep, [1.0, 1.0, 0.0], atol=1e-10)
+    np.testing.assert_allclose(Ep, [1.0e-6, 1.0e-6, 0.0], rtol=1e-8, atol=1e-18)
+    # gli estremi restano esatti anche a 20 MeV
+    np.testing.assert_allclose(kinematics.proton_energy(20.0, np.array([0.0, np.pi / 2])),
+                               [20.0, 0.0], atol=1e-12)
+
+
+def test_proton_energy_conserves_four_momentum():
+    # oracolo indipendente dalla formula chiusa: con Ep da proton_energy, il
+    # neutrone uscente (energia cinetica En - Ep) ha il momento che chiude il
+    # triangolo p_n = p_p + p_n' (teorema del coseno), p^2 = T^2 + 2 m T
+    m = PROTON_MASS_MEV
+    En = np.array([10.0, 15.0, 20.0])[:, None]
+    theta = np.linspace(0.0, np.pi / 2, 7)[None, :]
+    Ep = kinematics.proton_energy(En, theta)
+    p_in, p_p, p_out = (np.sqrt(t ** 2 + 2 * m * t) for t in (En, Ep, En - Ep))
+    np.testing.assert_allclose(p_out ** 2, p_in ** 2 + p_p ** 2 - 2 * p_in * p_p * np.cos(theta),
+                               rtol=1e-10, atol=1e-8)
+    # lo scarto dalla forma non relativistica a 20 MeV e 45 gradi e' ~0.05 MeV
+    assert 0.03 < 10.0 - kinematics.proton_energy(20.0, np.pi / 4) < 0.08
 
 
 def test_proton_energy_montecarlo_mean_var():
@@ -90,8 +108,11 @@ def test_energy_prior_log_uniform_proper_and_proportional_to_inverse_energy():
 
 def test_loglik_roundtrip_argmax_near_truth():
     rng = np.random.default_rng(SEED)
-    En_true, theta_true = 2.5, 0.4
+    En_true, theta_true = 15.0, 0.4
     sigma_Ep, sigma_theta = 0.10, 0.08
+    # incertezza propagata su En = Ep / cos^2(theta): a 15 MeV domina il termine
+    # angolare dEn/dtheta = 2 En tan(theta), ~1 MeV per sigma_theta
+    sigma_En = np.hypot(sigma_Ep / np.cos(theta_true) ** 2, 2 * En_true * np.tan(theta_true) * sigma_theta)
 
     Ep_true = np.array([En_true * np.cos(theta_true) ** 2])
     theta_p_true = np.array([theta_true])
@@ -104,12 +125,23 @@ def test_loglik_roundtrip_argmax_near_truth():
     ll = forward_model.loglik(D, en_grid, tp_grid, sigma_Ep, sigma_theta, log_prior_theta)
     assert ll.shape == (1, en_grid.shape[0])
     argmax_En = en_grid[np.argmax(ll[0])]
-    assert abs(argmax_En - En_true) < 3 * sigma_Ep
+    assert abs(argmax_En - En_true) < 3 * sigma_En
+
+
+def test_log_recoil_angle_prior_normalized_and_matches_sin_2theta():
+    tp_grid = grids.theta_p_grid()
+    w = np.exp(priors.log_recoil_angle_prior(tp_grid))
+    assert np.all(np.isfinite(np.log(w)))
+    assert abs(w.sum() - 1.0) < 1e-12
+    # all'interno la massa della cella e' ~ sin(2 theta) * passo
+    step = tp_grid[1] - tp_grid[0]
+    np.testing.assert_allclose(w[1:-1], np.sin(2 * tp_grid[1:-1]) * step, rtol=1e-4, atol=1e-9)
 
 
 def test_posterior_A_calibrated_when_truth_drawn_from_prior():
     # Se la verita' e' estratta dal prior del posterior (E_n ~ U(EN_MIN, EN_MAX),
-    # theta_p ~ U(0, pi/2)), gli intervalli credibili coprono al livello nominale in media.
+    # theta_p dalla cinematica isotropa in CM, densita' sin(2 theta_p)), gli intervalli
+    # credibili coprono al livello nominale in media.
     # Con 2000 eventi l'errore binomiale al 68% e' sqrt(0.68*0.32/2000) = 0.010: soglia 3 errori.
     from riptide_toy import posterior_A, validate
     from riptide_toy.constants import EN_MAX, EN_MIN, SIGMA_EP, SIGMA_THETA
@@ -118,9 +150,8 @@ def test_posterior_A_calibrated_when_truth_drawn_from_prior():
     n = 2000
     levels = np.array([0.68, 0.90])
     truth = rng.uniform(EN_MIN, EN_MAX, n)
-    theta = rng.uniform(0.0, np.pi / 2, n)
-    Ep_hat, theta_hat = forward_model.measure(kinematics.proton_energy(truth, theta), theta,
-                                              SIGMA_EP, SIGMA_THETA, rng)
+    Ep_true, theta = kinematics.sample_recoil_angle(rng, truth)
+    Ep_hat, theta_hat = forward_model.measure(Ep_true, theta, SIGMA_EP, SIGMA_THETA, rng)
     en_grid = grids.energy_grid()
     prior = priors.energy_prior(en_grid)
     log_post = np.concatenate([
@@ -130,3 +161,41 @@ def test_posterior_A_calibrated_when_truth_drawn_from_prior():
     _, coverage = validate.coverage_curve(truth, validate.credible_interval(log_post, en_grid, levels), levels)
     binomial = np.sqrt(levels * (1 - levels) / n)
     assert np.all(np.abs(coverage - levels) < 3 * binomial)
+
+
+def test_posterior_A_combined_unbiased_with_physical_recoil_kinematics():
+    # Regressione: con eventi generati dalla cinematica isotropa in CM, il prior
+    # piatto su theta_p dava un plateau di bias su E_n combinato (pull medio ~ -4 a
+    # N = 1000); col prior fisico sin(2 theta_p) il pull medio resta ~0.
+    # 5 ripetizioni: errore sulla media dei pull ~ 1/sqrt(5) = 0.45, soglia ~3 errori.
+    from riptide_toy import combine, posterior_A, validate
+    from riptide_toy.constants import SIGMA_EP, SIGMA_THETA
+
+    en_grid = grids.energy_grid()
+    log_prior = np.log(priors.energy_prior(en_grid))
+    n_events, n_rep, chunk = 1000, 5, 50
+    pulls = []
+    for i in range(n_rep):
+        rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(n_events, i)))
+        En_true = rng.uniform(11.0, 19.0)
+        Ep_true, theta = kinematics.sample_recoil_angle(rng, np.full(n_events, En_true))
+        Ep_hat, theta_hat = forward_model.measure(Ep_true, theta, SIGMA_EP, SIGMA_THETA, rng)
+        # il prior su E_n va contato una volta sola: lo si toglie dal posterior per evento
+        loglik = np.concatenate([
+            posterior_A.single_event_posterior((Ep_hat[j:j + chunk], theta_hat[j:j + chunk]),
+                                               en_grid, np.exp(log_prior)) - log_prior[None, :]
+            for j in range(0, n_events, chunk)
+        ])
+        mean, std = validate.posterior_mean_std(combine.combine_loglik(loglik, log_prior)[None], en_grid)
+        pulls.append((mean[0] - En_true) / std[0])
+    assert abs(np.mean(pulls)) < 1.4
+
+
+def test_sample_recoil_angle_consistent_with_recoil_events():
+    # stesso flusso RNG: l'angolo coincide con quello della traccia attorno a z
+    En = np.full(1000, 15.0)
+    Ep_a, theta_a = kinematics.sample_recoil_angle(np.random.default_rng(SEED), En)
+    Ep_e, track = kinematics.sample_recoil_events(np.random.default_rng(SEED), En, np.array([0.0, 0.0, 1.0]))
+    np.testing.assert_allclose(Ep_a, Ep_e)
+    np.testing.assert_allclose(np.cos(theta_a), track[:, 2], atol=1e-12)
+    assert np.all((theta_a >= 0.0) & (theta_a <= np.pi / 2))

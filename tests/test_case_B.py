@@ -1,9 +1,12 @@
 import numpy as np
 from scipy import stats
 from scipy.integrate import trapezoid
+from numpy.polynomial import legendre
+from scipy.special import logsumexp
 
 from riptide_toy import combine, forward_model, grids, kinematics, posterior_B, priors, validate
-from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP, SIGMA_THETA
+from riptide_toy.constants import (EN_MAX, EN_MIN, NP_LEGENDRE_COEFFS, NP_LEGENDRE_ENERGIES, SEED,
+                                   SIGMA_EP, SIGMA_THETA)
 
 
 def test_direction_from_theta_phi_unit_norm():
@@ -34,8 +37,33 @@ def test_sample_cm_angle_isotropic_in_solid_angle():
 
 
 def test_recoil_angle_from_cm_limits():
-    theta_p = kinematics.recoil_angle_from_cm(np.array([0.0, np.pi / 2, np.pi]))
-    np.testing.assert_allclose(theta_p, [np.pi / 2, np.pi / 4, 0.0], atol=1e-12)
+    theta_cm = np.array([0.0, np.pi / 2, np.pi])
+    # limite non relativistico: theta_p = (pi - theta_CM) / 2
+    theta_p = kinematics.recoil_angle_from_cm(theta_cm, 1e-6)
+    np.testing.assert_allclose(theta_p, [np.pi / 2, np.pi / 4, 0.0], atol=1e-6)
+    # a 20 MeV: estremi invariati, ed Ep = En (1 - cos theta_CM) / 2 esatto
+    theta_p = kinematics.recoil_angle_from_cm(theta_cm, 20.0)
+    np.testing.assert_allclose(theta_p[[0, 2]], [np.pi / 2, 0.0], atol=1e-12)
+    assert theta_p[1] < np.pi / 4 - 1e-3
+    np.testing.assert_allclose(kinematics.proton_energy(20.0, theta_p),
+                               10.0 * (1.0 - np.cos(theta_cm)), atol=1e-10)
+
+
+def test_recoil_cos2_from_energy_inverts_proton_energy():
+    theta_p = np.linspace(0.0, np.pi / 2, 50)
+    for En in (3.0, 20.0):
+        cos2 = kinematics.recoil_cos2_from_energy(kinematics.proton_energy(En, theta_p), En)
+        np.testing.assert_allclose(cos2, np.cos(theta_p) ** 2, atol=1e-12)
+
+
+def test_recoil_direction_density_normalized_and_non_relativistic_limit():
+    theta = np.linspace(0.0, np.pi / 2, 20_001)
+    for En in (1e-6, 10.0, 20.0):
+        density = np.exp(kinematics.log_recoil_direction_density(theta, En))
+        assert abs(trapezoid(2 * np.pi * np.sin(theta) * density, theta) - 1.0) < 1e-6
+    np.testing.assert_allclose(np.exp(kinematics.log_recoil_direction_density(theta, 1e-6)),
+                               np.cos(theta) / np.pi, rtol=1e-5, atol=1e-12)
+    assert kinematics.log_recoil_direction_density(np.array(np.pi / 2 + 0.1), 20.0) == -np.inf
 
 
 def test_perpendicular_basis_orthonormal_including_axis_along_x():
@@ -49,23 +77,29 @@ def test_perpendicular_basis_orthonormal_including_axis_along_x():
 
 
 def test_sample_recoil_events_mean_var_and_track_distribution():
-    # Oracolo: isotropia in CM => Ep ~ U(0, En), media En/2,
-    # varianza En^2/12 (a); equivalente a cos^2(theta_p) ~ U(0, 1).
+    # Oracolo: isotropia in CM => Ep ~ U(0, En), media En/2, varianza En^2/12 (a),
+    # anche relativisticamente; a 20 MeV la direzione segue la densita' relativistica.
     rng = np.random.default_rng(SEED)
     n = 200_000
-    En = np.full(n, 3.0)
     omega = kinematics.direction_from_theta_phi(np.array(0.9), np.array(2.1))
-    Ep, track = kinematics.sample_recoil_events(rng, En, omega)
+    for en_value in (3.0, 20.0):
+        En = np.full(n, en_value)
+        Ep, track = kinematics.sample_recoil_events(rng, En, omega)
 
-    assert Ep.shape == (n,) and track.shape == (n, 3)
-    assert abs(Ep.mean() - 1.5) < 0.01
-    assert abs(Ep.var() - 9.0 / 12.0) < 0.01
-    np.testing.assert_allclose(np.linalg.norm(track, axis=1), 1.0, atol=1e-12)
+        assert Ep.shape == (n,) and track.shape == (n, 3)
+        assert abs(Ep.mean() - en_value / 2) < 0.004 * en_value
+        assert abs(Ep.var() - en_value ** 2 / 12.0) < 0.004 * en_value ** 2
+        assert stats.kstest(Ep / en_value, "uniform").pvalue > 1e-3
+        np.testing.assert_allclose(np.linalg.norm(track, axis=1), 1.0, atol=1e-12)
 
-    theta_p = kinematics.recoil_angle_from_direction(track, omega[None, :])[:, 0]
-    assert theta_p.max() <= np.pi / 2 + 1e-12
-    np.testing.assert_allclose(Ep, kinematics.proton_energy(En, theta_p), atol=1e-9)
-    assert stats.kstest(np.cos(theta_p) ** 2, "uniform").pvalue > 1e-3
+        theta_p = kinematics.recoil_angle_from_direction(track, omega[None, :])[:, 0]
+        assert theta_p.max() <= np.pi / 2 + 1e-12
+        np.testing.assert_allclose(Ep, kinematics.proton_energy(En, theta_p), atol=1e-9)
+        # la ripartizione di cos(theta_p) dalla densita' per steradiante
+        c_grid = np.linspace(0.0, 1.0, 2001)
+        density = 2 * np.pi * np.exp(kinematics.log_recoil_direction_density(np.arccos(c_grid), en_value))
+        cdf = np.concatenate([[0.0], np.cumsum(0.5 * (density[1:] + density[:-1]) * np.diff(c_grid))])
+        assert stats.kstest(np.cos(theta_p), lambda x: np.interp(x, c_grid, cdf)).pvalue > 1e-3
 
 
 def test_smear_direction_polar_deviation_matches_sigma_theta():
@@ -197,24 +231,47 @@ def test_log_track_kernel_sphere_reduces_to_flat_times_curvature_factor():
 
 
 def test_loglik_marginal_En_theta_sigma_to_zero_is_sharp_cut_plus_track_term():
-    # Limite sigma_theta -> 0: si ritrova il vecchio loglik_marginal_En (taglio
-    # netto) piu' log(cos(theta_p)/pi), dove Ep/cos^2 resta dentro il dominio
-    # in energia (vicino a EN_MAX il vincolo in En e' ripido e il limite e'
-    # raggiunto solo come O(sigma_theta)).
+    # Limite sigma_theta -> 0: si ritrova la marginalizzazione su En a theta_p
+    # fissato con la densita' della traccia, dove Ep/cos^2 resta dentro il dominio
+    # in energia (vicino ai bordi EN_MIN, EN_MAX il vincolo in En e' ripido e il
+    # limite e' raggiunto solo come O(sigma_theta)). Gli angoli osservati sono
+    # scelti in modo che Ep/cos^2 percorra l'interno del dominio.
     en_grid = grids.energy_grid()
     log_prior_En = np.log(priors.energy_prior(en_grid))
-    Ep_hat = np.array([1.0, 2.0, 0.5])
-    theta_obs = np.tile(np.linspace(0.05, 1.1, 40), (3, 1))
+    # Ep_hat < min(en_target): theta_obs > 0, lontano dal bordo theta = 0 della griglia
+    Ep_hat = np.array([6.0, 8.0, 10.0])
+    en_target = np.linspace(EN_MIN + 0.1 * (EN_MAX - EN_MIN), EN_MAX - 0.3 * (EN_MAX - EN_MIN), 40)
+    theta_obs = np.arccos(np.sqrt(np.minimum(Ep_hat[:, None] / en_target[None, :], 1.0)))
 
     new = forward_model.loglik_marginal_En_theta(
         Ep_hat, theta_obs, en_grid, SIGMA_EP, 0.003, log_prior_En,
         n_theta=3000, n_theta_obs=4001,
     )
-    sharp = (forward_model.loglik_marginal_En(Ep_hat, theta_obs, en_grid, SIGMA_EP, log_prior_En)
-             + forward_model.log_track_density(theta_obs))
-    interior = Ep_hat[:, None] / np.cos(theta_obs) ** 2 < 0.8 * EN_MAX
+    # riferimento diretto: somma su En a theta_p = theta_obs, con la densita'
+    # relativistica della traccia (che dipende da En) dentro la somma
+    theta_3d, en_3d = theta_obs[:, :, None], en_grid[None, None, :]
+    sharp = logsumexp(-0.5 * ((Ep_hat[:, None, None] - kinematics.proton_energy(en_3d, theta_3d)) / SIGMA_EP) ** 2
+                      + log_prior_En + kinematics.log_recoil_direction_density(theta_3d, en_3d), axis=2)
+    en_implied = Ep_hat[:, None] / np.cos(theta_obs) ** 2
+    interior = (en_implied > EN_MIN + 0.05 * (EN_MAX - EN_MIN)) & (en_implied < 0.8 * EN_MAX)
     assert interior.sum() > 60
     np.testing.assert_allclose(new[interior], sharp[interior], atol=2e-3)
+
+
+def test_loglik_marginal_En_known_angle_keeps_En_dependent_track_factor():
+    # theta_p noto: p(Ep, theta_p | En) = p(Ep | theta_p, En) p(theta_p | En); il limite
+    # cos/pi della densita' non dipende da En e resta fuori, il fattore relativistico no.
+    # A 20 MeV quel fattore cambia lungo la griglia in En di ~0.01 in log: senza, lo
+    # scarto dal riferimento supererebbe la tolleranza.
+    en_grid = grids.energy_grid()
+    log_prior_En = np.log(priors.energy_prior(en_grid))
+    Ep_hat = np.array([6.0, 8.0, 10.0])
+    theta_p = np.linspace(0.05, 1.2, 30)[None, :].repeat(3, axis=0)
+    theta_3d, en_3d = theta_p[:, :, None], en_grid[None, None, :]
+    reference = logsumexp(-0.5 * ((Ep_hat[:, None, None] - kinematics.proton_energy(en_3d, theta_3d)) / SIGMA_EP) ** 2
+                          + log_prior_En + kinematics.log_recoil_direction_density(theta_3d, en_3d), axis=2)
+    known = forward_model.loglik_marginal_En(Ep_hat, theta_p, en_grid, SIGMA_EP, log_prior_En)
+    np.testing.assert_allclose(known + np.log(np.cos(theta_p) / np.pi), reference, atol=1e-6)
 
 
 def test_posterior_B_one_event_flat_prior_matches_analytic_form():
@@ -224,10 +281,14 @@ def test_posterior_B_one_event_flat_prior_matches_analytic_form():
     #   L ∝ cos(theta_p)/pi * [Phi((EN_MAX c - Ep)/s) - Phi((EN_MIN c - Ep)/s)] / c,
     # c = cos^2(theta_p) (integrale analitico del prior piatto su En). Con la
     # risoluzione SIGMA_THETA la forma e' smussata di O(sigma_theta^2): si
-    # confronta a meno di una costante entro 45 gradi. Nessun -inf: oltre
-    # pi/2 + 5 sigma_theta il posterior e' solo fortemente soppresso.
+    # confronta a meno di una costante entro 30 gradi: con Ep = 11 MeV l'energia
+    # implicata Ep/c resta in [11, 14.7] MeV, lontana dai bordi del dominio di
+    # almeno 3 sigma_theta in angolo. La forma e' quella non relativistica: entro
+    # 30 gradi la correzione relativistica la cambia di ~0.005 in log, sotto la
+    # tolleranza. Nessun -inf: oltre pi/2 + 5 sigma_theta il posterior e' solo
+    # fortemente soppresso.
     track_hat = np.array([[0.0, 0.0, 1.0]])
-    Ep_hat = np.array([1.0])
+    Ep_hat = np.array([11.0])
 
     theta_grid, phi_grid = grids.sphere_grid(4000)
     prior = priors.direction_prior(theta_grid, phi_grid)
@@ -240,7 +301,7 @@ def test_posterior_B_one_event_flat_prior_matches_analytic_form():
     omega_n_hat = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
     theta_p = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat)[0]
 
-    front = theta_p < np.deg2rad(45.0)
+    front = theta_p < np.deg2rad(30.0)
     c = np.cos(theta_p[front]) ** 2
     analytic = (np.log(np.cos(theta_p[front]) / np.pi) - np.log(c)
                 + np.log(stats.norm.cdf((EN_MAX * c - Ep_hat[0]) / SIGMA_EP)
@@ -283,11 +344,14 @@ def test_combine_reuse_angular_contraction_vs_N():
     n_max = 100
 
     omega_n_true = kinematics.direction_from_theta_phi(np.array([0.9]), np.array([2.1]))
-    en_true = rng.uniform(1.0, 5.0, n_max)
+    en_true = rng.uniform(11.0, 19.0, n_max)
     Ep_hat, track_hat = simulate_case_B_events(rng, omega_n_true[0], en_true)
 
-    theta_grid, phi_grid = grids.sphere_grid(1500)
+    # 6000 pixel (passo ~2.6 gradi): nel dominio 10-20 MeV il prior su E_n, largo
+    # solo un fattore 2, confina theta_p di ogni evento in una banda e a N=100 la
+    # risoluzione angolare (~2 gradi) scende sotto il passo di una griglia da 1500
     en_grid = grids.energy_grid(150)
+    theta_grid, phi_grid = grids.sphere_grid(6000)
     log_prior_En = np.log(priors.energy_prior(en_grid))
     log_prior_dir = np.log(priors.direction_prior(theta_grid, phi_grid))
     omega_n_hat = kinematics.direction_from_theta_phi(theta_grid, phi_grid)
@@ -341,7 +405,7 @@ def test_angular_bias_and_pull_on_simulated_omega_n():
     pulls = np.empty(n_experiments)
     residuals = np.empty(n_experiments)
     for i in range(n_experiments):
-        en_true = rng.uniform(1.0, 5.0, n_events)
+        en_true = rng.uniform(11.0, 19.0, n_events)
         Ep_hat, track_hat = simulate_case_B_events(rng, omega_n_true[0], en_true)
 
         theta_p_candidates = kinematics.recoil_angle_from_direction(track_hat, omega_n_hat_grid)
@@ -387,6 +451,50 @@ def test_sample_recoil_events_per_event_axes_same_stream():
                                                 np.broadcast_to(omega, (50, 3)))
     for a, b in zip(common, per_event):
         np.testing.assert_allclose(a, b)
+
+
+
+def test_sample_cm_angle_anisotropic_zero_coeffs_is_isotropic():
+    # a_l = 0 per l >= 1: stessa variabile uniforme, stesso angolo di sample_cm_angle
+    En = np.random.default_rng(1).uniform(9.0, 21.0, 1000)
+    energies, coeffs = np.array(NP_LEGENDRE_ENERGIES), np.zeros((len(NP_LEGENDRE_ENERGIES), 6))
+    aniso = kinematics.sample_cm_angle_anisotropic(np.random.default_rng(SEED), En, energies, coeffs)
+    np.testing.assert_allclose(aniso, kinematics.sample_cm_angle(np.random.default_rng(SEED), 1000),
+                               atol=1e-12)
+
+
+def test_sample_cm_angle_anisotropic_inverts_cdf_and_matches_legendre_moments():
+    energies, coeffs = np.array(NP_LEGENDRE_ENERGIES), np.array(NP_LEGENDRE_COEFFS)
+    # inversione esatta: F(mu) ricostruisce la variabile uniforme, anche fra i nodi
+    # della tabella e fuori da essa (coefficienti tenuti costanti)
+    En = np.random.default_rng(1).uniform(9.0, 21.0, 10_000)
+    mu = np.cos(kinematics.sample_cm_angle_anisotropic(np.random.default_rng(SEED), En, energies, coeffs))
+    u = np.random.default_rng(SEED).uniform(0.0, 1.0, En.shape[0])
+    a = np.stack([np.interp(En, energies, coeffs[:, l]) for l in range(coeffs.shape[1])])
+    density = (2 * np.arange(7)[:, None] + 1) / 2 * np.concatenate([np.ones((1, En.shape[0])), a])
+    cdf = legendre.legint(density, lbnd=-1.0, axis=0)
+    np.testing.assert_allclose(legendre.legval(mu, cdf, tensor=False), u, atol=1e-12)
+    # (a) per f = sum (2l+1)/2 a_l P_l, ortogonalita': E[P_l(mu)] = a_l. A 20 MeV
+    # a_1 = -0.016 e' ~40 errori MC da zero: il test distingue dall'isotropo.
+    n = 1_000_000
+    mu = np.cos(kinematics.sample_cm_angle_anisotropic(np.random.default_rng(SEED), np.full(n, 20.0),
+                                                       energies, coeffs))
+    for degree, sd in ((1, np.sqrt(1 / 3)), (2, np.sqrt(1 / 5))):
+        moment = legendre.legval(mu, np.eye(degree + 1)[degree]).mean()
+        assert abs(moment - coeffs[-1, degree - 1]) < 4 * sd / np.sqrt(n)
+
+
+def test_sample_recoil_events_anisotropic_energy_mean():
+    # Ep = En (1 - mu) / 2 => E[Ep] = En (1 - a_1) / 2: a 20 MeV +0.8% sull'isotropo
+    n = 1_000_000
+    En = np.full(n, 20.0)
+    table = (np.array(NP_LEGENDRE_ENERGIES), np.array(NP_LEGENDRE_COEFFS))
+    Ep, track = kinematics.sample_recoil_events(np.random.default_rng(SEED), En,
+                                                np.array([0.0, 0.0, 1.0]), table)
+    theta_p = np.arccos(track[:, 2])
+    np.testing.assert_allclose(Ep, kinematics.proton_energy(En, theta_p), atol=1e-9)
+    expected = 20.0 * (1.0 - NP_LEGENDRE_COEFFS[-1][0]) / 2.0
+    assert abs(Ep.mean() - expected) < 4 * 20.0 / np.sqrt(12.0 * n)
 
 
 def test_track_angle_cdf_limit_and_montecarlo():

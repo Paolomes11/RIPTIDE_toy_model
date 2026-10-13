@@ -35,8 +35,8 @@ N_M_B = [(10, 200), (30, 200), (100, 100), (300, 50)]
 N_M_C = [(50, 200), (150, 200), (300, 100), (1000, 40)]
 KAPPA = 2.0                 # prior su Omega_n larga ~1/sqrt(KAPPA) rad ~ 40 gradi
 PRIOR_AXIS_ANGLE = np.pi / 2  # asse della prior a 90 gradi dalla verita': gradiente massimo
-MU_RANGE = (2.5, 4.0)       # MeV, come la checklist del Caso C
-SIGMA_RANGE = (0.2, 0.6)    # MeV, log-uniforme, come la checklist del Caso C
+MU_RANGE = (13.0, 17.0)     # MeV, come la checklist del Caso C
+SIGMA_RANGE = (0.8, 2.4)    # MeV, log-uniforme, come la checklist del Caso C
 CASE_A_TAG = 1              # spawn_key=(CASE_A_TAG, N, i): disgiunti dai seed (N, i) di B e C
 
 
@@ -64,9 +64,8 @@ def run_case_A(task: tuple[int, int]) -> dict:
     n_events, index = task
     rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(CASE_A_TAG, n_events, index)))
     En_true = rng.uniform(EN_MIN, EN_MAX)
-    theta = rng.uniform(0.0, np.pi / 2, n_events)
-    D = forward_model.measure(kinematics.proton_energy(np.full(n_events, En_true), theta), theta,
-                              SIGMA_EP, SIGMA_THETA, rng)
+    Ep_true, theta = kinematics.sample_recoil_angle(rng, np.full(n_events, En_true))
+    D = forward_model.measure(Ep_true, theta, SIGMA_EP, SIGMA_THETA, rng)
     out = {"N": n_events, "truth": En_true}
     for name, (en_grid, prior) in energy_priors().items():
         # prior contato una volta: si somma il log-posterior per evento e si tolgono N-1 prior

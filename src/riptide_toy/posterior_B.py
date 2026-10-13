@@ -16,8 +16,10 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray],
     per-evento a prior largo (Caso B).
 
     Assunzioni dichiarate: sorgente unica (1) + direzione ~costante,
-    campo lontano (2) + scattering isotropo in CM (toy 0.5-6 MeV), che da'
-    il termine di traccia cos(theta_p)/pi. La traccia ha risoluzione
+    campo lontano (2) + scattering isotropo in CM (ipotesi da verificare a
+    10-20 MeV) con cinematica relativistica, che da' il termine di traccia
+    cos(theta_p)/pi per un fattore dipendente da En (portato nel termine in
+    energia). La traccia ha risoluzione
     angolare SIGMA_THETA: theta_p vero e' marginalizzato attorno
     all'angolo osservato fra track_hat e ogni candidato
     (forward_model.loglik_marginal_En_theta, kernel vMF esatto sulla sfera), senza
