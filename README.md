@@ -3,6 +3,11 @@
 Toy model Python per la ricostruzione statistica da singolo scattering n–p (RIPTIDE),
 Casi A/B/C. Progetto satellite di un articolo, separato dalla tesi.
 
+Dominio di energia 10–20 MeV, cinematica n–p relativistica esatta, scattering isotropo in CM
+(verificato contro la distribuzione angolare anisotropa di ENDF/B-VIII.0: effetto trascurabile).
+Stato: Casi A e B calibrati a 10–20 MeV; Caso C con un punto aperto sulla calibrazione
+(vedi `docs/roadmap.md`).
+
 - **Risultati in sintesi**: `docs/resoconto.md`
 - **Stato riga per riga e scelte di implementazione**: `docs/roadmap.md`
 - **Diario tecnico del Caso C**: `docs/report_caso_C_stadio1.md`
@@ -21,7 +26,7 @@ Casi A/B/C. Progetto satellite di un articolo, separato dalla tesi.
 src/riptide_toy/   codice riusabile e testato
   constants.py       risoluzioni, range, seed
   grids.py           griglie in E_n, θ, sfera, (μ_E, σ_E)
-  kinematics.py      E_p = E_n cos²θ_p, campionamento degli eventi
+  kinematics.py      cinematica relativistica E_p(E_n, θ_p), campionamento degli eventi
   forward_model.py   verosimiglianze per evento
   priors.py          prior propri
   posterior_A/B/C.py un file per caso

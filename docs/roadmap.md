@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.18 — 2026-10-05
+v0.19 — 2026-10-13
 
 Sintesi dei risultati: `docs/resoconto.md`.
 
@@ -62,11 +62,38 @@ progetto è partito (non pubblicata).
   E_p ~ U(0, E_n)) e `smear_direction` (risoluzione SIGMA_THETA nel piano tangente). I dati
   sintetici dei test B/C (righe 11, 12, 13) sono rigenerati con questa catena: le note
   "Riga 11/12, dati sintetici" qui sotto descrivono la costruzione precedente.
+- **Dominio 10–20 MeV** (2026-10-13): `EN_MIN, EN_MAX = 10, 20`, `EN_MAX_WIDE = 30`; i casi di
+  riferimento R1–R3 restano alle loro energie (R1 su una griglia esplicita 0.5–6 MeV). A queste
+  energie T/2m ~ 1%, quindi la cinematica è relativistica esatta a masse uguali (a):
+  `Ep = 2m En cos²θ_p / (2m + En sin²θ_p)`, con `PROTON_MASS_MEV`. Lo scarto rispetto a
+  `En cos²θ_p` (0.05 MeV a 20 MeV e 45°, mezzo σ_Ep) è comune a tutti gli eventi e darebbe un
+  plateau nella contrazione. Con scattering isotropo in CM E_p resta esattamente U(0, E_n);
+  l'angolo di rinculo dal CM dipende da E_n. `forward_model` usa `kinematics.proton_energy`
+  ovunque; il fattore relativistico della densità della traccia (dipende da E_n) entra nel termine
+  in energia, così i kernel angolari restano indipendenti da E_n. Unica approssimazione rimasta:
+  `track_angle_cdf` nel limite non relativistico (scarto ≤ 0.003 sulla ripartizione a 20 MeV).
+  Generatori centrati con la stessa σ/μ di prima: μ_E ~ U(13, 17), σ_E ~ log-U(0.8, 2.4);
+  generatore (ii) del Caso A U(11, 19); figura di contrazione a 15 MeV, N ≤ 1000.
+- **Isotropia in CM a 10–20 MeV** (2026-10-13): coefficienti di Legendre di H-1 (ENDF/B-VIII.0,
+  MF4/MT2) da 10 a 20 MeV in `constants.NP_LEGENDRE_*`; `kinematics.sample_cm_angle_anisotropic`
+  genera con la distribuzione anisotropa (opzionale, il default resta isotropo).
+  `scripts/stress_anisotropia.py` genera anisotropo e ricostruisce isotropo, con esperimenti
+  appaiati. L'effetto è trascurabile in tutti i casi (c): bias aggiunto ≤ 0.12 σ post. su E_n
+  (Caso A, N = 1000), nessun cambiamento su Ω_n (Caso B, C), 0.15 σ su μ_E (Caso C, N = 1000,
+  vicino alla soglia di 0.2 σ, quindi da ricontrollare oltre N = 1000). La ricostruzione resta
+  isotropa.
 - **`posterior_A.single_event_posterior`**: la specifica assume `theta_p_hat` già fissato
-  dentro `loglik`. Qui `forward_model.loglik` marginalizza `theta_p` internamente su un prior
-  piatto proprio su `[0, π/2]` (coerente con la deviazione già presa per `forward_model`), e
-  `single_event_posterior` somma il prior su `En` una sola volta sopra il risultato. Verificato
-  contro il caso di riferimento R1 (vedi tabella Stato, riga 4).
+  dentro `loglik`. Qui `forward_model.loglik` marginalizza `theta_p` internamente, e
+  `single_event_posterior` somma il prior su `En` una sola volta sopra il risultato. Dal
+  2026-10-13 il prior su `theta_p` è un argomento (`log_prior_theta`); il default è il prior
+  fisico `priors.log_recoil_angle_prior`, densità sin(2θ_p) su `[0, π/2]` (cos²θ_p uniforme per
+  scattering isotropo in CM, (a)), con pesi uguali alla massa esatta di ogni cella. Il prior
+  piatto usato prima biasava E_n verso il basso a N grande quando gli eventi sono generati dalla
+  cinematica in CM: bias −0.10 MeV e pull medio −3.9 a N = 1000, 15 MeV (c, 20 ripetizioni); col
+  prior fisico −0.006 ± 0.008 MeV, pull −0.17 (c). Il prior è non relativistico: la correzione
+  dipende da E_n (~1% a 20 MeV) e non si fattorizza. Il caso di riferimento R1 è definito con il
+  prior piatto e il test lo passa esplicitamente (σ pesata 0.2197; col prior fisico sarebbe 0.2217,
+  fuori tolleranza).
 - **`validate.coverage_curve`**: la specifica non dà un type hint per il parametro
   `intervals`. Si sceglie la forma più generica possibile, `(n_eventi, n_livelli, 2)` con
   estremi inferiore/superiore espliciti (non necessariamente simmetrici o gaussiani), così
@@ -94,6 +121,9 @@ progetto è partito (non pubblicata).
   contraction plot senza shift restano su `N=1,2,10,100`. Con il range esteso
   l'offset si stabilizza a ≈0.05 MeV (coerente con la stima analitica 0.02·En_true=0.05 MeV)
   mentre σ continua a scendere fino a ~0.001 MeV: il plateau è così chiaramente visibile.
+  Dalla v0.19 (15 MeV) basta `N ≤ 1000`: lo shift del 2% (0.3 MeV) supera già σ a N = 100, e a
+  N = 5000 il passo della griglia in energia non risolve più il posterior; l'offset sale a 0.25 MeV a
+  N = 1000 con σ = 0.03 MeV (c, una realizzazione).
 
 - **`posterior_B` / `forward_model.loglik_marginal_En`**: la specifica descrive
   il Caso B come θ_p derivato geometricamente dalla traccia 3D osservata e dal candidato Ω_n
@@ -252,16 +282,31 @@ progetto è partito (non pubblicata).
   `validate.canonical_correlations`. Costanti nuove: `EN_MAX_WIDE`, `BIMODAL_HALF_SEPARATION`,
   `N_LAPLACE_NEWTON`.
 
+- **v0.19** (2026-10-13): dominio 10–20 MeV, cinematica relativistica, isotropia in CM verificata con
+  ENDF/B-VIII.0, prior fisico su θ_p nel Caso A (Scelte di implementazione). Le righe 1–14 restano
+  valide; la riga 14 descrive la validazione a 0.5–6 MeV: a 10–20 MeV il Caso C ha un punto aperto
+  sulla calibrazione di μ_E e log σ_E (punto 9 sotto). Casi A e B ricalibrati a 10–20 MeV (c).
 - **Verifiche della v0.18** (2026-10-05): quattro ipotesi chiuse con una previsione scritta prima del
   calcolo (punti 4, 5, 6, 8 sotto). Codice nuovo solo additivo: forme `"laplace"` e `"student_t"`
   in `kinematics.sample_energy_spectrum`, costante `STUDENT_T_DOF`. Script di analisi:
   `prior_B_rumore.py`, `mu_N1000_diag.py`, `curtosi_log_sigma.py`, `asimmetria_log_sigma.py`,
   `modo_log_sigma.py`.
 
-## Punti aperti (v0.18, 2026-10-05)
+## Punti aperti (v0.19, 2026-10-13)
 
-Nessun punto aperto sul codice. I punti 1–3 erano chiusi nella v0.16; i punti 4–8 chiudono o
-quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoconto.md` §4–§6.
+Dalla v0.19 il dominio è 10–20 MeV. I punti 1–8 sono stati chiusi o quantificati a 0.5–6 MeV
+(v0.16–v0.18); i numeri riportati sotto sono di quel dominio salvo dove indicato. Rifatti a
+10–20 MeV: checklist A, B, C, figura di contrazione, robustezza al prior, stress
+dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5). Da rifare: `n1000_extra.py`,
+`stress_spettro.py`, `stress_sorgente.py`, `correlazione_stadi.py` e le diagnostiche del Caso C.
+
+9. **Calibrazione del Caso C a 10–20 MeV: aperto (c).** Checklist v0.19: Ω_n calibrata; μ_E con
+   larghezza del pull 1.24–1.30 e coverage 68% 0.51–0.55 a N ≥ 300; log σ_E con pull medio da
+   +0.10 (N = 50) a +0.61 (N = 1000) e coverage 68% 0.55–0.60. Uguale con generazione isotropa e
+   anisotropa. A 0.5–6 MeV lo stesso codice era calibrato. Ipotesi (d): risoluzione per evento su
+   E_n (~1.3 MeV) paragonabile a σ_E, quindi σ_E poco vincolato, con stadio 2 sensibile a
+   finestra fine e prior. Da indagare in una modifica separata.
+10. **Prior fisico su θ_p del Caso A: chiuso (c).** Vedi Scelte di implementazione.
 
 1. **Calibrazione del Caso A: chiuso (c).** `scripts/caso_A_checklist.py`, 20 000 eventi. Con la
    verità estratta dal prior (E_n ~ U(0.5, 6), θ_p ~ U(0, π/2)): pull +0.003 / 0.998, coverage
@@ -321,7 +366,12 @@ quantificano i limiti dichiarati della v0.16. Dettagli e tabelle in `docs/resoco
 - **Prior su E_n nel Caso B** da scegliere sullo spettro fisico atteso: non si dimentica con N (c).
   Nel Caso C log σ_E dipende dal prior (0.3 σ a N = 50, < 0.1 σ da N ≈ 300, c).
 - **Nuisance `z` del Caso A** fuori scope (nessun osservabile); **isotropia in CM** assunta nel
-  range 0.5–6 MeV, da verificare oltre ~10 MeV (d); **target `loglik`** per N = 1000 ridefinito a 2 s.
+  dominio 10–20 MeV, verificata contro ENDF/B-VIII.0: l'anisotropia vera non cambia la
+  ricostruzione (c, bias ≤ 0.15 σ a N = 1000); **target `loglik`** per N = 1000 ridefinito a 2 s.
+- **Fuori scope a 10–20 MeV:** la sezione d'urto n–p cala con E_n, quindi lo spettro rivelato non è
+  lo spettro incidente (efficienza); soglia su E_p basse. Riguardano il modello realistico.
+- **Approssimazioni residue:** prior su θ_p del Caso A e `track_angle_cdf` nel limite non
+  relativistico (correzioni ~1% e ≤ 0.003 sulla ripartizione a 20 MeV, (b)).
 
 ## Pubblicazione su GitHub
 
