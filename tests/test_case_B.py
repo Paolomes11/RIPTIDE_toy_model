@@ -256,6 +256,22 @@ def test_loglik_marginal_En_theta_sigma_to_zero_is_sharp_cut_plus_track_term():
     np.testing.assert_allclose(new[interior], sharp[interior], atol=2e-3)
 
 
+def test_loglik_marginal_En_known_angle_keeps_En_dependent_track_factor():
+    # theta_p noto: p(Ep, theta_p | En) = p(Ep | theta_p, En) p(theta_p | En); il limite
+    # cos/pi della densita' non dipende da En e resta fuori, il fattore relativistico no.
+    # A 20 MeV quel fattore cambia lungo la griglia in En di ~0.01 in log: senza, lo
+    # scarto dal riferimento supererebbe la tolleranza.
+    en_grid = grids.energy_grid()
+    log_prior_En = np.log(priors.energy_prior(en_grid))
+    Ep_hat = np.array([6.0, 8.0, 10.0])
+    theta_p = np.linspace(0.05, 1.2, 30)[None, :].repeat(3, axis=0)
+    theta_3d, en_3d = theta_p[:, :, None], en_grid[None, None, :]
+    reference = logsumexp(-0.5 * ((Ep_hat[:, None, None] - kinematics.proton_energy(en_3d, theta_3d)) / SIGMA_EP) ** 2
+                          + log_prior_En + kinematics.log_recoil_direction_density(theta_3d, en_3d), axis=2)
+    known = forward_model.loglik_marginal_En(Ep_hat, theta_p, en_grid, SIGMA_EP, log_prior_En)
+    np.testing.assert_allclose(known + np.log(np.cos(theta_p) / np.pi), reference, atol=1e-6)
+
+
 def test_posterior_B_one_event_flat_prior_matches_analytic_form():
     # riga 10, test di limite "1 evento + prior piatto" -- ERRATA (R3): con il
     # termine di traccia (isotropia in CM) L_k(Omega_n) non e' ~costante

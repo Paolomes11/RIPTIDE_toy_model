@@ -94,7 +94,9 @@ def loglik_marginal_En(Ep_hat: np.ndarray, theta_p: np.ndarray, En_grid: np.ndar
     Fisica: Ep da kinematics.proton_energy (relativistica), theta_lab <= pi/2
     (scattering elastico a masse uguali: il rinculo e' sempre in avanti). I
     candidati con theta_p > pi/2 sono cinematicamente vietati e ricevono
-    log-verosimiglianza -inf.
+    log-verosimiglianza -inf. Della densita' della traccia p(theta_p | En) si
+    tiene solo il fattore relativistico che dipende da En: il limite cos/pi non
+    dipende da En e lo aggiunge chi confronta direzioni candidate.
 
     Args:
         Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
@@ -108,7 +110,8 @@ def loglik_marginal_En(Ep_hat: np.ndarray, theta_p: np.ndarray, En_grid: np.ndar
     """
     Ep_pred = kinematics.proton_energy(En_grid[None, None, :], theta_p[:, :, None])
     joint = -0.5 * ((Ep_hat[:, None, None] - Ep_pred) / sigma_Ep) ** 2
-    joint = joint + log_prior_En[None, None, :]
+    joint = joint + log_prior_En[None, None, :] + kinematics.log_recoil_density_ratio(
+        theta_p[:, :, None], En_grid[None, None, :])
     joint = np.where(theta_p[:, :, None] <= np.pi / 2, joint, -np.inf)
     return logsumexp_axis(joint, axis=2)
 
@@ -129,7 +132,8 @@ def loglik_marginal_En_hierarchical(Ep_hat: np.ndarray, theta_p: np.ndarray,
     iperparametro ha la propria pi(En | mu_E, sigma_E)
     (priors.energy_prior_given_hyperparams): il prior varia lungo l'asse
     dei candidati, da cui la funzione separata invece di riusare quella
-    del Caso B.
+    del Caso B. Come la', della densita' della traccia si tiene solo il
+    fattore relativistico che dipende da En.
 
     Args:
         Ep_hat: energia di rinculo osservata, MeV, forma (n_events,).
@@ -150,7 +154,8 @@ def loglik_marginal_En_hierarchical(Ep_hat: np.ndarray, theta_p: np.ndarray,
     n_hyper = log_prior_En_grid.shape[0]
 
     Ep_pred = kinematics.proton_energy(En_grid[None, :], theta_p[:, None])  # (n_events, n_En)
-    base = -0.5 * ((Ep_hat[:, None] - Ep_pred) / sigma_Ep) ** 2
+    base = (-0.5 * ((Ep_hat[:, None] - Ep_pred) / sigma_Ep) ** 2
+            + kinematics.log_recoil_density_ratio(theta_p[:, None], En_grid[None, :]))
     base = np.where((theta_p <= np.pi / 2)[:, None], base, -np.inf)
 
     return marginalize_En_hierarchical(base, log_prior_En_grid, chunk_size)
