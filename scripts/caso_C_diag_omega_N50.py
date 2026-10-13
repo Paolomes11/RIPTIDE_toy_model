@@ -85,7 +85,7 @@ def run_experiment(index: int, seed_tag: int | None = None) -> dict:
         np.arccos(rng.uniform(-1.0, 1.0, 1)), rng.uniform(0.0, 2 * np.pi, 1)
     )
     Ep_true, track = kinematics.sample_recoil_events(
-        rng, rng.normal(mu_true, sigma_true, N_EVENTS), omega_true[0]
+        rng, kinematics.sample_truncated_normal_energy(rng, mu_true, sigma_true, N_EVENTS), omega_true[0]
     )
     D_B = (rng.normal(Ep_true, SIGMA_EP), kinematics.smear_direction(rng, track, SIGMA_THETA))
 

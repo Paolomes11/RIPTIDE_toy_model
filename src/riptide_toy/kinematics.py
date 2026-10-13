@@ -9,8 +9,10 @@ smearing della traccia.
 """
 import numpy as np
 from numpy.polynomial import legendre
+from scipy.stats import truncnorm
 
-from riptide_toy.constants import BIMODAL_HALF_SEPARATION, N_CM_NEWTON, PROTON_MASS_MEV, STUDENT_T_DOF
+from riptide_toy.constants import (BIMODAL_HALF_SEPARATION, EN_MAX, EN_MIN, N_CM_NEWTON,
+                                   PROTON_MASS_MEV, STUDENT_T_DOF)
 
 def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
     """Energia cinetica del protone di rinculo, relativistica a masse uguali:
@@ -278,6 +280,28 @@ def mixed_source_axes(rng: np.random.Generator, omega_n_hat: np.ndarray, n_event
     return np.concatenate([main, others])
 
 
+def sample_truncated_normal_energy(rng: np.random.Generator, mu_E: float, sigma_E: float,
+                                   n: int) -> np.ndarray:
+    """Energie vere dei neutroni da N(mu_E, sigma_E) troncata a [EN_MIN, EN_MAX],
+    la stessa densita' che il modello gerarchico del Caso C assume per E_n
+    (priors.energy_prior_given_hyperparams). Senza troncatura, per mu_E vicino a
+    un bordo e sigma_E di qualche MeV una frazione non trascurabile delle energie
+    cade fuori dal dominio che la ricostruzione integra: il test di calibrazione
+    misurerebbe quell'errore di modello invece dell'inferenza.
+
+    Args:
+        rng: generatore numpy.
+        mu_E: media della gaussiana prima della troncatura, MeV.
+        sigma_E: deviazione standard prima della troncatura, MeV, > 0.
+        n: numero di eventi.
+
+    Ritorna:
+        array (n,), E_n in MeV, tutte in [EN_MIN, EN_MAX].
+    """
+    a, b = (EN_MIN - mu_E) / sigma_E, (EN_MAX - mu_E) / sigma_E
+    return truncnorm.rvs(a, b, loc=mu_E, scale=sigma_E, size=n, random_state=rng)
+
+
 def sample_energy_spectrum(rng: np.random.Generator, shape: str, mean: float,
                            sd: float, n: int) -> np.ndarray:
     """Energie vere dei neutroni da uno spettro di forma data, con media e
@@ -285,20 +309,22 @@ def sample_energy_spectrum(rng: np.random.Generator, shape: str, mean: float,
 
     Args:
         rng: generatore numpy.
-        shape: "gauss", "uniform", "bimodal", "lognormal", "laplace" o "student_t"
-            (le ultime due a code pesanti, curtosi 6 e 3 + 6 / (STUDENT_T_DOF - 4);
-            come la lognormale non sono troncate al dominio di energia).
-        mean: media dello spettro, MeV, > 0.
-        sd: deviazione standard dello spettro, MeV, > 0.
+        shape: "gauss" (troncata al dominio, come il modello del Caso C), "uniform",
+            "bimodal", "lognormal", "laplace" o "student_t" (le ultime due a code
+            pesanti, curtosi 6 e 3 + 6 / (STUDENT_T_DOF - 4); le forme diverse da
+            "gauss" non sono troncate al dominio di energia).
+        mean: media dello spettro, MeV, > 0 (per "gauss": prima della troncatura).
+        sd: deviazione standard dello spettro, MeV, > 0 (per "gauss": prima della troncatura).
         n: numero di eventi.
 
     Ritorna:
-        array (n,), E_n in MeV; media e sd attese uguali a mean e sd per ogni forma.
+        array (n,), E_n in MeV; media e sd attese uguali a mean e sd per ogni
+        forma tranne "gauss", dove sono quelle della gaussiana troncata.
     """
     if shape == "gauss":
         # stessa chiamata della generazione standard: a parita' di seme si
         # riottengono esattamente gli stessi dataset
-        return rng.normal(mean, sd, n)
+        return sample_truncated_normal_energy(rng, mean, sd, n)
     if shape == "uniform":
         half_width = np.sqrt(3.0) * sd  # varianza di U(-h, h) = h^2 / 3
         return rng.uniform(mean - half_width, mean + half_width, n)

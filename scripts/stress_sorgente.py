@@ -62,7 +62,7 @@ def run_experiment(task: tuple[str, int, float, float | None, int]) -> dict:
     omega_true = kinematics.direction_from_theta_phi(
         np.arccos(rng.uniform(-1.0, 1.0, 1)), rng.uniform(0.0, 2 * np.pi, 1)
     )
-    En = (rng.normal(mu_true, sigma_true, n_events) if case == "C"
+    En = (kinematics.sample_truncated_normal_energy(rng, mu_true, sigma_true, n_events) if case == "C"
           else rng.uniform(EN_MIN, EN_MAX, n_events))
     separation = None if separation_deg is None else np.radians(separation_deg)
     axes = kinematics.mixed_source_axes(rng_contamination, omega_true[0], n_events, fraction, separation)
