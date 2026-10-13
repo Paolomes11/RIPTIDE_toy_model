@@ -1,10 +1,11 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.19 — 2026-10-13
+v0.21 — 2026-10-13
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi
-numerici sono rifatti nei notebook `notebooks/01`–`05`.
+numerici sono rifatti nei notebook `notebooks/01`–`05`; il notebook `06_modifiche_10_20_MeV` spiega
+cosa è cambiato col passaggio a 10–20 MeV e come è stata chiusa la calibrazione del Caso C.
 
 Etichette: **(a)** fatto consolidato · **(b)** stima toy con assunzioni esplicite · **(c)** verificato
 con Monte Carlo · **(d)** ipotesi da testare.
@@ -25,7 +26,7 @@ rivelatore: σ_Ep = 0.10 MeV, σ_θ = 0.08 rad. Prior sempre propri (E_n piatto 
 σ_E log-uniforme su [0.01, 50] MeV; θ_p con densità sin 2θ_p nel Caso A). I casi di riferimento
 R1–R3 restano alle energie con cui sono definiti (R1 su una griglia 0.5–6 MeV).
 
-## 2. Cinematica (notebook 01)
+## 2. Cinematica (notebooks 01, 06)
 
 | Risultato | Valore | |
 |---|---|---|
@@ -100,31 +101,54 @@ Ricostruzione a due stadi, senza griglia 4D. Stadio 1: Ω_n come nel Caso B. Sta
 predittivo, solo per raffinare Ω_n. La verità è generata con μ_E ~ U(13, 17) MeV e σ_E
 log-uniforme in (0.8, 2.4) MeV (stessa σ/μ della v0.18, che usava U(2.5, 4) e (0.2, 0.6)).
 
-**Stato a 10–20 MeV: calibrazione di μ_E e log σ_E non raggiunta, punto aperto (c).**
-Checklist `scripts/caso_C_checklist.py`, v0.19:
+Le energie per evento sono estratte dalla gaussiana N(μ_E, σ_E) **troncata a [10, 20] MeV**
+(`kinematics.sample_truncated_normal_energy`), la stessa densità che il modello gerarchico assume
+(v0.21; prima la gaussiana intera, vedi sotto).
 
-| N (M) | bias μ_E [MeV] | rms μ_E (std post.) | bias log σ_E | pull log σ_E | rms Ω_n [°] (dichiarata) | coverage 68% μ / log σ / Ω |
-|---|---|---|---|---|---|---|
-| 50 (200) | +0.05 ± 0.04 | 0.59 (0.80) | −0.05 ± 0.06 | +0.10 / 0.99 | 1.77 (1.74) | 0.62 / 0.55 / 0.73 |
-| 150 (200) | +0.05 ± 0.04 | 0.52 (0.39) | +0.05 ± 0.02 | +0.24 / 1.05 | 0.99 (0.95) | 0.72 / 0.55 / 0.64 |
-| 300 (100) | −0.04 ± 0.05 | 0.47 (0.21) | +0.02 ± 0.03 | +0.33 / 1.16 | 0.65 (0.66) | 0.51 / 0.56 / 0.68 |
-| 1000 (40) | +0.02 ± 0.03 | 0.18 (0.10) | +0.04 ± 0.01 | +0.61 / 1.09 | 0.35 (0.36) | 0.55 / 0.60 / 0.72 |
+**Stato a 10–20 MeV: Caso C calibrato a N ≥ 150; a N = 50 la coverage di log σ_E resta bassa (c).**
+Checklist `scripts/caso_C_checklist.py`, v0.21:
 
-- **Ω_n calibrata** a ogni N: pull rms 0.97–1.03, coverage HPD nei limiti binomiali, pendenza di
+| N (M) | bias μ_E [MeV] | rms μ_E (std post.) | pull μ_E | bias log σ_E | pull log σ_E | rms Ω_n [°] (dichiarata) | coverage 68% μ / log σ / Ω |
+|---|---|---|---|---|---|---|---|
+| 50 (200) | +0.08 ± 0.04 | 0.55 (0.78) | +0.09 / 0.88 | −0.06 ± 0.06 | +0.07 / 0.97 | 1.85 (1.75) | 0.72 / 0.61 / 0.64 |
+| 150 (200) | +0.03 ± 0.02 | 0.35 (0.33) | +0.05 / 1.01 | +0.00 ± 0.02 | +0.11 / 0.95 | 0.88 (0.95) | 0.68 / 0.67 / 0.73 |
+| 300 (100) | +0.01 ± 0.02 | 0.21 (0.18) | +0.18 / 0.92 | +0.01 ± 0.01 | +0.11 / 0.89 | 0.69 (0.66) | 0.68 / 0.69 / 0.63 |
+| 1000 (40) | −0.01 ± 0.01 | 0.092 (0.086) | −0.14 / 1.04 | −0.00 ± 0.01 | +0.00 / 1.00 | 0.34 (0.36) | 0.55 / 0.65 / 0.65 |
+
+Pull: media / larghezza; errore binomiale al 68% ±0.03 (M = 200), ±0.05 (M = 100), ±0.07 (M = 40).
+
+- **Ω_n calibrata** a ogni N: pull rms 0.93–1.07, coverage HPD nei limiti binomiali, pendenza di
   contrazione −0.55 (c).
-- **μ_E**: bias compatibile con zero, ma a N ≥ 300 larghezza del pull 1.24–1.30 e coverage 68%
-  0.51–0.55. Il rapporto fra errore rms e std posteriore media è più grande (2.2 a N = 300) perché
-  la std varia fra esperimenti; la misura della calibrazione è il pull. L'errore rms quasi non
-  contrae fra N = 50 e 300 (pendenza −0.39 su tutto il range) (c).
-- **log σ_E**: pull medio positivo crescente con N (+0.10 → +0.61), coverage 68% 0.55–0.60 (c).
-- Stessi numeri con generazione isotropa e anisotropa (§6.5): non è l'anisotropia.
-- A 0.5–6 MeV (v0.18) lo stesso codice era calibrato (μ_E pull ≈ N(0, 1) a ogni N, log σ_E con
-  coverage nominale su seed nuovi). Il cambio di dominio ha rotto la calibrazione. Ipotesi da
-  indagare in una modifica separata (d): a 10–20 MeV la risoluzione per evento su E_n (~1.3 MeV) è
-  paragonabile a σ_E, quindi σ_E è poco vincolato e il posterior si appoggia al bordo della
-  finestra o al prior; il passo e l'estensione della finestra fine dello stadio 2 vanno
-  ricontrollati sulle nuove scale.
-- Robustezza al prior su σ_E (N = 150): spostamento di μ_E +0.005 σ, di log σ_E +0.23 σ (c).
+- **μ_E calibrato**: bias compatibile con zero, larghezza del pull 0.88–1.04, rms e std posteriore
+  media vicine a N ≥ 150, coverage 90/95% 0.90–0.91/0.92–0.96. Il 0.55 al 68% a N = 1000 è a
+  −1.8 errori binomiali con M = 40, con pull di larghezza 1.04: fluttuazione (c). Contrazione:
+  pendenza −0.61, rms·√N 3.9 / 4.3 / 3.6 / 2.9 MeV, nessun plateau (c).
+- **log σ_E calibrato a N ≥ 150**: bias ≤ 0.012, pull medio +0.00 … +0.11 con larghezza 0.89–1.00,
+  coverage 0.67–0.69 / 0.87–0.95 / 0.94–0.98 (c). Fra N = 300 e 1000 rms·√N è costante
+  (1.96 → 2.10); la pendenza complessiva −0.85 viene da N = 50, dove il posterior non è gaussiano.
+- **Residuo a N = 50**: coverage di log σ_E 0.61 / 0.81 / 0.87 (−2.1 / −4.3 / −3.8 errori binomiali)
+  con pull medio +0.07 e larghezza 0.97; l'rms dell'errore (0.81) supera la std posteriore media
+  (0.66). Gli esperimenti con spettro vicino a un bordo (p_out ≥ 1%, sotto) hanno pull di log σ_E
+  +0.52 a N = 50, che scende a +0.26 / +0.21 / +0.00 a N = 150 / 300 / 1000 (c). Andamento opposto a
+  quello senza troncatura, dove cresceva con N: compatibile con un effetto di prior a N piccolo,
+  come quello visto a 0.5–6 MeV (v0.11) (d). Punto aperto minore.
+- Robustezza al prior su σ_E (N = 150, uniforme in σ_E contro log σ_E): spostamento medio di μ_E
+  +0.01 std (max 0.32), di log σ_E +0.21 std (max 1.08); coverage di log σ_E col prior uniforme
+  0.62 / 0.86 / 0.92 (c).
+
+**Prima della correzione (v0.19–v0.20, gaussiana non troncata).** μ_E con larghezza del pull
+1.24–1.30 e coverage 68% 0.51–0.55 a N ≥ 300; log σ_E con pull medio crescente con N (+0.10 →
++0.61) e coverage 68% 0.55–0.60 (c). Causa: la frazione dello spettro vero fuori da [10, 20] MeV,
+p_out = Φ((10 − μ_E)/σ_E) + 1 − Φ((20 − μ_E)/σ_E), arrivava a Φ(−1.25) + 1 − Φ(2.92) = 0.107 nel
+caso peggiore (μ_E = 13, σ_E = 2.4) e superava l'1% in circa un terzo degli esperimenti (a); a
+0.5–6 MeV il margine di 3σ_E c'era (μ_E ± 3σ_E ⊂ [0.7, 5.8] ⊂ [0.5, 6]). Con p_out ≥ 1% il pull
+medio di log σ_E era +0.55 / +0.79 / +0.84 / +1.36 a N = 50 / 150 / 300 / 1000, con p_out < 1%
+−0.08 / −0.07 / +0.12 / +0.20 (c). Troncando solo il generatore la calibrazione torna (tabella
+sopra): la causa è confermata (c). Alternative scartate: σ_E ≤ 1 MeV nel generatore (σ_E sotto la
+risoluzione per evento su E_n, ~1.3 MeV, quindi un regime meno vincolato) e griglia di E_n più
+larga (modifica di stadio 1 e 2, costo doppio). Limite: un rivelatore reale non può troncare
+sull'energia vera; uno spettro che sborda dal dominio è un errore di modello, da trattare come
+stress test (come gli spettri non gaussiani di §6.2), non come calibrazione.
 
 La tabella e le verifiche della v0.18 (0.5–6 MeV) restano valide per quel dominio e sono nella
 storia git di questo file.
@@ -165,13 +189,14 @@ verità è generata dalla cinematica in CM e il prior su θ_p è quello fisico.
   (`scripts/prior_B_rumore.py`) è stata fatta a 0.5–6 MeV e non rifatta.
 - σ_E: la dipendenza dal prior di log σ_E scende da 0.76 σ (N = 50) a 0.07 σ (N = 1000) (c), più forte
   che a 0.5–6 MeV (0.32 σ a N = 50): coerente con un σ_E meno vincolato dai dati (§5, d).
-- Il Caso C eredita la calibrazione mancata di §5 con entrambi i prior: la robustezza dice che il
-  difetto non viene dalla scelta del prior su σ_E a N ≥ 150 (c).
+- Le righe del Caso C vengono dal generatore senza troncatura (v0.19), con la calibrazione mancata
+  di §5 per entrambi i prior; vanno rilanciate col generatore troncato. Il confronto dei prior a
+  N = 150 della checklist v0.21 dà spostamenti simili (§5).
 
 ### 6.2 Spettro non gaussiano, Caso C (`scripts/stress_spettro.py`)
 
 > **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
-> metodo; vanno rilanciati sul nuovo dominio, dopo aver chiuso la calibrazione del Caso C (§5).
+> metodo; vanno rilanciati sul nuovo dominio, ora che la calibrazione del Caso C è chiusa (§5).
 
 Energie vere da spettri con la stessa media e sd di N(μ_E, σ_E) ma forma uniforme, bimodale (due
 righe a ±0.9 sd), lognormale, Laplace (curtosi 6) o Student-t con 5 gradi di libertà (curtosi 9);
@@ -210,7 +235,7 @@ il modello resta gaussiano. Bersagli: media e sd vere dello spettro.
 ### 6.3 Sorgente unica, Casi B e C (`scripts/stress_sorgente.py`)
 
 > **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
-> metodo; vanno rilanciati sul nuovo dominio, dopo aver chiuso la calibrazione del Caso C (§5).
+> metodo; vanno rilanciati sul nuovo dominio, ora che la calibrazione del Caso C è chiusa (§5).
 
 Una frazione f di eventi viene da una seconda sorgente puntiforme a separazione Δ (10°, 30°, 90°)
 o da un fondo isotropo; la ricostruzione resta a sorgente unica. Diagnostica: test KS fra gli
@@ -257,7 +282,7 @@ Caso B, N = 300 (σ posteriore ≈ 1.2°):
 ### 6.4 Due stadi contro stima congiunta, Caso C (`scripts/correlazione_stadi.py`)
 
 > **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
-> metodo; vanno rilanciati sul nuovo dominio, dopo aver chiuso la calibrazione del Caso C (§5).
+> metodo; vanno rilanciati sul nuovo dominio, ora che la calibrazione del Caso C è chiusa (§5).
 
 Sugli stessi dataset della checklist del Caso C (M = 100 per N), si parte dalle stime dei due
 stadi e si calcola l'approssimazione di Laplace del posterior congiunto 4D (Ω_n nel piano tangente,
@@ -324,8 +349,13 @@ coverage resta nei limiti binomiali.
 
 Verdetto: l'anisotropia vera a 10–20 MeV non cambia la ricostruzione al livello del toy (c), e il
 modello resta isotropo. Il bias su μ_E cresce con N (0.15 σ a N = 1000, vicino alla soglia): oltre
-N ≈ 1000 va ricontrollato o messo nella verosimiglianza. Il Caso C ha la stessa calibrazione mancata
-con le due generazioni (§5), quindi quel difetto non viene dall'isotropia.
+N ≈ 1000 va ricontrollato o messo nella verosimiglianza. Le righe del Caso C vengono dal generatore
+senza troncatura (v0.19): la calibrazione mancata era la stessa con le due generazioni, quindi non
+veniva dall'isotropia (§5); vanno rilanciate col generatore troncato.
+
+Nota: il pkl in `outputs/` contiene oggi solo il Caso A, rilanciato dopo il cambio del prior su
+θ_p (`stress_anisotropia.py 3 A`); le righe B e C della tabella vengono dal run precedente con i
+tre casi e non sono rilette dal notebook 06.
 
 ## 7. Prestazioni
 
@@ -359,7 +389,10 @@ in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV 
 - **Nuisance z** (profondità d'interazione) del Caso A fuori scope: nessun osservabile definito.
 - **Isotropia in CM** a 10–20 MeV: la distribuzione angolare vera (ENDF/B-VIII.0) non cambia la
   ricostruzione (c, §6.5); il modello resta isotropo.
-- **Calibrazione del Caso C a 10–20 MeV:** non raggiunta per μ_E e log σ_E (c, §5), da indagare.
+- **Calibrazione del Caso C a 10–20 MeV:** raggiunta a N ≥ 150 col generatore troncato al dominio
+  (c, §5); a N = 50 la coverage di log σ_E resta bassa (0.61 / 0.81 / 0.87), probabile effetto di
+  prior (d). Uno spettro vero che sborda da [10, 20] MeV (fino al 10.7% senza troncatura) è un
+  errore di modello che sposta log σ_E verso l'alto, crescente con N (c, §5).
 - **Fuori scope:** sezione d'urto n–p decrescente con E_n (spettro rivelato ≠ spettro incidente),
   soglia su E_p basse.
 - I limiti su assunzione 1, assunzione 3 e due stadi sono quantificati a 0.5–6 MeV (§6.2–6.4).

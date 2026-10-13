@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from scipy import stats
+from scipy.integrate import trapezoid
 from scipy.special import logsumexp
 
 from riptide_toy import (combine, forward_model, grids, kinematics, posterior_B, posterior_C,
@@ -511,26 +512,46 @@ def test_marginal_direction_not_narrower_than_conditional():
 
 def test_sample_energy_spectrum_matches_mean_sd_and_gauss_stream():
     # ogni forma ha media e sd fissate: con n = 400 000 l'errore sulla media e'
-    # sd/sqrt(n) ~ 6e-4 sd e quello relativo sulla sd ~ 1e-3: soglie 5e-3
-    mean, sd, n = 3.0, 0.4, 400_000
+    # sd/sqrt(n) ~ 6e-4 sd e quello relativo sulla sd ~ 1e-3: soglie 5e-3.
+    # Centro del dominio e sd piccola: la troncatura di "gauss" a ~4 sd sposta
+    # la sd di ~3e-4 relativo, sotto soglia
+    mean, sd, n = 15.0, 1.2, 400_000
     for shape in ("gauss", "uniform", "bimodal", "lognormal", "laplace", "student_t"):
         En = kinematics.sample_energy_spectrum(np.random.default_rng(SEED), shape, mean, sd, n)
         assert En.shape == (n,)
         assert abs(En.mean() - mean) < 5e-3 * sd
         assert abs(En.std() / sd - 1.0) < 5e-3
-    # "gauss" consuma il generatore come rng.normal: stessi dataset della checklist
+    # "gauss" consuma il generatore come la generazione standard: stessi dataset della checklist
     np.testing.assert_array_equal(
         kinematics.sample_energy_spectrum(np.random.default_rng(SEED), "gauss", mean, sd, 10),
-        np.random.default_rng(SEED).normal(mean, sd, 10),
+        kinematics.sample_truncated_normal_energy(np.random.default_rng(SEED), mean, sd, 10),
     )
     with pytest.raises(ValueError):
         kinematics.sample_energy_spectrum(np.random.default_rng(SEED), "boh", mean, sd, 10)
 
 
+def test_sample_truncated_normal_energy_matches_model_density():
+    # caso peggiore del generatore del Caso C (mu_E al bordo dell'intervallo,
+    # sigma_E massima): ~11% della gaussiana non troncata cadrebbe fuori dominio.
+    # I campioni devono stare nel dominio e seguire la densita' troncata
+    # che il modello assume (KS su 200 000 eventi)
+    mu_E, sigma_E, n = 13.0, 2.4, 200_000
+    En = kinematics.sample_truncated_normal_energy(np.random.default_rng(SEED), mu_E, sigma_E, n)
+    assert En.shape == (n,)
+    assert En.min() >= EN_MIN and En.max() <= EN_MAX
+    a, b = (EN_MIN - mu_E) / sigma_E, (EN_MAX - mu_E) / sigma_E
+    assert stats.kstest(En, stats.truncnorm(a, b, loc=mu_E, scale=sigma_E).cdf).pvalue > 0.01
+    # stessa densita' di priors.energy_prior_given_hyperparams: media sulla griglia
+    en_grid = grids.energy_grid()
+    density = priors.energy_prior_given_hyperparams(en_grid, mu_E, sigma_E)
+    model_mean = trapezoid(en_grid * density, en_grid)
+    assert abs(En.mean() - model_mean) < 5 * En.std() / np.sqrt(n)
+
+
 def test_sample_energy_spectrum_shapes_differ_from_gaussian():
     # bimodale: due picchi, densita' al centro sotto quella alle righe;
     # uniforme: niente code oltre sqrt(3) sd; lognormale: asimmetria positiva
-    mean, sd, n = 3.0, 0.4, 400_000
+    mean, sd, n = 15.0, 1.2, 400_000
     rng = np.random.default_rng(SEED)
     z = (kinematics.sample_energy_spectrum(rng, "bimodal", mean, sd, n) - mean) / sd
     centre = np.mean(np.abs(z) < 0.1)
