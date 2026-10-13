@@ -122,7 +122,7 @@ def test_posterior_A_one_event_under_1ms():
 
 # Target ridefinito (R4, docs/roadmap.md): l'obiettivo iniziale era 50 ms, ma la
 # marginalizzazione esatta su theta_p tocca 1000 x 500 x 500 = 2.5e8 celle,
-# ~1.0-1.2 s con numpy denso float32 (c). Una finestra su theta_p non e'
+# ~0.7 s con numpy denso float32 (c). Una finestra su theta_p non e'
 # esatta (differenze di loglik fino a 18.6 nelle code), numba non adottato.
 def test_posterior_A_1000_events_under_2s():
     en_grid = grids.energy_grid()

@@ -31,7 +31,12 @@ def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
     # En = 0 da' 1/En = inf ed Ep = 0, il limite corretto.
     with np.errstate(divide="ignore"):
         inv_En = np.divide(1.0, En)
-    return np.cos(theta_p) ** 2 / (inv_En + np.sin(theta_p) ** 2 / (2.0 * PROTON_MASS_MEV))
+    denom = inv_En + np.sin(theta_p) ** 2 / (2.0 * PROTON_MASS_MEV)
+    if not isinstance(denom, np.ndarray):
+        return np.cos(theta_p) ** 2 / denom
+    # divisione in place: una tabella piena allocata in meno, e l'allocazione di
+    # una tabella nuova a ogni chiamata costava piu' del calcolo stesso (profilo)
+    return np.divide(np.cos(theta_p) ** 2, denom, out=denom)
 
 
 def recoil_cos2_from_energy(Ep: np.ndarray, En: np.ndarray) -> np.ndarray:

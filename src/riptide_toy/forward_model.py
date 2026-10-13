@@ -57,27 +57,40 @@ def loglik(D: tuple[np.ndarray, np.ndarray], En_grid: np.ndarray,
         array (n_events, n_En), log-verosimiglianza (float32).
     """
     Ep_hat, theta_p_hat = D
-    Ep_hat = Ep_hat.astype(np.float32)
     theta_p_hat = theta_p_hat.astype(np.float32)
     n_events, n_En = Ep_hat.shape[0], En_grid.shape[0]
 
     theta = theta_p_grid[None, :].astype(np.float32)
     En = En_grid[:, None].astype(np.float32)
-    Ep_pred = kinematics.proton_energy(En, theta)[None]  # float32 come gli input
-    inv_sigma_Ep = np.float32(1.0 / sigma_Ep)
+    # residuo scalato per sqrt(0.5)/sigma_Ep: il suo quadrato e' gia' -1 volte il
+    # termine gaussiano in Ep, e la moltiplicazione per -0.5 sulla tabella piena sparisce
+    scale = np.float32(np.sqrt(0.5) / sigma_Ep)
+    Ep_hat_scaled = Ep_hat.astype(np.float32) * scale
+    Ep_pred_scaled = kinematics.proton_energy(En, theta)[None]  # (1, n_En, n_theta), float32
+    Ep_pred_scaled *= scale
     # termine in theta per evento, (n_events, 1, n_theta): non dipende da En
     second = (-0.5 * ((theta_p_hat[:, None] - theta) / sigma_theta) ** 2
               + log_prior_theta[None, :]).astype(np.float32)[:, None, :]
+
+    # un solo buffer per tutti i chunk, operazioni in place: allocare tabelle
+    # nuove a ogni passo costava un terzo del tempo in page fault (profilo).
+    # Con un evento solo il buffer e' la tabella delle predizioni stessa, con la
+    # stessa vista (1, n_En, n_theta): viste diverse della stessa memoria fanno
+    # copiare a numpy l'input per prudenza, e la tabella in piu' si riallocava.
+    if n_events == 1:
+        buffer = Ep_pred_scaled
+    else:
+        buffer = np.empty((min(chunk_size, n_events), n_En, theta.shape[1]), dtype=np.float32)
 
     out = np.empty((n_events, n_En), dtype=np.float32)
     for start in range(0, n_events, chunk_size):
         end = min(start + chunk_size, n_events)
         # log-sum-exp su theta a mano e in place: scipy.special.logsumexp era il
         # 75% del tempo (conversioni e passate extra, profilo in docs/roadmap.md)
-        joint = (Ep_hat[start:end, None, None] - Ep_pred) * inv_sigma_Ep  # (chunk, n_En, n_theta)
+        joint = buffer[:end - start]  # (chunk, n_En, n_theta)
+        np.subtract(Ep_hat_scaled[start:end, None, None], Ep_pred_scaled, out=joint)
         joint *= joint
-        joint *= np.float32(-0.5)
-        joint += second[start:end]
+        np.subtract(second[start:end], joint, out=joint)
         joint_max = joint.max(axis=2, keepdims=True)  # finito: il prior su theta e' finito
         joint -= joint_max
         np.exp(joint, out=joint)
