@@ -5,8 +5,8 @@ Casi A/B/C. Progetto satellite di un articolo, separato dalla tesi.
 
 Dominio di energia 10–20 MeV, cinematica n–p relativistica esatta, scattering isotropo in CM
 (verificato contro la distribuzione angolare anisotropa di ENDF/B-VIII.0: effetto trascurabile).
-Stato: Casi A e B calibrati a 10–20 MeV; Caso C con un punto aperto sulla calibrazione
-(vedi `docs/roadmap.md`).
+Stato: Casi A, B e C calibrati a 10–20 MeV (Caso C a N ≥ 150; a N = 50 la coverage di σ_E è
+un po' bassa). Alcuni stress test sono ancora da rifare sul nuovo dominio (vedi `docs/roadmap.md`).
 
 - **Risultati in sintesi**: `docs/resoconto.md`
 - **Stato riga per riga e scelte di implementazione**: `docs/roadmap.md`
@@ -47,12 +47,12 @@ docs/              resoconto, roadmap, report del Caso C
 3. `03_caso_B`: verosimiglianza di un evento, checklist del Caso B, robustezza al prior su E_n e
    stress con una seconda sorgente.
 4. `04_caso_C`: modello gerarchico, limiti σ_E → 0 e σ_E → ∞, spettri non gaussiani.
-5. `05_validazione_caso_C`: checklist completa del Caso C a 10–20 MeV, diagnostica dello spettro
-   fuori dal dominio, robustezza al prior, e riassunto degli stress test fatti a 0.5–6 MeV, letti dai
+5. `05_validazione_caso_C`: checklist completa del Caso C a 10–20 MeV, spettro generato dalla
+   gaussiana troncata al dominio, robustezza al prior, e riassunto degli stress test fatti a 0.5–6 MeV, letti dai
    risultati in `outputs/`.
 6. `06_modifiche_10_20_MeV`: cosa è cambiato col passaggio a 10–20 MeV e perché (cinematica
-   relativistica, anisotropia ENDF/B-VIII.0, prior sin 2θ_p nel Caso A, `loglik` sotto 1 ms) e il punto
-   aperto del Caso C.
+   relativistica, anisotropia ENDF/B-VIII.0, prior sin 2θ_p nel Caso A, `loglik` sotto 1 ms) e la correzione
+   del generatore del Caso C.
 
 Le versioni intermedie della validazione del Caso C sono state rimosse; restano nella storia git.
 
