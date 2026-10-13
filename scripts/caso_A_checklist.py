@@ -4,8 +4,8 @@ Ordine della checklist: bias -> pull -> coverage.
 Due generatori della verita' E_n, con lo stesso posterior (prior piatto su [EN_MIN, EN_MAX]):
   (i)  E_n ~ U(EN_MIN, EN_MAX), theta_p ~ U(0, pi/2): la verita' e' estratta dal prior stesso.
        Gli intervalli credibili devono coprire esattamente al livello nominale (media sul prior).
-  (ii) E_n ~ U(1, 5): la sotto-popolazione usata nel notebook 02. La coverage non e' piu'
-       garantita, perche' si media su una distribuzione diversa dal prior.
+  (ii) E_n ~ U(11, 19): sotto-popolazione interna, lontana dai bordi del dominio. La coverage
+       non e' piu' garantita, perche' si media su una distribuzione diversa dal prior.
 
 Uso: python scripts/caso_A_checklist.py   (~40 s, un processo, < 1 GB)
 Produce: la tabella su stdout.
@@ -18,7 +18,8 @@ from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP, SIGMA_THETA
 N_EVENTS = 20_000
 CHUNK = 50  # eventi per blocco: la marginalizzazione su theta_p alloca (CHUNK, 500, 500)
 LEVELS = np.array([0.68, 0.90, 0.95])
-GENERATORS = {"(i) prior = generatore, U(0.5, 6)": (EN_MIN, EN_MAX), "(ii) U(1, 5)": (1.0, 5.0)}
+GENERATORS = {f"(i) prior = generatore, U({EN_MIN:g}, {EN_MAX:g})": (EN_MIN, EN_MAX),
+              "(ii) U(11, 19)": (11.0, 19.0)}
 
 
 def reconstruct(truth: np.ndarray, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

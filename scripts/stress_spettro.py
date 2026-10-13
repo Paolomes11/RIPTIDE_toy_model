@@ -30,8 +30,8 @@ from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
 SHAPES = ["gauss", "uniform", "bimodal", "lognormal"]
 HEAVY_TAILED_SHAPES = ["laplace", "student_t"]
 N_M = [(1000, 40), (300, 100), (150, 200), (50, 200)]  # come la checklist del Caso C
-MU_RANGE = (2.5, 4.0)       # MeV, come la checklist del Caso C
-SIGMA_RANGE = (0.2, 0.6)    # MeV, log-uniforme, come la checklist del Caso C
+MU_RANGE = (13.0, 17.0)     # MeV, come la checklist del Caso C
+SIGMA_RANGE = (0.8, 2.4)    # MeV, log-uniforme, come la checklist del Caso C
 LEVELS = np.array([0.68, 0.90, 0.95])
 
 

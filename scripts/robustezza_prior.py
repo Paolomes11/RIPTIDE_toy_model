@@ -35,8 +35,8 @@ N_M_B = [(10, 200), (30, 200), (100, 100), (300, 50)]
 N_M_C = [(50, 200), (150, 200), (300, 100), (1000, 40)]
 KAPPA = 2.0                 # prior su Omega_n larga ~1/sqrt(KAPPA) rad ~ 40 gradi
 PRIOR_AXIS_ANGLE = np.pi / 2  # asse della prior a 90 gradi dalla verita': gradiente massimo
-MU_RANGE = (2.5, 4.0)       # MeV, come la checklist del Caso C
-SIGMA_RANGE = (0.2, 0.6)    # MeV, log-uniforme, come la checklist del Caso C
+MU_RANGE = (13.0, 17.0)     # MeV, come la checklist del Caso C
+SIGMA_RANGE = (0.8, 2.4)    # MeV, log-uniforme, come la checklist del Caso C
 CASE_A_TAG = 1              # spawn_key=(CASE_A_TAG, N, i): disgiunti dai seed (N, i) di B e C
 
 

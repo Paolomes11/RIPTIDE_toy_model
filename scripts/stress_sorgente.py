@@ -34,8 +34,8 @@ M_NULL = 200                # esperimenti a f = 0: fissano la soglia KS al 95%
 M_CONTAMINATED = 100        # esperimenti per configurazione contaminata
 FRACTIONS = [0.05, 0.1, 0.3]
 SEPARATIONS_DEG = [10.0, 30.0, 90.0, None]  # None = fondo isotropo
-MU_RANGE = (2.5, 4.0)       # MeV, come la checklist del Caso C
-SIGMA_RANGE = (0.2, 0.6)    # MeV, log-uniforme, come la checklist del Caso C
+MU_RANGE = (13.0, 17.0)     # MeV, come la checklist del Caso C
+SIGMA_RANGE = (0.8, 2.4)    # MeV, log-uniforme, come la checklist del Caso C
 LEVELS = np.array([0.68, 0.90, 0.95])
 CONTAMINATION_TAG = 2       # disgiunto dai seed (N, i) e da (1, N, i) della robustezza al prior
 KS_QUANTILE = 0.95

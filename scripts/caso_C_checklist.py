@@ -3,7 +3,7 @@
 Ordine della checklist: bias -> risoluzione -> pull ->
 coverage -> contrazione ~1/sqrt(N) -> robustezza al prior.
 M esperimenti indipendenti per ciascun N; per ogni esperimento verita' nuova:
-mu_E ~ U(2.5, 4.0) MeV, sigma_E ~ log-U(0.2, 0.6) MeV, Omega_n isotropa.
+mu_E ~ U(13, 17) MeV, sigma_E ~ log-U(0.8, 2.4) MeV, Omega_n isotropa.
 
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/caso_C_checklist.py [n_processi]
@@ -29,8 +29,8 @@ from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
 # (N eventi, M esperimenti): M scala con 1/N; ~10 min con 3 processi (misurato 2026-09-26)
 N_M = [(1000, 40), (300, 100), (150, 200), (50, 200)]
 N_ROBUSTNESS = 150  # N a cui si ripete lo stadio 2 con prior uniforme in sigma_E
-MU_RANGE = (2.5, 4.0)       # MeV
-SIGMA_RANGE = (0.2, 0.6)    # MeV, log-uniforme
+MU_RANGE = (13.0, 17.0)     # MeV
+SIGMA_RANGE = (0.8, 2.4)    # MeV, log-uniforme
 LEVELS = np.array([0.68, 0.90, 0.95])
 
 

@@ -13,16 +13,16 @@ from scipy.integrate import trapezoid
 
 from riptide_toy import forward_model, grids, kinematics, priors
 from riptide_toy.combine import combine_loglik, expected_sigma_n
-from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
+from riptide_toy.constants import EN_MAX, EN_MIN, SEED, SIGMA_EP, SIGMA_THETA
 
-EN_TRUE = 2.5  # MeV, energia condivisa degli eventi simulati
+EN_TRUE = 15.0  # MeV, energia condivisa degli eventi simulati
 N_VALUES = [1, 2, 10, 100]  # range della figura di contrazione
 
-# il plateau di contrazione sotto sistematico non e' ancora visibile a N=100 (lo shift
-# in Ep e' piccolo rispetto a sigma_Ep, quindi a N=100 e' ancora sotto il rumore
-# statistico): serve un range di N piu' esteso per renderlo visibile (verificato in
-# REPL: offset ~0.028 a N=100, ~0.050 a N=1000/5000, mentre sigma continua a scendere).
-N_VALUES_SHIFT = [1, 2, 10, 100, 1000, 5000]
+# a 15 MeV lo shift del 2% vale ~0.3 MeV, gia' sopra la sigma statistica a N=100
+# (~0.045 MeV): il plateau si vede gia' entro N=1000. Fino a N=1000 media e sigma
+# lette sulla griglia di energia coincidono con quelle su una griglia 4 volte piu'
+# fine; a N=5000 no (sigma 0.0026 contro 0.0065 MeV): il passo (0.02 MeV) e' troppo largo.
+N_VALUES_SHIFT = [1, 2, 10, 100, 1000]
 
 
 def weighted_mean_sigma(logpost: np.ndarray, en_grid: np.ndarray) -> tuple[float, float]:
@@ -70,7 +70,7 @@ def main() -> None:
         w = np.exp(combined - combined.max())
         axes[0].plot(en_grid, w / trapezoid(w, en_grid), label=f"N={n}")
     axes[0].axvline(EN_TRUE, color="k", linestyle=":", label="En (true)")
-    axes[0].set_xlim(1.5, 4.0)
+    axes[0].set_xlim(EN_MIN, EN_MAX)
     axes[0].set_xlabel("neutron energy En [MeV]")
     axes[0].set_ylabel("posterior P(En | D1:N)")
     axes[0].set_title("(a) combined posterior vs event count")

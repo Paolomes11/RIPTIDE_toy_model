@@ -29,8 +29,8 @@ from riptide_toy import grids, kinematics, posterior_C, priors, validate
 from riptide_toy.constants import SEED, SIGMA_EP, SIGMA_THETA
 
 N_M = [(300, 100), (150, 100), (50, 100)]  # i piu' lenti per primi
-MU_RANGE = (2.5, 4.0)       # MeV, come la checklist del Caso C
-SIGMA_RANGE = (0.2, 0.6)    # MeV, log-uniforme, come la checklist del Caso C
+MU_RANGE = (13.0, 17.0)     # MeV, come la checklist del Caso C
+SIGMA_RANGE = (0.8, 2.4)    # MeV, log-uniforme, come la checklist del Caso C
 OMEGA_BLOCK = np.array([0, 1])
 HYPER_BLOCK = np.array([2, 3])
 

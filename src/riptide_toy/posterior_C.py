@@ -117,8 +117,9 @@ def single_event_posterior(D: tuple[np.ndarray, np.ndarray, np.ndarray],
 
     Assunzioni dichiarate: sorgente unica (1) + direzione ~costante, campo
     lontano (2) + energie simili tra loro (3, E_n^(k) ~ N(mu_E, sigma_E)),
-    piu' scattering isotropo in CM (termine di traccia cos(theta_p)/pi) e
-    risoluzione angolare SIGMA_THETA sulla traccia, come in posterior_B.
+    piu' scattering isotropo in CM con cinematica relativistica (termine di
+    traccia cos(theta_p)/pi per un fattore dipendente da En) e risoluzione
+    angolare SIGMA_THETA sulla traccia, come in posterior_B.
 
     Nota: a differenza del template generico (D, shared_param_grid, prior)
     di posterior_A/B, qui D include anche omega_n_hat -- il risultato
