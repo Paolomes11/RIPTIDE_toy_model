@@ -11,9 +11,9 @@ Se la parte di ricostruzione non dipende dalla forma, per una forma X
 e la larghezza del pull scala come sqrt(var(err_X) / var(err_gauss)) a pari std posteriore.
 
 Previsioni (scritte prima del calcolo), per N = 50/150/300/1000:
-  1. var(En_ls - ls_true) compatibile con (k - 1) / (4 N) per ogni forma (k: gauss 3,
-     uniforme 1.8, bimodale a^4 + 6 a^2 (1 - a^2) + 3 (1 - a^2)^2, lognormale dalla sua
-     formula esperimento per esperimento);
+  1. var(En_ls - ls_eff) compatibile con (k - 1) / (4 N) per ogni forma (ls_eff: log della
+     sd effettiva dello spettro troncato; k: curtosi effettiva, esperimento per esperimento,
+     salvata dallo stress test su un campione ausiliario);
   2. var(ls_mean - En_ls) (ricostruzione) uguale fra le forme entro l'errore;
   3. larghezza del pull prevista dalla sola forma gaussiana e da k compatibile con
      l'osservata per uniforme, bimodale e lognormale.
@@ -40,50 +40,24 @@ from pathlib import Path
 
 import numpy as np
 
-from riptide_toy.constants import BIMODAL_HALF_SEPARATION, SEED
+from riptide_toy.constants import SEED
 
 N_BOOTSTRAP = 2000
 STUDENT_T_DOF_PREVIEW = 5   # curtosi 3 + 6 / (dof - 4) = 9, finita
 KURTOSIS_PREVIEW = {"laplace": 6.0, "student_t": 3.0 + 6.0 / (STUDENT_T_DOF_PREVIEW - 4)}
 
 
-def kurtosis(shape: str, mu_true: np.ndarray, sigma_true: np.ndarray) -> np.ndarray:
-    """Curtosi (momento quarto standardizzato) dello spettro, esperimento per esperimento.
-
-    Args:
-        shape: forma dello spettro dello stress test.
-        mu_true, sigma_true: media e sd vere, MeV, forma (M,).
-
-    Ritorna:
-        array (M,), adimensionale.
-    """
-    if shape == "gauss":
-        return np.full(mu_true.shape, 3.0)
-    if shape == "uniform":
-        return np.full(mu_true.shape, 1.8)
-    if shape == "bimodal":
-        a2 = BIMODAL_HALF_SEPARATION ** 2
-        return np.full(mu_true.shape, a2 ** 2 + 6 * a2 * (1 - a2) + 3 * (1 - a2) ** 2)
-    if shape == "lognormal":
-        w = 1.0 + (sigma_true / mu_true) ** 2   # exp(s^2) della lognormale
-        return w ** 4 + 2 * w ** 3 + 3 * w ** 2 - 3
-    if shape in KURTOSIS_PREVIEW:
-        return np.full(mu_true.shape, KURTOSIS_PREVIEW[shape])
-    raise ValueError(f"forma sconosciuta: {shape}")
-
-
 def arrays(rows: list[dict], shape: str, n_events: int) -> dict[str, np.ndarray]:
     """Array (M,) per forma e N: verita', log sd campionaria, media e std posteriori di
-    log sigma_E (adimensionali) e curtosi.
+    log sigma_E (adimensionali) e curtosi effettiva dello spettro troncato.
 
     Ritorna:
         dict di array (M,).
     """
     sel = [r for r in rows if r["shape"] == shape and r["N"] == n_events]
-    out = {k: np.array([r[k] for r in sel]) for k in ("mu_true", "ls_true", "En_ls")}
+    out = {k: np.array([r[k] for r in sel]) for k in ("mu_true", "ls_true", "ls_eff", "En_ls", "kappa")}
     out["mean"] = np.array([r["ls"]["mean"] for r in sel])
     out["std"] = np.array([r["ls"]["std"] for r in sel])
-    out["kappa"] = kurtosis(shape, out["mu_true"], np.exp(out["ls_true"]))
     return out
 
 
@@ -112,11 +86,12 @@ def check_heavy_tailed(gauss_rows: list[dict], heavy_rows: list[dict],
         g = arrays(gauss_rows, "gauss", n_events)
         width_g = np.std((g["mean"] - g["ls_true"]) / g["std"])
         excess_unit = np.mean(1.0 / (4 * n_events * g["std"] ** 2))
-        for shape, k in KURTOSIS_PREVIEW.items():
+        for shape in KURTOSIS_PREVIEW:
             t = arrays(heavy_rows, shape, n_events)
+            k = float(np.mean(t["kappa"]))
             pull = (t["mean"] - t["ls_true"]) / t["std"]
             boot = rng.integers(0, pull.size, size=(N_BOOTSTRAP, pull.size))
-            intr, intr_err = var_with_error(t["En_ls"] - t["ls_true"], rng)
+            intr, intr_err = var_with_error(t["En_ls"] - t["ls_eff"], rng)
             f = 4 * n_events
             print(f"  N={n_events:4d} {shape:9s} oss. {pull.std():.2f} +- {pull[boot].std(axis=1).std():.2f}"
                   f" / prev. {np.sqrt(width_g ** 2 + (k - 3) * excess_unit):.2f}"
@@ -155,7 +130,7 @@ def main() -> None:
         for shape in shapes:
             t = arrays(rows, shape, n_events)
             k = float(np.mean(t["kappa"]))
-            intr, intr_err = var_with_error(t["En_ls"] - t["ls_true"], rng)
+            intr, intr_err = var_with_error(t["En_ls"] - t["ls_eff"], rng)
             reco, reco_err = var_with_error(t["mean"] - t["En_ls"], rng)
             pull = (t["mean"] - t["ls_true"]) / t["std"]
             boot = rng.integers(0, pull.size, size=(N_BOOTSTRAP, pull.size))
@@ -174,7 +149,7 @@ def main() -> None:
         excess_unit = np.mean(1.0 / (4 * n_events * g["std"] ** 2))
         print(f"  amplificazione A (uniforme, bimodale): {np.round(amplification, 1)} -> media {a:.1f}")
         for shape, k in KURTOSIS_PREVIEW.items():
-            print(f"  previsione {shape:9s} k={k:.0f}: larghezza del pull"
+            print(f"  previsione {shape:9s} k={k:.0f} (forma non troncata): larghezza del pull"
                   f" ~ {np.sqrt(width_g ** 2 + (k - 3) * excess_unit):.2f} (A = 1)"
                   f" / {np.sqrt(width_g ** 2 + a * (k - 3) * excess_unit):.2f} (A = {a:.1f})")
     heavy_path = out_dir / "stress_spettro_code_results.pkl"

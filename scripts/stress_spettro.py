@@ -1,13 +1,15 @@
 """Stress test dell'assunzione 3 (spettro gaussiano) nel Caso C.
 
 Le energie vere sono generate da spettri con la stessa media e deviazione standard
-di N(mu_E, sigma_E) ma forma diversa (gaussiana, uniforme, bimodale, lognormale;
-con l'argomento "code", Laplace e Student-t, a code pesanti);
-la ricostruzione resta quella del Caso C (modello gaussiano, stadio 1 -> stadio 2 ->
-stadio 1 iterato), invariata. Bersagli: mu_E = media vera dello spettro,
-log sigma_E = log della sd vera, Omega_n.
+nominali di N(mu_E, sigma_E) ma forma diversa (gaussiana, uniforme, bimodale, lognormale;
+con l'argomento "code", Laplace e Student-t, a code pesanti), tutti troncati al dominio
+di energia; la ricostruzione resta quella del Caso C (modello gaussiano, stadio 1 ->
+stadio 2 -> stadio 1 iterato), invariata. Bersagli: Omega_n e i parametri (mu_E, sigma_E)
+della gaussiana troncata con la stessa media e sd effettive dello spettro (pseudo-vero:
+il punto a cui tende il fit, cosi' il test misura la forma e non la troncatura); per
+"gauss" sono i parametri veri.
 Stessi seed della checklist del Caso C, spawn_key=(N, i), per tutte le forme:
-a parita' di (N, i) la verita' (mu_E, sigma_E, Omega_n) e' la stessa e cambia solo
+a parita' di (N, i) i parametri nominali e Omega_n sono gli stessi e cambia solo
 la forma dello spettro; con "gauss" si riottengono esattamente i dataset (e i numeri)
 della checklist.
 
@@ -33,24 +35,36 @@ N_M = [(1000, 40), (300, 100), (150, 200), (50, 200)]  # come la checklist del C
 MU_RANGE = (13.0, 17.0)     # MeV, come la checklist del Caso C
 SIGMA_RANGE = (0.8, 2.4)    # MeV, log-uniforme, come la checklist del Caso C
 LEVELS = np.array([0.68, 0.90, 0.95])
+AUX_STREAM = 1              # terzo elemento della spawn_key del campione dei momenti effettivi
 
 
-def run_experiment(task: tuple[str, int, int]) -> dict:
+def run_experiment(task: tuple[str, int, int] | tuple[str, int, int, bool]) -> dict:
     """Un esperimento: spettro della forma data, ricostruzione del Caso C, riassunto.
 
+    Args:
+        task: (forma, N, indice) e, opzionale, truncate (default True). Con truncate
+            False il bersaglio e' (media, sd) nominali: non c'e' troncatura da scontare.
+
     Ritorna:
-        dict con forma, N, verita' (mu_E e sigma_E in MeV, Omega_n versore (3,)),
+        dict con forma, N, bersagli mu_true (MeV) e ls_true (log(sigma_E / MeV)),
+        nominali (mu_nominal, ls_nominal), momenti effettivi (ls_eff, kappa),
         media/std/mediana/intervalli di mu_E (MeV) e log(sigma_E / MeV), errore,
         risoluzione (rad) e copertura HPD (bool, (len(LEVELS),)) di Omega_n.
     """
-    shape, n_events, index = task
+    shape, n_events, index, truncate = (*task, True) if len(task) == 3 else task
     rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(n_events, index)))
     mu_true = rng.uniform(*MU_RANGE)
     sigma_true = np.exp(rng.uniform(*np.log(SIGMA_RANGE)))
     omega_true = kinematics.direction_from_theta_phi(
         np.arccos(rng.uniform(-1.0, 1.0, 1)), rng.uniform(0.0, 2 * np.pi, 1)
     )
-    En = kinematics.sample_energy_spectrum(rng, shape, mu_true, sigma_true, n_events)
+    En = kinematics.sample_energy_spectrum(rng, shape, mu_true, sigma_true, n_events, truncate)
+    aux_rng = np.random.default_rng(np.random.SeedSequence(SEED, spawn_key=(n_events, index, AUX_STREAM)))
+    mean_eff, sd_eff, kurtosis_eff = kinematics.spectrum_effective_moments(
+        aux_rng, shape, mu_true, sigma_true, truncate)
+    mu_target, sigma_target = mu_true, sigma_true
+    if truncate and shape != "gauss":
+        mu_target, sigma_target = kinematics.truncated_normal_pseudo_true(mean_eff, sd_eff)
     Ep_true, track = kinematics.sample_recoil_events(rng, En, omega_true[0])
     D_B = (rng.normal(Ep_true, SIGMA_EP), kinematics.smear_direction(rng, track, SIGMA_THETA))
 
@@ -60,8 +74,9 @@ def run_experiment(task: tuple[str, int, int]) -> dict:
     omega_0 = posterior_C.refine_shared_direction(D_B, theta_grid, phi_grid, direction_prior)[0]
     log_post, mu_fine, sigma_fine = posterior_C.refine_hyperparameters(
         (*D_B, omega_0), mu_grid, sigma_grid, priors.hyperparameter_prior)
-    out = {"shape": shape, "N": n_events, "mu_true": mu_true, "ls_true": np.log(sigma_true),
-           "En_mean": En.mean(), "En_ls": np.log(En.std())}
+    out = {"shape": shape, "N": n_events, "mu_true": mu_target, "ls_true": np.log(sigma_target),
+           "mu_nominal": mu_true, "ls_nominal": np.log(sigma_true), "ls_eff": np.log(sd_eff),
+           "kappa": kurtosis_eff, "En_mean": En.mean(), "En_ls": np.log(En.std())}
     levels_with_median = np.concatenate([[0.0], LEVELS])
     for key, grid in (("mu", mu_fine), ("ls", np.log(sigma_fine))):
         mean, std = validate.posterior_mean_std(log_post[None, :], grid)
