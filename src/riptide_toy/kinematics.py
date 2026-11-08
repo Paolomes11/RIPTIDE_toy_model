@@ -9,10 +9,12 @@ smearing della traccia.
 """
 import numpy as np
 from numpy.polynomial import legendre
+from scipy.optimize import least_squares
 from scipy.stats import truncnorm
 
 from riptide_toy.constants import (BIMODAL_HALF_SEPARATION, EN_MAX, EN_MIN, N_CM_NEWTON,
-                                   PROTON_MASS_MEV, STUDENT_T_DOF)
+                                   N_PSEUDO_TRUE, PROTON_MASS_MEV, PSEUDO_TRUE_MOMENT_TOL,
+                                   SIGMA_E_MAX, SIGMA_E_MIN, STUDENT_T_DOF)
 
 def proton_energy(En: np.ndarray, theta_p: np.ndarray) -> np.ndarray:
     """Energia cinetica del protone di rinculo, relativistica a masse uguali:
@@ -303,28 +305,58 @@ def sample_truncated_normal_energy(rng: np.random.Generator, mu_E: float, sigma_
 
 
 def sample_energy_spectrum(rng: np.random.Generator, shape: str, mean: float,
-                           sd: float, n: int) -> np.ndarray:
-    """Energie vere dei neutroni da uno spettro di forma data, con media e
-    deviazione standard fissate (stress test dell'ipotesi di spettro gaussiano).
+                           sd: float, n: int, truncate: bool = True) -> np.ndarray:
+    """Energie vere dei neutroni da uno spettro di forma data (stress test
+    dell'ipotesi di spettro gaussiano), di default troncato al dominio di energia:
+    la ricostruzione integra solo [EN_MIN, EN_MAX], e un evento fuori misurerebbe
+    l'errore di dominio invece di quello di forma.
 
     Args:
         rng: generatore numpy.
-        shape: "gauss" (troncata al dominio, come il modello del Caso C), "uniform",
-            "bimodal", "lognormal", "laplace" o "student_t" (le ultime due a code
-            pesanti, curtosi 6 e 3 + 6 / (STUDENT_T_DOF - 4); le forme diverse da
-            "gauss" non sono troncate al dominio di energia).
-        mean: media dello spettro, MeV, > 0 (per "gauss": prima della troncatura).
-        sd: deviazione standard dello spettro, MeV, > 0 (per "gauss": prima della troncatura).
+        shape: "gauss", "uniform", "bimodal", "lognormal", "laplace" o "student_t"
+            (le ultime due a code pesanti, curtosi 6 e 3 + 6 / (STUDENT_T_DOF - 4)).
+        mean: media dello spettro prima della troncatura, MeV, in [EN_MIN, EN_MAX].
+        sd: deviazione standard prima della troncatura, MeV, > 0.
         n: numero di eventi.
+        truncate: se False, energie non limitate al dominio (stress sullo sconfinamento).
 
     Ritorna:
-        array (n,), E_n in MeV; media e sd attese uguali a mean e sd per ogni
-        forma tranne "gauss", dove sono quelle della gaussiana troncata.
+        array (n,), E_n in MeV; se truncate, tutte in [EN_MIN, EN_MAX] e con media
+        e sd effettive diverse da mean e sd (vedi spectrum_effective_moments); altrimenti
+        media e sd attese uguali a mean e sd.
     """
-    if shape == "gauss":
+    if not EN_MIN <= mean <= EN_MAX:
+        raise ValueError(f"media dello spettro fuori dal dominio: {mean}")
+    if shape == "gauss" and truncate:
         # stessa chiamata della generazione standard: a parita' di seme si
         # riottengono esattamente gli stessi dataset
         return sample_truncated_normal_energy(rng, mean, sd, n)
+    En = _sample_untruncated_spectrum(rng, shape, mean, sd, n)
+    # rigetto a passate vettorizzate: la media e' nel dominio, quindi
+    # l'accettazione resta finita e le passate sono poche
+    outside = truncate & ((En < EN_MIN) | (En > EN_MAX))
+    while np.any(outside):
+        En[outside] = _sample_untruncated_spectrum(rng, shape, mean, sd, int(outside.sum()))
+        outside = (En < EN_MIN) | (En > EN_MAX)
+    return En
+
+
+def _sample_untruncated_spectrum(rng: np.random.Generator, shape: str, mean: float,
+                                 sd: float, n: int) -> np.ndarray:
+    """Campiona la forma data con media e deviazione standard esatte, senza dominio.
+
+    Args:
+        rng: generatore numpy.
+        shape: nome della forma, come in sample_energy_spectrum.
+        mean: media, MeV.
+        sd: deviazione standard, MeV, > 0.
+        n: numero di eventi.
+
+    Ritorna:
+        array (n,), E_n in MeV.
+    """
+    if shape == "gauss":
+        return rng.normal(mean, sd, n)
     if shape == "uniform":
         half_width = np.sqrt(3.0) * sd  # varianza di U(-h, h) = h^2 / 3
         return rng.uniform(mean - half_width, mean + half_width, n)
@@ -343,6 +375,58 @@ def sample_energy_spectrum(rng: np.random.Generator, shape: str, mean: float,
         # varianza della t standard = dof / (dof - 2)
         return mean + sd * np.sqrt((STUDENT_T_DOF - 2) / STUDENT_T_DOF) * rng.standard_t(STUDENT_T_DOF, n)
     raise ValueError(f"forma di spettro sconosciuta: {shape}")
+
+
+def truncated_normal_pseudo_true(mean: float, sd: float) -> tuple[float, float]:
+    """Parametri della gaussiana troncata a [EN_MIN, EN_MAX] con media e sd date.
+
+    E' il punto a cui tende il Caso C su uno spettro non gaussiano: la gaussiana
+    troncata e' una famiglia esponenziale con statistiche E_n ed E_n^2, quindi il
+    massimo di verosimiglianza ne eguaglia i primi due momenti (esatto senza
+    rumore di misura, approssimato con). Assunzioni: 1 + 2 + 3.
+
+    Args:
+        mean: media dello spettro, MeV, in (EN_MIN, EN_MAX).
+        sd: deviazione standard dello spettro, MeV, > 0.
+
+    Ritorna:
+        (mu_E, sigma_E), MeV, float, nel supporto della griglia degli iperparametri.
+
+    Solleva:
+        ValueError se nessun parametro del supporto riproduce i momenti.
+    """
+    def residuals(params: np.ndarray) -> np.ndarray:
+        """Scarto sui due momenti, MeV, forma (2,), per params = (mu_E, log sigma_E)."""
+        sigma = np.exp(params[1])
+        a, b = (EN_MIN - params[0]) / sigma, (EN_MAX - params[0]) / sigma
+        m, v = truncnorm.stats(a, b, loc=params[0], scale=sigma, moments="mv")
+        return np.array([float(m) - mean, np.sqrt(float(v)) - sd])
+
+    fit = least_squares(residuals, [mean, np.log(sd)], xtol=1e-12, ftol=1e-12,
+                        bounds=([EN_MIN, np.log(SIGMA_E_MIN)], [EN_MAX, np.log(SIGMA_E_MAX)]))
+    if np.max(np.abs(fit.fun)) > PSEUDO_TRUE_MOMENT_TOL:
+        raise ValueError(f"momenti non riproducibili: media {mean}, sd {sd}")
+    return float(fit.x[0]), float(np.exp(fit.x[1]))
+
+
+def spectrum_effective_moments(rng: np.random.Generator, shape: str, mean: float, sd: float,
+                               truncate: bool = True) -> tuple[float, float, float]:
+    """Media, sd e curtosi effettive dello spettro, su un campione ausiliario di
+    N_PSEUDO_TRUE eventi: la troncatura le allontana da mean e sd nominali.
+
+    Args:
+        rng: generatore numpy, distinto da quello dei dati per non alterarne lo stream.
+        shape: nome della forma, come in sample_energy_spectrum.
+        mean: media prima della troncatura, MeV.
+        sd: deviazione standard prima della troncatura, MeV, > 0.
+        truncate: come in sample_energy_spectrum.
+
+    Ritorna:
+        (media in MeV, sd in MeV, curtosi adimensionale), float.
+    """
+    En = sample_energy_spectrum(rng, shape, mean, sd, N_PSEUDO_TRUE, truncate)
+    m, s = float(En.mean()), float(En.std())
+    return m, s, float(np.mean(((En - m) / s) ** 4))
 
 
 def smear_direction(rng: np.random.Generator, track: np.ndarray,
