@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.21 — 2026-10-13
+v0.22 — 2026-11-08
 
 Sintesi dei risultati: `docs/resoconto.md`. Le modifiche del passaggio a 10–20 MeV sono spiegate
 nel notebook `notebooks/06_modifiche_10_20_MeV`; i notebook 01–05 sono rifatti a 10–20 MeV.
@@ -305,7 +305,7 @@ Dalla v0.19 il dominio è 10–20 MeV. I punti 1–8 sono stati chiusi o quantif
 (v0.16–v0.18); i numeri riportati sotto sono di quel dominio salvo dove indicato. Rifatti a
 10–20 MeV: checklist A, B, C, figura di contrazione, robustezza al prior, stress
 dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5). Da rifare a 10–20 MeV, col via, ora che il
-punto 9 è chiuso: `n1000_extra.py`, `stress_spettro.py`, `stress_sorgente.py`,
+punto 9 è chiuso: `n1000_extra.py`, `stress_sorgente.py`,
 `correlazione_stadi.py`, `modo_log_sigma.py`, `caso_C_cov68.py`, `caso_C_cov90_mu.py`,
 `caso_C_diag_omega_N50.py` (il notebook 05 §8 ne riassume le conclusioni a 0.5–6 MeV).
 
@@ -330,18 +330,26 @@ punto 9 è chiuso: `n1000_extra.py`, `stress_spettro.py`, `stress_sorgente.py`,
    sovrascritto dal rilancio `stress_anisotropia.py 3 A` dopo il cambio del prior su θ_p; i numeri
    di B e C in `docs/resoconto.md` §6.5 vengono dal run precedente. Da rilanciare per B e C col
    generatore troncato (punto 9).
-12. **Prossimi passi (da riprendere, v0.21).** Decisione aperta prima di rilanciare
-   `stress_spettro.py`: con μ_E ~ U(13, 17) e σ_E fino a 2.4 MeV anche le forme non gaussiane
-   (`"uniform"`, `"bimodal"`, `"lognormal"`, `"laplace"`, `"student_t"`) escono da [10, 20] MeV,
-   mentre `"gauss"` ora è troncata; lo stress mescolerebbe l'effetto della forma con quello dello
-   spettro fuori dominio. Opzioni: (i) troncare al dominio tutte le forme, così da isolare la forma,
-   e studiare lo sconfinamento in uno stress test dedicato (proposta); (ii) restringere i range di
-   μ_E e σ_E forma per forma, a costo di uscire dai range della checklist. Nota: con media 15 e
-   sd 2 la `"gauss"` troncata ha sd effettiva 1.91 e curtosi 2.62 (a); va scelto se il confronto
-   tra forme si fa a pari sd nominale o effettiva. Dopo la decisione, rilanci uno per volta col
-   via e col tetto di memoria: `robustezza_prior.py` (Caso C), `stress_anisotropia.py` (B e C),
-   `stress_spettro.py`, poi gli altri script elencati in testa a questa sezione; per ciascuno
-   aggiornare `docs/resoconto.md` (§6.1–§6.5) e il notebook 05.
+12. **Spettro fuori dominio: forme chiuse (v0.22), sconfinamento aperto.** `feat/spettro-troncato`:
+   tutte le forme di `sample_energy_spectrum` sono troncate a [10, 20] MeV (ramo `"gauss"` invariato,
+   `truncate=False` per la forma libera); bersaglio = pseudo-vero (`truncated_normal_pseudo_true`, media e
+   sd effettive da `spectrum_effective_moments`). Risultati in `docs/resoconto.md` §6.2: la forma non
+   degrada μ_E e Ω_n (c). Run `stress_spettro.py` (normale e `code`), `curtosi_log_sigma.py`,
+   `stress_sconfinamento.py`; i pkl precedenti sono in `outputs/pre_troncatura/`.
+13. **Sconfinamento dal dominio: aperto (c, causa d).** Con energie vere non troncate, a N = 1000
+   l'rms di μ_E cresce di 1.5–2.7 volte, la coverage 68% scende a 0.38–0.55 e il pull medio di
+   log σ_E arriva a +0.6/+1.0 per le forme a code leggere; a N = 50 l'effetto è quasi invisibile,
+   quindi il danno cresce con N. Ω_n resta calibrato. Il meccanismo non è indagato: da verificare se
+   pesano gli esperimenti con μ_E vicino ai bordi o σ_E grande, e la misura è a M = 40.
+14. **Prossimi passi (da riprendere, v0.22).** Rilanci col via e col tetto di memoria, in quest'ordine:
+   (A) `n1000_extra` → `mu_N1000_diag`; (B) `correlazione_stadi` → `asimmetria_log_sigma`, `modo_log_sigma`,
+   `caso_C_cov68` → `caso_C_cov90_mu`, `caso_C_diag_omega_N50`; (C) `robustezza_prior` (B e C) →
+   `prior_B_rumore`; (D) `stress_anisotropia` (B, C), `stress_sorgente`. Per ciascuno aggiornare
+   `docs/resoconto.md` e il notebook 05. Poi: stress con σ_np(E) letta da ENDF/B-VIII.0 MF3/MT2; stress
+   con anisotropia maggiorata (f(−1)/f(0) = 1.10 a 14 MeV); coverage di log σ_E a N = 50 con prior
+   ristretto; code dei pull del Caso B a N = 10; effetto delle approssimazioni non relativistiche
+   rimaste nel prior e nella CDF angolare; pull medio comune di μ_E (+0.053 ± 0.024); eccesso della
+   larghezza del pull di log σ_E con la Laplace; pulizia dei residui "0.5–6" e "5.5 MeV".
 
 1. **Calibrazione del Caso A: chiuso (c).** `scripts/caso_A_checklist.py`, 20 000 eventi. Con la
    verità estratta dal prior (E_n ~ U(0.5, 6), θ_p ~ U(0, π/2)): pull +0.003 / 0.998, coverage
@@ -375,7 +383,8 @@ punto 9 è chiuso: `n1000_extra.py`, `stress_spettro.py`, `stress_sorgente.py`,
    68% 0.56–0.65, larghezza del pull 1.17–1.39 a N = 150–300. La previsione scritta prima,
    var(log s) ≈ (κ − 1)/(4N) aggiunta alla larghezza gaussiana (`scripts/curtosi_log_sigma.py`),
    regge fino a N = 300 (c); a N = 1000 l'osservato è più largo di ~2.3σ (M = 40, d). Con la
-   Student-t μ_E ha pull medio +0.16 ± 0.04 (c, causa non indagata).
+   Student-t μ_E ha pull medio +0.16 ± 0.04 (c, causa non indagata). A 10–20 MeV con forme troncate
+   il pull non si ripresenta: punto 12 e `docs/resoconto.md` §6.2.
 7. **Sorgente unica, Casi B e C: quantificato (c).** `scripts/stress_sorgente.py`. Ω̂_n si sposta
    verso la seconda sorgente di circa f·Δ. La coverage crolla con N: per f = 0.05 a 30° la coverage
    68% scende da 0.41 a N = 30 a 0.16 a N = 300. La diagnostica KS ha potenza al livello del falso

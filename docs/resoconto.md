@@ -1,6 +1,6 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.21 — 2026-10-13
+v0.22 — 2026-11-08
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi
@@ -195,44 +195,63 @@ verità è generata dalla cinematica in CM e il prior su θ_p è quello fisico.
 
 ### 6.2 Spettro non gaussiano, Caso C (`scripts/stress_spettro.py`)
 
-> **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
-> metodo; vanno rilanciati sul nuovo dominio, ora che la calibrazione del Caso C è chiusa (§5).
-> Prima del rilancio va deciso come trattare le forme che escono da [10, 20] MeV (la `"gauss"` ora
-> è troncata, le altre no): `docs/roadmap.md`, punto aperto 12.
+Valori a 10–20 MeV (v0.22). Energie vere da spettri con la stessa media e sd nominali di
+N(μ_E, σ_E) ma forma uniforme, bimodale (due righe a ±0.9 sd), lognormale, Laplace o Student-t con
+5 gradi di libertà, tutte troncate a [10, 20] MeV; il modello resta gaussiano. Bersagli: per le
+forme non gaussiane i parametri della gaussiana troncata con la stessa media e sd effettive dello
+spettro (pseudo-vero). La gaussiana troncata è una famiglia esponenziale con statistiche x e x²,
+quindi senza rumore di misura il massimo di verosimiglianza sotto spettro errato eguaglia i primi
+due momenti (a); con il rumore è un'approssimazione (b). I momenti effettivi vengono da un campione
+ausiliario di 2·10⁶ eventi. A pari seed la `"gauss"` coincide con la checklist del Caso C (`mu_true`,
+errore e sigma di Ω_n identici esperimento per esperimento).
 
-Energie vere da spettri con la stessa media e sd di N(μ_E, σ_E) ma forma uniforme, bimodale (due
-righe a ±0.9 sd), lognormale, Laplace (curtosi 6) o Student-t con 5 gradi di libertà (curtosi 9);
-il modello resta gaussiano. Bersagli: media e sd vere dello spettro.
-
-| Forma | μ_E | Ω_n | log σ_E: pull (larghezza), coverage 68% a N = 150 / 300 | |
+| Forma | μ_E: pull medio, tutti gli N (M = 540) | Differenza da gauss a pari verità | log σ_E: larghezza del pull e coverage 68% a N = 150 / 300 | |
 |---|---|---|---|---|
-| gaussiana | calibrato | calibrato | 1.05 / 1.06; 0.60 / 0.64 (= checklist) | (c) |
-| lognormale | calibrato | calibrato | 1.10 / 1.07; 0.57 / 0.62 | (c) |
-| uniforme | calibrato | calibrato | 0.84 / 0.77; 0.75 / 0.81 | (c) |
-| bimodale | calibrato | calibrato | 0.80 / 0.91; 0.79 / 0.76 | (c) |
-| Laplace | calibrato | calibrato | 1.23 / 1.20; 0.56 / 0.65 | (c) |
-| Student-t (ν = 5) | pull medio +0.16 ± 0.04 | calibrato | 1.17 / 1.39; 0.62 / 0.56 | (c) |
+| gaussiana | +0.074 ± 0.041 | — | 0.95 / 0.89; 0.67 / 0.69 | (c) |
+| lognormale | −0.018 ± 0.040 | −0.092 ± 0.055 | 1.02 / 1.00; 0.64 / 0.66 | (c) |
+| uniforme | +0.056 ± 0.042 | −0.017 ± 0.015 | 0.84 / 0.84; 0.70 / 0.76 | (c) |
+| bimodale | +0.012 ± 0.039 | −0.062 ± 0.052 | 0.81 / 0.92; 0.75 / 0.63 | (c) |
+| Laplace | +0.119 ± 0.043 | +0.045 ± 0.041 | 1.15 / 0.99; 0.55 / 0.67 | (c) |
+| Student-t (ν = 5) | +0.073 ± 0.040 | −0.001 ± 0.056 | 1.04 / 1.06; 0.64 / 0.64 | (c) |
 
-- Ω_n non risente della forma dello spettro, a ogni N (c). μ_E nemmeno, salvo la Student-t: pull
-  medio +0.16 ± 0.04 su tutti gli N (M = 540), contro 0.00–0.07 per le altre forme. Coverage e
-  larghezza del pull restano nominali; il bias non viene dagli esperimenti con energie fuori da
-  [0.5, 6] MeV (c). Causa non indagata (d).
-- log σ_E non ha bias peggiori del caso gaussiano, ma la sua coverage dipende dalla curtosi κ dello
-  spettro. La sd campionaria fluttua con var(log s) ≈ (κ − 1)/(4N), mentre il modello gaussiano ne
-  mette nel posterior 2/(4N): verificato per uniforme (1.8), bimodale (≈ 1.7), gaussiana e Laplace
-  (`scripts/curtosi_log_sigma.py`, c). Per la Student-t a ν = 5 il valore misurato è più basso
-  (5–6 contro 8). È atteso: l'ottavo momento è infinito, quindi la varianza campionaria di log s
-  converge lentamente e di solito sottostima (b).
-  Con curtosi bassa log σ_E è sovra-coperto, con code pesanti sotto-coperto (coverage 68% 0.56–0.65).
-- Previsione scritta prima del run, larghezza del pull a N = 150 / 300, con il solo termine
-  intrinseco aggiunto alla larghezza gaussiana: Laplace 1.17 / 1.19, Student-t 1.28 / 1.30.
-  Osservato: 1.23 ± 0.06 / 1.20 ± 0.08 e 1.17 ± 0.06 / 1.39 ± 0.10 (c). L'alternativa con il termine
-  amplificato di 3.6 volte (misurato su uniforme e bimodale) prevedeva 1.44–1.78 ed è esclusa a
-  > 3σ. A N = 50 la previsione regge (1.07 / 1.17 contro 1.20 / 1.20). A N = 1000 le larghezze
-  osservate (1.41 ± 0.18, 1.58 ± 0.17, M = 40) superano la previsione (1.01 / 1.14) di ~2.3σ; lì
-  si allarga anche la parte di ricostruzione. Non indagato (d).
-- La lognormale usata ha curtosi di poco sopra 3 (al più ~4 per i σ_E/μ_E della checklist) e si
-  comporta come la gaussiana, con coverage appena più bassa (c).
+- Ω_n non risente della forma dello spettro (pull rms 0.92–1.14, c).
+- μ_E è robusto alla forma: nessuna forma si distingue dalla gaussiana a pari verità (c). Il pull
+  +0.16 ± 0.04 della Student-t misurato a 0.5–6 MeV senza troncatura non si ripresenta; quel run
+  differiva per generatore, bersaglio e dominio, quindi la causa non è attribuita a uno solo dei tre.
+- Resta un piccolo pull positivo comune: +0.053 ± 0.024 in media sulle sei forme (2.2σ), sotto la
+  soglia di 0.2σ. Origine non indagata (d).
+- log σ_E: la varianza intrinseca segue (κ − 1)/(4N) con la curtosi effettiva κ (`scripts/curtosi_log_sigma.py`,
+  c). La troncatura abbassa κ: le code pesanti sono meno pesanti di quanto dicano i valori nominali
+  6 e 9. La Laplace resta sotto-coperta e con pull più largo del previsto dal solo termine intrinseco:
+  1.15 ± 0.05 contro 0.98 a N = 150, 1.24 ± 0.15 contro 1.05 a N = 1000 (c); la Student-t 1.17 ± 0.12
+  contro 1.04 a N = 1000 (c, M = 40). Causa dell'eccesso non indagata (d).
+- Uniforme e bimodale a N = 150: bias di log σ_E +0.046 ± 0.016 e +0.053 ± 0.016, con pull stretti.
+  Coerente con l'approssimazione dello pseudo-vero in presenza di rumore, non verificato (d).
+- Coverage di log σ_E a N = 50 per la gaussiana: 0.61 / 0.81 / 0.87, come nella checklist; ipotesi
+  dell'effetto del prior ancora da testare (d).
+
+**Sconfinamento dal dominio (`scripts/stress_sconfinamento.py`, v0.22).** Stessi esperimenti, ma
+energie non troncate (forme con eventi fuori da [10, 20] MeV), fit invariato, bersagli media e sd
+nominali. Il fit integra E_n solo sul dominio, quindi questi eventi sono descritti male.
+
+| Forma | μ_E: rms troncato → sconfinante a N = 1000 (MeV) | coverage 68% di μ_E | pull medio di log σ_E | |
+|---|---|---|---|---|
+| gaussiana | 0.092 → 0.178 | 0.55 | +0.61 | (c) |
+| lognormale | 0.084 → 0.169 | 0.48 | +0.59 | (c) |
+| uniforme | 0.123 → 0.237 | 0.38 | +0.82 | (c) |
+| bimodale | 0.129 → 0.318 | 0.42 | +0.99 | (c) |
+| Laplace | 0.098 → 0.143 | 0.55 | −0.02 | (c) |
+| Student-t | 0.074 → 0.197 | 0.50 | −0.15 | (c) |
+
+- M = 40 a N = 1000: errore binomiale sulla coverage ±0.074.
+- Il danno cresce con N: a N = 50 è quasi invisibile (gaussiana, rms 0.553 → 0.595), a N = 150 è già
+  0.350 → 0.516 e a N = 300 0.207 → 0.470 (c). L'errore non si riassorbe con la statistica: la std
+  posteriore si restringe, l'errore molto meno. L'assunzione sul dominio va quindi trattata come
+  sistematico, e **pesa di più proprio dove il campione è grande**.
+- μ_E non acquista un bias medio significativo: cresce la dispersione. log σ_E invece sì, per le forme
+  a code leggere. Ω_n resta calibrato (pull rms 0.94–0.98 a N = 1000), tranne la Student-t (1.14).
+- Perché la dispersione di μ_E raddoppi non è stato indagato. Ipotesi: pesano pochi esperimenti con
+  μ_E vicino ai bordi o σ_E grande (d).
 
 ### 6.3 Sorgente unica, Casi B e C (`scripts/stress_sorgente.py`)
 
@@ -379,8 +398,10 @@ in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV 
   mistura è fuori scope.
 - **Assunzione 3 (spettro gaussiano):** μ_E e Ω_n robusti alla forma (c); la coverage di log σ_E
   dipende dalla curtosi κ dello spettro (c, κ da 1.7 a 9, §6.2): sovra-coperto per κ < 3,
-  sotto-coperto per code pesanti (coverage 68% ~0.6, larghezza del pull ~1.2 a N ≤ 300, fino a
-  1.6 a N = 1000). Con la Student-t μ_E ha un bias di +0.16 σ (c, causa d).
+  sotto-coperto per code pesanti (coverage 68% 0.55–0.67, larghezza del pull fino a 1.24 a
+  N = 1000). Pull medio comune di μ_E +0.05 σ, sotto soglia (2.2σ, causa d).
+- **Dominio di energia:** se lo spettro vero esce da [10, 20] MeV la calibrazione di μ_E e log σ_E
+  si degrada con N (coverage 68% di μ_E 0.38–0.55 a N = 1000, §6.2, c). Ω_n resta calibrato.
 - **Prior sul nuisance per evento (Caso B):** il prior su E_n non viene dimenticato al crescere di N
   (spostamento di Ω̂_n ~1 σ costante con un prior largo, c). Lo spostamento è rumore a media nulla
   che si somma in quadratura all'errore (relazione tipo Hausman, c da N ≈ 30, §6.1): costa
