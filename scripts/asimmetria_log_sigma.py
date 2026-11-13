@@ -11,9 +11,14 @@ empirica di Pearson moda ~ media - 3 (media - mediana). Quindi, con s = std post
     correlazione alta e pendenza ~1 della retta osservato vs previsto;
   - per N, pull medio del modo ~ pull medio della media - 3 <(media - mediana)/s>.
 
-Esito: smentita. La previsione ha il segno opposto all'osservato (+0.25 contro -0.29 a N = 50):
-il marginale ha la coda verso sigma_E piccoli. La scomposizione dello scarto e' in
-modo_log_sigma.py.
+Dominio 10-20 MeV, E_n per evento dalla gaussiana troncata. Scarto osservato (modo - media)/s,
+da outputs/correlazione_stadi_results.pkl: -0.35 / -0.22 / -0.16 a N = 50 / 150 / 300.
+Previsioni a 10-20 MeV (scritte prima del calcolo): come nel dominio precedente, dove Pearson
+aveva il segno sbagliato, il marginale ha la coda verso sigma_E piccoli. Quindi:
+  1. il previsto <-3 (media - mediana)/s> e' positivo a ogni N, opposto all'osservato;
+  2. per esperimento la correlazione fra previsto e osservato e' bassa (< 0.5): lo scarto
+     non e' asimmetria del marginale. La scomposizione e' in modo_log_sigma.py;
+  3. controllo del join ~0 (stessi dataset della checklist).
 
 Solo lettura: outputs/correlazione_stadi_results.pkl (modo congiunto, due stadi) e
 outputs/caso_C_checklist_results.pkl (mediana del marginale di log sigma_E, stessi dataset:
