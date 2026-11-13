@@ -307,7 +307,7 @@ Dalla v0.19 il dominio è 10–20 MeV. I punti 1–8 sono stati chiusi o quantif
 dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5). Da rifare a 10–20 MeV, col via, ora che il
 punto 9 è chiuso: `n1000_extra.py`, `stress_sorgente.py`,
 `correlazione_stadi.py`, `modo_log_sigma.py`, `caso_C_cov68.py`, `caso_C_cov90_mu.py`,
-`caso_C_diag_omega_N50.py` (il notebook 05 §8 ne riassume le conclusioni a 0.5–6 MeV).
+`caso_C_diag_omega_N50.py` (il notebook 05 §9 ne riassume le conclusioni a 0.5–6 MeV).
 
 9. **Calibrazione del Caso C a 10–20 MeV: chiuso (c, v0.21).** Checklist v0.19: μ_E con larghezza
    del pull 1.24–1.30 e coverage 68% 0.51–0.55 a N ≥ 300; log σ_E con pull medio da +0.10
