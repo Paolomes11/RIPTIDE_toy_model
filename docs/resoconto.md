@@ -1,6 +1,6 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.23 — 2026-11-13
+v0.24 — 2026-11-13
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi
@@ -139,6 +139,21 @@ Pull: media / larghezza; errore binomiale al 68% ±0.03 (M = 200), ±0.05 (M = 1
   +0.52 a N = 50, che scende a +0.26 / +0.21 / +0.00 a N = 150 / 300 / 1000 (c). Andamento opposto a
   quello senza troncatura, dove cresceva con N: compatibile con un effetto di prior a N piccolo,
   come quello visto a 0.5–6 MeV (v0.11) (d). Punto aperto minore.
+- **Ricontrolli su seed nuovi** (v0.24, previsioni scritte prima, tutte confermate salvo una).
+  `scripts/caso_C_cov68.py` (stadio 2 su Ω̂_n e sulla Ω_n vera): coverage 68 / 90 / 95% di μ_E a
+  N = 150 (M = 600) 0.678 / 0.885 / 0.938, a N = 300 (M = 300) 0.683 / 0.890 / 0.933; con la Ω_n
+  vera 0.680 / 0.892 / 0.938 e 0.667 / 0.893 / 0.920 (c). `scripts/caso_C_cov90_mu.py` (N = 300,
+  M = 600): coverage di μ_E 0.665 / 0.893 / 0.950, pull +0.02 / 1.01; il +0.18 della checklist era
+  una fluttuazione (c). `scripts/caso_C_diag_omega_N50.py` (Ω_n a N = 50, tag 50 + 51, M = 1200,
+  errore binomiale ×2 ±0.027 / 0.017 / 0.013): prior predittivo su E_n 0.699 / 0.908 / 0.958,
+  oracolo N(μ_true, σ_true) 0.673 / 0.898 / 0.955, nominali; plug-in delle stime puntuali
+  0.658 / 0.885 / 0.937, sotto il predittivo di 0.04 / 0.02 / 0.02 (5σ sulle differenze appaiate),
+  quindi il predittivo resta la scelta giusta (c). Smentita la previsione che il plug-in con σ_E
+  allargata di 1 std stesse fra i due: è a 0.704 / 0.916 / 0.958, pari al predittivo. Verità sempre
+  dentro la calotta, massa al bordo ≤ 8·10⁻⁹. Sui 200 seed della checklist tutte le varianti con
+  prior informativo sottocoprono (predittivo 0.64 / 0.86 / 0.92, oracolo 0.605 / 0.865 / 0.885),
+  mentre lo stadio 1 a prior largo è nominale (0.71 / 0.89 / 0.96): fluttuazione comune di quel
+  campione, non ripresa su 1200 seed nuovi (c; interpretazione d).
 - Robustezza al prior su σ_E (N = 150, uniforme in σ_E contro log σ_E): spostamento medio di μ_E
   +0.01 std (max 0.32), di log σ_E +0.21 std (max 1.08); coverage di log σ_E col prior uniforme
   0.62 / 0.86 / 0.92 (c).
@@ -309,55 +324,62 @@ Caso B, N = 300 (σ posteriore ≈ 1.2°):
 
 ### 6.4 Due stadi contro stima congiunta, Caso C (`scripts/correlazione_stadi.py`)
 
-> **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
-> metodo; vanno rilanciati sul nuovo dominio, ora che la calibrazione del Caso C è chiusa (§5).
-
-Sugli stessi dataset della checklist del Caso C (M = 100 per N), si parte dalle stime dei due
-stadi e si calcola l'approssimazione di Laplace del posterior congiunto 4D (Ω_n nel piano tangente,
-μ_E, log σ_E): stencil 3^4 di differenze centrali, passi pari alle larghezze dei due stadi, due
-passi di Newton, nessuna griglia 4D. L'Hessiana è definita negativa in 297 esperimenti su 300;
-gli altri 3 sono esclusi.
+Sugli stessi dataset della checklist del Caso C (M = 100 per N, 10–20 MeV, generatore troncato), si
+parte dalle stime dei due stadi e si calcola l'approssimazione di Laplace del posterior congiunto 4D
+(Ω_n nel piano tangente, μ_E, log σ_E): stencil 3^4 di differenze centrali, passi pari alle
+larghezze dei due stadi, due passi di Newton, nessuna griglia 4D. L'Hessiana è definita negativa in
+279 esperimenti su 300: 100 a N = 300 e 150, solo 79 a N = 50 (a 0.5–6 MeV erano 98). Gli altri
+sono esclusi.
 
 | N | Correlazione canonica Ω–(μ, log σ): mediana / 90% / max | Allargamento marg./cond. medio (max): μ / log σ / Ω | Laplace / griglia: μ / log σ / Ω | Modo congiunto − due stadi, rms in σ: μ / log σ / Ω |
 |---|---|---|---|---|
-| 50 | 0.17 / 0.27 / 0.41 | 1.013 (1.059) / 1.008 (1.042) / 1.011 (1.052) | 0.93 / 0.99 / 0.97 | 0.21 / 0.51 / 0.12 |
-| 150 | 0.10 / 0.15 / 0.20 | 1.004 (1.019) / 1.003 (1.012) / 1.003 (1.011) | 0.98 / 0.95 / 0.99 | 0.15 / 0.33 / 0.09 |
-| 300 | 0.08 / 0.12 / 0.19 | 1.003 (1.012) / 1.002 (1.016) / 1.002 (1.010) | 0.99 / 0.99 / 0.99 | 0.09 / 0.22 / 0.11 |
+| 50 | 0.17 / 0.28 / 0.39 | 1.015 (1.082) / 1.008 (1.062) / 1.011 (1.048) | 0.71 / 0.91 / 0.93 | 0.27 / 0.49 / 0.20 |
+| 150 | 0.10 / 0.17 / 0.24 | 1.004 (1.019) / 1.004 (1.023) / 1.004 (1.015) | 0.83 / 0.89 / 0.98 | 0.20 / 0.27 / 0.11 |
+| 300 | 0.08 / 0.12 / 0.16 | 1.003 (1.011) / 1.002 (1.013) / 1.002 (1.008) | 0.93 / 0.95 / 0.99 | 0.13 / 0.19 / 0.12 |
 
 Pull (media / larghezza; Ω: rms):
 
 | N | Due stadi: μ / log σ / Ω | Modo congiunto: μ / log σ / Ω |
 |---|---|---|
-| 50 | −0.08/0.91 · +0.03/1.01 · 1.10 | −0.18/0.97 · −0.27/0.93 · 1.11 |
-| 150 | −0.04/1.01 · +0.05/1.04 · 1.01 | −0.09/1.01 · −0.20/1.04 · 1.03 |
-| 300 | −0.05/1.12 · +0.02/1.05 · 0.99 | −0.08/1.12 · −0.13/1.06 · 0.99 |
+| 50 | +0.01/1.02 · −0.18/0.82 · 1.10 | −0.11/1.27 · −0.56/0.89 · 1.18 |
+| 150 | +0.17/1.00 · +0.05/0.86 · 0.97 | +0.16/1.09 · −0.11/0.93 · 0.99 |
+| 300 | +0.18/0.92 · +0.11/0.89 · 1.04 | +0.17/0.98 · −0.03/0.91 · 1.03 |
 
 - La correlazione posteriore fra la direzione e gli iperparametri è debole e scende con N: la
-  mediana passa da 0.17 a 0.08 (c). Ignorarla, cioè fissare un blocco invece di marginalizzarlo,
-  stringe le incertezze in media dell'1% a N = 50 e dello 0.2–0.3% a N = 300; il caso peggiore è il
-  6% (c). **La fattorizzazione a due stadi è giustificata** in questo toy (c).
-- Le larghezze di Laplace concordano con le griglie dei due stadi entro l'1–7% (c).
+  mediana passa da 0.17 a 0.08, come a 0.5–6 MeV (c). Ignorarla, cioè fissare un blocco invece di
+  marginalizzarlo, stringe le incertezze in media dell'1.5% a N = 50 e dello 0.2–0.3% a N = 300; il
+  caso peggiore è l'8% (μ_E a N = 50) (c). **La fattorizzazione a due stadi resta giustificata** (c).
+- Le larghezze di Laplace concordano con le griglie dei due stadi entro il 5–7% a N = 300, ma non a
+  N piccolo: su μ_E il rapporto è 0.71 a N = 50 e 0.83 a N = 150 (c). A N = 50 la std posteriore
+  di log σ_E (0.54 in media) è circa metà della larghezza del prior (log 3 ≈ 1.1): il posterior non
+  è gaussiano e la Laplace locale non lo descrive. Le stime dei due stadi, su griglia, non hanno
+  questo problema.
 - Il modo congiunto si discosta dalle stime dei due stadi soprattutto su log σ_E (0.5 σ a N = 50,
-  0.2 σ a N = 300). Ha un pull medio negativo (−0.27 → −0.13), mentre la media posteriore dei due
-  stadi è centrata. **Non è l'asimmetria del marginale** (`scripts/asimmetria_log_sigma.py`): il
-  marginale ha la coda verso σ_E piccoli (media < mediana), quindi la relazione di Pearson
-  moda ≈ media − 3(media − mediana) prevede un modo *sopra* la media (+0.25 / +0.14 / +0.06 σ a
-  N = 50 / 150 / 300), il segno opposto all'osservato (c). La scomposizione esatta
-  (`scripts/modo_log_sigma.py`, stessi dataset, in unità della std posteriore s) dà:
+  0.2 σ a N = 300) e ha pull medio più basso della media dei due stadi: −0.56 / −0.11 / −0.03 contro
+  −0.18 / +0.05 / +0.11 (c). La relazione di Pearson moda ≈ media − 3(media − mediana)
+  (`scripts/asimmetria_log_sigma.py`) ha qui **lo stesso segno** dell'osservato, al contrario di
+  0.5–6 MeV: il marginale ha la coda verso σ_E grandi. Ma ne spiega solo una parte: −0.04 / −0.09 /
+  −0.05 σ previsti contro −0.35 / −0.22 / −0.16 osservati a N = 50 / 150 / 300, con correlazione per
+  esperimento 0.46 / 0.65 / 0.70 (c). La previsione scritta prima (segno opposto, correlazione < 0.5)
+  è smentita. La scomposizione esatta (`scripts/modo_log_sigma.py`, stessi dataset, in unità della
+  std posteriore s; M = 77 / 100 / 100) dà:
 
   | N | asimmetria (modo marg. − media) | volume di μ_E (modo 2D − modo marg.) | direzione (modo 4D − modo 2D) | numerica (Laplace d'uso − convergente) | totale |
   |---|---|---|---|---|---|
-  | 50 | +0.16 ± 0.03 | −0.10 | −0.28 ± 0.05 | −0.06 ± 0.02 | −0.29 ± 0.04 |
-  | 150 | +0.11 ± 0.01 | −0.07 | −0.20 ± 0.02 | −0.04 ± 0.01 | −0.20 ± 0.03 |
-  | 300 | +0.06 ± 0.01 | −0.05 | −0.14 ± 0.02 | −0.02 | −0.15 ± 0.02 |
+  | 50 | −0.05 ± 0.04 | −0.17 ± 0.03 | −0.18 ± 0.06 | +0.05 ± 0.05 | −0.35 ± 0.04 |
+  | 150 | −0.06 ± 0.02 | −0.11 | −0.06 ± 0.01 | +0.00 ± 0.01 | −0.22 ± 0.02 |
+  | 300 | −0.04 ± 0.01 | −0.08 | −0.05 ± 0.01 | +0.01 | −0.16 ± 0.01 |
 
-  Asimmetria e volume di μ_E quasi si cancellano. Il termine dominante viene dal lasciare libera
-  Ω_n nel massimo congiunto invece di fissarla a ω_0 (c). Tutti i termini scalano circa come s²
-  (rapporto scarto/s² costante entro un fattore 1.5), come un effetto di volume: il modo di una
-  densità a più dimensioni non conta il volume delle direzioni massimizzate. Il modo profilato su Ω_n preferirebbe i σ_E piccoli, dove Ω_n è meglio
-  determinata (interpretazione, d). Il gradiente numerico di `joint_laplace` aggiunge −0.02/−0.06 s.
-  Pull medio delle stime puntuali: media due stadi +0.07 / +0.07 / +0.02, Laplace convergente
-  −0.16 / −0.09 / −0.11. Da questo lato la stima a due stadi (media) è migliore (c).
+  Il totale coincide con la somma dei termini. A differenza di 0.5–6 MeV, dove asimmetria (+) e
+  volume di μ_E (−) quasi si cancellavano e dominava la direzione, qui i tre termini fisici sono
+  tutti negativi e a N ≥ 150 domina il **volume di μ_E** (c); la previsione scritta prima (segni
+  del dominio precedente, direzione dominante) è smentita. Da N = 150 a 300 lo scarto/s² resta
+  costante entro un fattore 1.3 (totale −1.13 → −1.32), cioè i termini scalano circa come s², come
+  un effetto di volume (c); a N = 50 non più (−0.76), dove il posterior tocca i bordi del prior
+  (interpretazione, d). Il gradiente numerico di `joint_laplace` è trascurabile (≤ 0.05 s).
+  Pull medio delle stime puntuali di log σ_E: media due stadi −0.17 / +0.05 / +0.11, Laplace
+  convergente −0.57 / −0.17 / −0.06. A N ≤ 150 la stima a due stadi (media) è migliore; a N = 300
+  le due sono equivalenti entro l'errore (±0.09) (c).
 
 ### 6.5 Isotropia in CM, Casi A, B e C (`scripts/stress_anisotropia.py`)
 
@@ -388,7 +410,8 @@ tre casi e non sono rilette dal notebook 06.
 ## 7. Prestazioni
 
 Tempi di `loglik` del Caso A misurati a 10–20 MeV (cinematica relativistica, buffer unico riusato
-in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV (~7 min con 3 processi).
+in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C (~7 min con 3 processi) e gli
+script marcati 10–20 MeV.
 
 | Operazione | Tempo | |
 |---|---|---|
@@ -397,6 +420,9 @@ in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV 
 | Esperimento Caso C a N = 300 | ~2 s (prima 19 s) | (c) |
 | Checklist Caso C completa | ~8 min con 3 processi | (c) |
 | `n1000_extra.py` (B e C, 400 esperimenti a N = 1000), 10–20 MeV | ~14 min con 3 processi | (c) |
+| `correlazione_stadi.py` / `modo_log_sigma.py` (300 esperimenti), 10–20 MeV | ~19 min ciascuno con 3 processi | (c) |
+| `caso_C_cov68.py` (900) / `caso_C_cov90_mu.py` (600), 10–20 MeV | ~12 / ~11 min con 3 processi | (c) |
+| `caso_C_diag_omega_N50.py`, M = 200 / 600, 10–20 MeV | ~1.5 / ~4.5 min con 3 processi | (c) |
 
 ## 8. Limiti dichiarati
 
@@ -416,7 +442,7 @@ in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV 
   precisione, non calibrazione. Va scelto sullo spettro fisico atteso.
   Nel Caso C log σ_E dipende dal prior di 0.3 σ a N = 50 e di meno di 0.1 σ da N ≈ 300 (c, §6.1).
 - **Caso C, due stadi:** chiuso come limite. La correlazione fra Ω_n e (μ_E, σ_E) trascurata dai due
-  stadi costa ≤ 1% sulle incertezze in media (≤ 6% nel caso peggiore) a N ≥ 50 (c, §6.4).
+  stadi costa ≤ 1.5% sulle incertezze in media (≤ 8% nel caso peggiore) a N ≥ 50 (c, §6.4).
 - **Nuisance z** (profondità d'interazione) del Caso A fuori scope: nessun osservabile definito.
 - **Isotropia in CM** a 10–20 MeV: la distribuzione angolare vera (ENDF/B-VIII.0) non cambia la
   ricostruzione (c, §6.5); il modello resta isotropo.
@@ -426,5 +452,6 @@ in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV 
   errore di modello che sposta log σ_E verso l'alto, crescente con N (c, §5).
 - **Fuori scope:** sezione d'urto n–p decrescente con E_n (spettro rivelato ≠ spettro incidente),
   soglia su E_p basse.
-- I limiti su assunzione 1, assunzione 3 e due stadi sono quantificati a 0.5–6 MeV (§6.2–6.4).
+- Il limite sull'assunzione 1 è quantificato a 0.5–6 MeV (§6.3); assunzione 3 e due stadi a
+  10–20 MeV (§6.2, §6.4).
 - **Target di prestazione** di `loglik` per N = 1000 ridefinito da 50 ms a 2 s: il limite è il numpy denso.

@@ -25,7 +25,8 @@ Previsioni (scritte prima del calcolo):
 
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/caso_C_diag_omega_N50.py [n_processi] [M] [tag]
-     (~1.5 min per M=200 senza tag, ~3.5 min per M=600 con tag, 3 processi, misurato 2026-09-26)
+     (~1.5 min per M=200 senza tag, ~4.5 min per M=600 con tag, 3 processi, misurato 2026-11-13
+      a 10-20 MeV)
 Produce: outputs/caso_C_diag_omega_N50[_tag<tag>].pkl e la tabella su stdout.
 """
 import pickle

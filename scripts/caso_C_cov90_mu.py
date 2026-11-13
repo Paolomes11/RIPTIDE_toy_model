@@ -14,7 +14,7 @@ Previsioni (scritte prima del calcolo):
 
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/caso_C_cov90_mu.py [n_processi]
-     (~10.5 min con 3 processi, misurato 2026-09-26 a 0.5-6 MeV)
+     (~11 min con 3 processi, misurato 2026-11-13 a 10-20 MeV)
 Produce: outputs/caso_C_cov90_mu_results.pkl e la tabella su stdout.
 """
 import pickle
