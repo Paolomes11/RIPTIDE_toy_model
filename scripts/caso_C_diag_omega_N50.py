@@ -1,4 +1,4 @@
-"""Riga 14, report §13.2: diagnostica della sovra-confidenza di Omega_n a N = 50.
+"""Omega_n a N = 50: il prior predittivo su E_n dello stadio 1' resta la scelta giusta?
 
 Per ogni esperimento (stesso generatore della checklist) rifa' lo stadio 1'
 (refine_shared_direction_hierarchical) con piu' prior gaussiani su E_n:
@@ -13,6 +13,15 @@ delle ipotesi B2/B3 (verita' dentro la calotta, massa nell'anello esterno).
 Seed: senza tag, spawn_key=(50, i) come la checklist (M=200); con tag,
 spawn_key=(50, i, tag). Nel report: tag 50 e 51, M=600 ciascuno (il run col
 tag 50 aveva solo plugin e oracolo; lo script ora calcola tutte le varianti).
+
+Dominio 10-20 MeV, E_n per evento dalla gaussiana troncata. Nella checklist (prior
+predittivo) la coverage di Omega_n e' nominale a ogni N, anche a N = 50.
+Previsioni (scritte prima del calcolo):
+  1. [predittiva] e [oracolo] coverage 68 / 90 / 95% nominale entro 2 errori binomiali sui
+     tag 50 + 51 uniti (M = 1200): +-0.027 / 0.017 / 0.013;
+  2. [plugin] un po' sotto [predittiva] a 90 / 95%: ignora l'incertezza su (mu_E, sigma_E)
+     e quindi stringe il prior su E_n; [plugin_+1sd] fra le due (ipotesi da testare);
+  3. verita' fuori calotta e massa al bordo trascurabili (0 e < 1e-3) per ogni variante.
 
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/caso_C_diag_omega_N50.py [n_processi] [M] [tag]

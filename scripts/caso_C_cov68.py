@@ -1,14 +1,21 @@
-"""Riga 14, report §11.4: coverage al 68% di log sigma_E a N = 150-300 su seed nuovi.
+"""Coverage di log sigma_E a N = 150-300 su seed nuovi: la checklist regge con M piu' grande?
 
-Stesso generatore e stessa pipeline della checklist (scripts/caso_C_checklist.py,
-v0.11), ma con seed indipendenti da quelli della checklist, spawn_key=(N, i, 68),
-e M piu' grande. Lo stadio 2 (prior di default) e' calcolato due volte: su
-omega_0 dello stadio 1 e sulla Omega_n vera, per separare il contributo dello
-stadio 1.
+Stesso generatore e stessa pipeline della checklist (scripts/caso_C_checklist.py), ma con
+seed indipendenti da quelli della checklist, spawn_key=(N, i, 68), e M piu' grande. Lo
+stadio 2 (prior di default) e' calcolato due volte: su omega_0 dello stadio 1 e sulla
+Omega_n vera, per separare il contributo dello stadio 1.
+
+Dominio 10-20 MeV, E_n per evento dalla gaussiana troncata. Nella checklist (M = 200 / 100)
+la coverage 68% di log sigma_E e' 0.67 / 0.69 a N = 150 / 300, cioe' gia' nominale.
+Previsioni (scritte prima del calcolo):
+  1. [hat] coverage 68 / 90 / 95% nominale entro 2 errori binomiali: +-0.019 / 0.012 / 0.009
+     a N = 150 (M = 600), +-0.027 / 0.017 / 0.013 a N = 300 (M = 300);
+  2. [true] - [hat] entro ~0.02 a ogni livello: la correlazione posteriore fra direzione e
+     iperparametri e' debole, quindi fissare Omega_n alla stima o al vero cambia poco.
 
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/caso_C_cov68.py [n_processi]
-     (~11 min con 3 processi, misurato 2026-09-26)
+     (~11 min con 3 processi, misurato 2026-09-26 a 0.5-6 MeV)
 Produce: outputs/caso_C_cov68_results.pkl e la tabella su stdout.
 """
 import pickle
