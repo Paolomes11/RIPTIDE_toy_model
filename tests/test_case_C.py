@@ -513,11 +513,9 @@ def test_marginal_direction_not_narrower_than_conditional():
 def test_sample_energy_spectrum_matches_mean_sd_and_gauss_stream():
     # ogni forma ha media e sd fissate: con n = 400 000 l'errore sulla media e'
     # sd/sqrt(n) ~ 6e-4 sd e quello relativo sulla sd ~ 1e-3: soglie 5e-3.
-    # Centro del dominio e sd piccola: la troncatura di "gauss" a ~4 sd sposta
-    # la sd di ~3e-4 relativo, sotto soglia
     mean, sd, n = 15.0, 1.2, 400_000
     for shape in ("gauss", "uniform", "bimodal", "lognormal", "laplace", "student_t"):
-        En = kinematics.sample_energy_spectrum(np.random.default_rng(SEED), shape, mean, sd, n)
+        En = kinematics.sample_energy_spectrum(np.random.default_rng(SEED), shape, mean, sd, n, truncate=False)
         assert En.shape == (n,)
         assert abs(En.mean() - mean) < 5e-3 * sd
         assert abs(En.std() / sd - 1.0) < 5e-3
@@ -528,6 +526,42 @@ def test_sample_energy_spectrum_matches_mean_sd_and_gauss_stream():
     )
     with pytest.raises(ValueError):
         kinematics.sample_energy_spectrum(np.random.default_rng(SEED), "boh", mean, sd, 10)
+
+
+def test_sample_energy_spectrum_truncated_stays_in_domain():
+    # caso peggiore del generatore degli stress test: mu_E vicino al bordo, sd massima
+    for shape in ("gauss", "uniform", "bimodal", "lognormal", "laplace", "student_t"):
+        En = kinematics.sample_energy_spectrum(np.random.default_rng(SEED), shape, 13.0, 2.4, 50_000)
+        assert En.shape == (50_000,)
+        assert En.min() >= EN_MIN and En.max() <= EN_MAX
+    with pytest.raises(ValueError):
+        kinematics.sample_energy_spectrum(np.random.default_rng(SEED), "uniform", 40.0, 1.0, 10)
+
+
+def test_truncated_normal_pseudo_true_inverts_moments():
+    # i momenti di una gaussiana troncata devono restituire i suoi parametri, anche
+    # con troncatura forte; lontano dai bordi parametri e momenti coincidono
+    for mu_E, sigma_E in ((13.0, 2.4), (15.0, 2.0), (17.0, 0.8), (13.0, 0.8)):
+        a, b = (EN_MIN - mu_E) / sigma_E, (EN_MAX - mu_E) / sigma_E
+        m, v = stats.truncnorm.stats(a, b, loc=mu_E, scale=sigma_E, moments="mv")
+        mu_hat, sigma_hat = kinematics.truncated_normal_pseudo_true(float(m), np.sqrt(float(v)))
+        assert abs(mu_hat - mu_E) < 1e-4 and abs(sigma_hat - sigma_E) < 1e-4
+    mu_hat, sigma_hat = kinematics.truncated_normal_pseudo_true(15.0, 0.5)
+    assert abs(mu_hat - 15.0) < 1e-6 and abs(sigma_hat - 0.5) < 1e-6
+    # momenti impossibili per una gaussiana troncata: sd oltre quella della piatta sul dominio
+    with pytest.raises(ValueError):
+        kinematics.truncated_normal_pseudo_true(15.0, 3.5)
+
+
+def test_spectrum_effective_moments_gauss_matches_analytic():
+    # errore MC con 2e6 eventi: media ~1e-3, sd relativa ~7e-4, soglie 5 volte tanto
+    mu_E, sigma_E = 13.0, 2.4
+    a, b = (EN_MIN - mu_E) / sigma_E, (EN_MAX - mu_E) / sigma_E
+    m, v, _, k = stats.truncnorm.stats(a, b, loc=mu_E, scale=sigma_E, moments="mvsk")
+    mean, sd, kurt = kinematics.spectrum_effective_moments(np.random.default_rng(SEED), "gauss", mu_E, sigma_E)
+    assert abs(mean - float(m)) < 5e-3
+    assert abs(sd / np.sqrt(float(v)) - 1.0) < 5e-3
+    assert abs(kurt - (float(k) + 3.0)) < 0.02
 
 
 def test_sample_truncated_normal_energy_matches_model_density():
@@ -564,9 +598,9 @@ def test_sample_energy_spectrum_shapes_differ_from_gaussian():
     # code pesanti: curtosi 6 per la Laplace (errore campionario ~0.08 a questo n);
     # per la Student-t la curtosi campionaria converge lentamente (momento ottavo
     # infinito), basta che superi nettamente quella della Laplace
-    En = kinematics.sample_energy_spectrum(rng, "laplace", mean, sd, n)
+    En = kinematics.sample_energy_spectrum(rng, "laplace", mean, sd, n, truncate=False)
     assert abs(stats.kurtosis(En, fisher=False) - 6.0) < 0.3
-    En = kinematics.sample_energy_spectrum(rng, "student_t", mean, sd, n)
+    En = kinematics.sample_energy_spectrum(rng, "student_t", mean, sd, n, truncate=False)
     assert stats.kurtosis(En, fisher=False) > 7.0
 
 

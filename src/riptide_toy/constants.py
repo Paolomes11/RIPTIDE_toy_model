@@ -25,6 +25,13 @@ BIMODAL_HALF_SEPARATION = 0.9
 # della Laplace, l'altra forma a code pesanti provata
 STUDENT_T_DOF = 5
 
+# momenti effettivi degli spettri troncati negli stress test: con 2e6 eventi l'errore
+# MC sulla media e' ~7e-4 sd, sotto l'1% della std posteriore di mu_E a N = 1000
+N_PSEUDO_TRUE = 2_000_000
+# scarto massimo sui momenti (MeV) per accettare i parametri della gaussiana troncata
+# equivalente, molto sotto l'errore MC dei momenti stessi
+PSEUDO_TRUE_MOMENT_TOL = 1e-6
+
 # risoluzioni toy del detector, usate nel caso di riferimento R1
 SIGMA_EP = 0.10     # MeV
 SIGMA_THETA = 0.08  # rad
