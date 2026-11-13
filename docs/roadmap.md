@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.22 — 2026-11-08
+v0.23 — 2026-11-13
 
 Sintesi dei risultati: `docs/resoconto.md`. Le modifiche del passaggio a 10–20 MeV sono spiegate
 nel notebook `notebooks/06_modifiche_10_20_MeV`; i notebook 01–05 sono rifatti a 10–20 MeV.
@@ -304,8 +304,8 @@ progetto è partito (non pubblicata).
 Dalla v0.19 il dominio è 10–20 MeV. I punti 1–8 sono stati chiusi o quantificati a 0.5–6 MeV
 (v0.16–v0.18); i numeri riportati sotto sono di quel dominio salvo dove indicato. Rifatti a
 10–20 MeV: checklist A, B, C, figura di contrazione, robustezza al prior, stress
-dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5). Da rifare a 10–20 MeV, col via, ora che il
-punto 9 è chiuso: `n1000_extra.py`, `stress_sorgente.py`,
+dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5), `n1000_extra.py` (v0.23, punto 4). Da rifare a
+10–20 MeV, col via, ora che il punto 9 è chiuso: `stress_sorgente.py`,
 `correlazione_stadi.py`, `modo_log_sigma.py`, `caso_C_cov68.py`, `caso_C_cov90_mu.py`,
 `caso_C_diag_omega_N50.py` (il notebook 05 §9 ne riassume le conclusioni a 0.5–6 MeV).
 
@@ -341,8 +341,8 @@ punto 9 è chiuso: `n1000_extra.py`, `stress_sorgente.py`,
    log σ_E arriva a +0.6/+1.0 per le forme a code leggere; a N = 50 l'effetto è quasi invisibile,
    quindi il danno cresce con N. Ω_n resta calibrato. Il meccanismo non è indagato: da verificare se
    pesano gli esperimenti con μ_E vicino ai bordi o σ_E grande, e la misura è a M = 40.
-14. **Prossimi passi (da riprendere, v0.22).** Rilanci col via e col tetto di memoria, in quest'ordine:
-   (A) `n1000_extra` → `mu_N1000_diag`; (B) `correlazione_stadi` → `asimmetria_log_sigma`, `modo_log_sigma`,
+14. **Prossimi passi (da riprendere, v0.23).** Rilanci col via e col tetto di memoria, in quest'ordine:
+   (A) `n1000_extra` → `mu_N1000_diag`, fatto (v0.23, punto 4); (B) `correlazione_stadi` → `asimmetria_log_sigma`, `modo_log_sigma`,
    `caso_C_cov68` → `caso_C_cov90_mu`, `caso_C_diag_omega_N50`; (C) `robustezza_prior` (B e C) →
    `prior_B_rumore`; (D) `stress_anisotropia` (B, C), `stress_sorgente`. Per ciascuno aggiornare
    `docs/resoconto.md` e il notebook 05. Poi: stress con σ_np(E) letta da ENDF/B-VIII.0 MF3/MT2; stress
@@ -370,6 +370,14 @@ punto 9 è chiuso: `n1000_extra.py`, `stress_sorgente.py`,
    sovra-coperto al 90% (0.95 ± 0.019). `scripts/mu_N1000_diag.py`: p-value globale 0.08 sulle
    quattro statistiche (larghezza del pull e coverage ai tre livelli, con le loro correlazioni),
    nessuna struttura per terzili di σ_E o μ_E. È una fluttuazione (c); nessun run aggiuntivo.
+   **A 10–20 MeV (v0.23, c):** rilanciato col generatore troncato (~14 min, 3 processi). Caso B:
+   errore medio 0.38°, rms 0.42° contro 0.43° dichiarata, pull rms 0.98, coverage 0.70 / 0.90 / 0.95
+   (lo 0.80 al 68% con M = 40 era una fluttuazione); rms·√N 0.27 / 0.25 / 0.24 / 0.25 / 0.23 rad,
+   pendenza −0.53 su 10–1000 e −0.51 su 30–1000. A N = 10 (M = 400) la frazione di pull·√2 oltre 3
+   è 0.018 contro 0.011 di Rayleigh. Caso C: μ_E con coverage 0.65 / 0.89 / 0.95, pull
+   −0.01 / 1.02, bias −0.002 ± 0.006 MeV (lo 0.55 al 68% con M = 40 era una fluttuazione);
+   `mu_N1000_diag.py`: p-value globale 0.93, nessuna struttura per terzili. log σ_E: pull
+   −0.01 / 1.04, coverage 0.66 / 0.88 / 0.94; Ω_n: pull rms 1.01, coverage 0.65 / 0.90 / 0.95.
 5. **Robustezza al prior: chiuso (c).** `scripts/robustezza_prior.py`. I prior sui parametri
    condivisi vengono dimenticati con N. Il prior su E_n per evento del Caso B no: Ω̂_n si sposta di
    ~1 σ a ogni N con un prior largo, ~0.3 σ con uno log-uniforme. La coverage resta nominale.
