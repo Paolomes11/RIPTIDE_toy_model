@@ -1,6 +1,6 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.22 — 2026-11-08
+v0.23 — 2026-11-13
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi
@@ -81,17 +81,19 @@ Stima = MAP sulla calotta raffinata. Errori in gradi; M = numero di esperimenti.
 | 300 (100) | 0.76 | 0.84 | 0.79 | 1.07 | 0.63 / 0.84 / 0.92 |
 | 1000 (40) | 0.35 | 0.37 | 0.43 | 0.85 | 0.80 / 0.98 / 1.00 |
 
-- Calibrato a ogni N entro gli errori binomiali (±0.02 … ±0.07 al 68%) (c). A N = 1000 con M = 40
-  pull e coverage sono quelli già visti a 0.5–6 MeV con lo stesso M, rientrati al nominale con
-  M = 240; il controllo con più esperimenti (`scripts/n1000_extra.py`) non è stato rifatto a
-  10–20 MeV.
-- Contrazione: rms·√N = 0.27 / 0.25 / 0.24 / 0.25 / 0.20 rad per N = 10 / 30 / 100 / 300 / 1000,
-  pendenza log-log −0.55 (attesa −0.5) (c).
+- Calibrato a ogni N entro gli errori binomiali (±0.02 … ±0.07 al 68%) (c). La sovra-copertura a
+  N = 1000 con M = 40 è una fluttuazione: con 200 esperimenti in più su seed disgiunti
+  (`scripts/n1000_extra.py`, M = 240) errore medio 0.38°, rms 0.42° contro 0.43° dichiarata, pull
+  rms 0.98, coverage 0.70 / 0.90 / 0.95 (±0.03 al 68%) (c).
+- Contrazione con M = 240 a N = 1000: rms·√N = 0.27 / 0.25 / 0.24 / 0.25 / 0.23 rad per
+  N = 10 / 30 / 100 / 300 / 1000, pendenza log-log −0.53 su 10–1000 e −0.51 su 30–1000 (attesa
+  −0.5) (c). Il −0.55 della tabella veniva dal punto a M = 40.
 - A 10–20 MeV la direzione è ricostruita circa due volte meglio che a 0.5–6 MeV (rms·√N
   0.24 contro 0.38 rad a N = 100) (c): E_p è più grande rispetto a σ_Ep, quindi l'energia per
   evento è meno incerta e pesa meno sulla ricostruzione angolare (interpretazione, d).
-- Le code pesanti del pull a N = 10 (frazione oltre 3) sono state misurate a 0.5–6 MeV e non
-  rifatte.
+- A N = 10 (M = 400) il pull·√2 ha mediana 1.17 (Rayleigh 1.18) e frazione oltre 3 pari a 0.018
+  contro 0.011 di Rayleigh: code un po' più pesanti di una gaussiana 2D, meno che a 0.5–6 MeV
+  (0.023) (c). Il regime a pochi eventi resta non gaussiano.
 - Un evento singolo riproduce la verosimiglianza analitica L ∝ π(E_n*)/cos θ (c).
 
 ## 5. Caso C — direzione ed energia gerarchica (notebooks 04, 05)
@@ -120,8 +122,13 @@ Pull: media / larghezza; errore binomiale al 68% ±0.03 (M = 200), ±0.05 (M = 1
 - **Ω_n calibrata** a ogni N: pull rms 0.93–1.07, coverage HPD nei limiti binomiali, pendenza di
   contrazione −0.55 (c).
 - **μ_E calibrato**: bias compatibile con zero, larghezza del pull 0.88–1.04, rms e std posteriore
-  media vicine a N ≥ 150, coverage 90/95% 0.90–0.91/0.92–0.96. Il 0.55 al 68% a N = 1000 è a
-  −1.8 errori binomiali con M = 40, con pull di larghezza 1.04: fluttuazione (c). Contrazione:
+  media vicine a N ≥ 150, coverage 90/95% 0.90–0.91/0.92–0.96. Il 0.55 al 68% a N = 1000 (−1.8
+  errori binomiali con M = 40) è una fluttuazione: con M = 240 (`scripts/n1000_extra.py`) coverage
+  0.65 / 0.89 / 0.95, pull −0.01 / 1.02, bias −0.002 ± 0.006 MeV, rms 0.096 MeV contro std
+  posteriore media 0.088; p-value globale 0.93 sulle quattro statistiche con le loro correlazioni,
+  nessuna struttura per terzili di σ_E o μ_E (`scripts/mu_N1000_diag.py`, previsioni scritte prima)
+  (c). Con M = 240 anche log σ_E (pull −0.01 / 1.04, coverage 0.66 / 0.88 / 0.94) e Ω_n (pull rms
+  1.01, coverage 0.65 / 0.90 / 0.95) sono nominali a N = 1000 (c). Contrazione:
   pendenza −0.61, rms·√N 3.9 / 4.3 / 3.6 / 2.9 MeV, nessun plateau (c).
 - **log σ_E calibrato a N ≥ 150**: bias ≤ 0.012, pull medio +0.00 … +0.11 con larghezza 0.89–1.00,
   coverage 0.67–0.69 / 0.87–0.95 / 0.94–0.98 (c). Fra N = 300 e 1000 rms·√N è costante
@@ -389,6 +396,7 @@ in place); gli altri a 0.5–6 MeV, salvo la checklist del Caso C a 10–20 MeV 
 | `loglik` Caso A, 1000 eventi | 0.71 s (target ridefinito a 2 s) | (c) |
 | Esperimento Caso C a N = 300 | ~2 s (prima 19 s) | (c) |
 | Checklist Caso C completa | ~8 min con 3 processi | (c) |
+| `n1000_extra.py` (B e C, 400 esperimenti a N = 1000), 10–20 MeV | ~14 min con 3 processi | (c) |
 
 ## 8. Limiti dichiarati
 
