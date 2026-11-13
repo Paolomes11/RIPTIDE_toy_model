@@ -1,20 +1,23 @@
-"""Caso C a N = 1000: la sovra-copertura di mu_E (coverage 90% = 0.95 su M = 240) e' una
-fluttuazione o un effetto?
+"""Caso C a N = 1000, mu_E: la calibrazione regge con M = 240 esperimenti?
+
+Dominio 10-20 MeV, E_n per evento dalla gaussiana troncata. Con M = 40 la coverage 68% di
+mu_E era 0.55 (-1.8 errori binomiali); con M = 240 diventa 0.654, larghezza del pull 1.02.
 
 Dati (solo lettura): outputs/caso_C_checklist_results.pkl (N = 1000, i = 0-39) e
 outputs/n1000_extra_results.pkl (Caso C, i = 40-239), prior "logU".
 
 Previsioni (scritte prima del calcolo):
   1. sotto l'ipotesi di calibrazione (pull iid N(0,1), M = 240) la larghezza del pull ha
-     errore ~1/sqrt(2M) = 0.046: 0.92 e' a ~1.7 sigma; le coverage 90% e 95% sono a ~2.5 sigma
-     ciascuna, ma sono fortemente correlate fra loro e con la larghezza. Una p-value
-     Monte Carlo che tiene conto delle correlazioni (stesse statistiche su M normali
-     standard) attesa ~0.02-0.05: tensione lieve, non un effetto netto;
+     errore ~1/sqrt(2M) = 0.046, quindi 1.02 e' a ~+0.4 sigma; le coverage 0.654 / 0.892 /
+     0.946 distano -0.9 / -0.4 / -0.3 errori binomiali (0.030 / 0.019 / 0.014) e sono
+     correlate fra loro e con la larghezza. La p-value Monte Carlo globale, che tiene conto
+     delle correlazioni, e' attesa grande (> 0.3): nessuna tensione;
   2. il passo della griglia fine non c'entra: la finestra copre ~+-4.5 std con N_MU_FINE
      punti, passo ~0.23 std, e la somma su griglia uniforme di una gaussiana con passo
      h << std ridà media e varianza con errore relativo ~exp(-2 pi^2 std^2 / h^2), nullo;
-  3. quindi nessuna struttura per terzili di sigma_true e di mu_true: larghezza del pull e
-     coverage 90% compatibili fra gli strati.
+  3. nessuna struttura per terzili di sigma_true e di mu_true: larghezza del pull e
+     coverage 90% compatibili fra gli strati entro ~2 errori bootstrap (gli spettri vicini a
+     un bordo, sigma_true grande e mu_true agli estremi, sono generati troncati come il prior).
 
 Uso: python scripts/mu_N1000_diag.py
 Produce: la tabella su stdout.
