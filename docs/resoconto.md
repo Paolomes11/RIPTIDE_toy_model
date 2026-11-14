@@ -1,6 +1,6 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.24 — 2026-11-13
+v0.25 — 2026-11-14
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi
@@ -187,7 +187,8 @@ quella standard.
 Metrica: spostamento della stima in unità della std posteriore del prior di default, e coverage
 col prior alternativo. Prior alternativi, tutti propri: E_n piatto su [10, 30] MeV ("largo"),
 log-uniforme su [10, 20] e su [10, 30] MeV; Ω_n von Mises–Fisher con κ = 2 (larga ~40°) e asse a
-90° dalla verità; σ_E uniforme in σ invece che in log σ. Numeri v0.19, 10–20 MeV; nel Caso A la
+90° dalla verità; σ_E uniforme in σ invece che in log σ. Numeri a 10–20 MeV, rilancio v0.25 col
+Caso C generato dalla gaussiana troncata al dominio (A e B uguali alla v0.19); nel Caso A la
 verità è generata dalla cinematica in CM e il prior su θ_p è quello fisico.
 
 | Caso, parametro | Prior alternativo | Spostamento medio / std (N crescente) | Coverage 68% | |
@@ -197,8 +198,8 @@ verità è generata dalla cinematica in CM e il prior su θ_p è quello fisico.
 | B, Ω_n | von Mises–Fisher a 90° | 0.11 / 0.05 / 0.03 / 0.03 (N = 10 / 30 / 100 / 300) | 0.60–0.70 | (c) |
 | B, Ω_n | E_n piatto largo | 0.78 / 0.74 / 0.72 / 0.75 | 0.62–0.73 | (c) |
 | B, Ω_n | E_n log-uniforme | 0.13 / 0.11 / 0.12 / 0.08 | 0.56–0.69 | (c) |
-| C, μ_E | σ_E uniforme | −0.02 / +0.01 / −0.00 / +0.00 (N = 50 / 150 / 300 / 1000) | 0.50–0.75, uguale al default a N ≥ 150 | (c) |
-| C, log σ_E | σ_E uniforme | +0.76 / +0.28 / +0.14 / +0.07 | 0.50–0.60 | (c) |
+| C, μ_E | σ_E uniforme | −0.04 / +0.01 / −0.01 / −0.00 (N = 50 / 150 / 300 / 1000) | 0.76 / 0.69 / 0.68 / 0.55 (default 0.72 / 0.68 / 0.68 / 0.55) | (c) |
+| C, log σ_E | σ_E uniforme | +0.76 / +0.26 / +0.13 / +0.07 | 0.59 / 0.63 / 0.68 / 0.63 (default 0.61 / 0.67 / 0.69 / 0.65) | (c) |
 
 - Il prior sui **parametri condivisi** viene dimenticato con N, come a 0.5–6 MeV (c). Nel Caso A
   col prior largo restano spostamenti massimi di 2–4 σ a N = 10–30, negli esperimenti con verità
@@ -207,13 +208,39 @@ verità è generata dalla cinematica in CM e il prior su θ_p è quello fisico.
 - Il prior sul **nuisance per evento** (E_n nel Caso B) non viene dimenticato: Ω̂_n si sposta di
   ~0.75 σ (prior largo) o ~0.1 σ (log-uniforme) a ogni N (c), meno che a 0.5–6 MeV (~1.1 e ~0.3 σ).
   Col prior largo l'errore rms cresce (7.1° contro 4.8° a N = 10, 1.05° contro 0.87° a N = 300),
-  pull rms 0.94–1.00: costa precisione, non calibrazione (c). L'analisi tipo Hausman
-  (`scripts/prior_B_rumore.py`) è stata fatta a 0.5–6 MeV e non rifatta.
-- σ_E: la dipendenza dal prior di log σ_E scende da 0.76 σ (N = 50) a 0.07 σ (N = 1000) (c), più forte
-  che a 0.5–6 MeV (0.32 σ a N = 50): coerente con un σ_E meno vincolato dai dati (§5, d).
-- Le righe del Caso C vengono dal generatore senza troncatura (v0.19), con la calibrazione mancata
-  di §5 per entrambi i prior; vanno rilanciate col generatore troncato. Il confronto dei prior a
-  N = 150 della checklist v0.21 dà spostamenti simili (§5).
+  pull rms 0.94–1.00: costa precisione, non calibrazione (c).
+- **Analisi tipo Hausman** (`scripts/prior_B_rumore.py`, v0.25, previsioni scritte prima). Lo
+  spostamento d = stima_alt − stima_def è rumore a media nulla: ⟨d⟩ nel piano tangente alla verità
+  è compatibile con zero entro 2σ in tutte le 16 componenti (c). Col prior largo la relazione
+  E|err_alt|² = E|err_def|² + E|d|² regge già da N = 10: rms|d|/σ osservato contro previsto
+  1.00 ± 0.08 / 1.08 ± 0.06, 0.86 ± 0.04 / 0.93 ± 0.07, 0.83 ± 0.05 / 0.82 ± 0.08,
+  0.83 ± 0.05 / 0.75 ± 0.13 a N = 10 / 30 / 100 / 300, correlazione err_def·d compatibile con
+  zero (c; a 0.5–6 MeV reggeva da N = 30). Col prior log-uniforme lo spostamento (0.14–0.16 σ) è
+  troppo piccolo perché il test abbia potere (rapporto delle rms 1.00–1.02, previsto con errore
+  0.05–0.08): compatibile a N = 10, 100, 300, fuori di 3σ a N = 30 (0.143 ± 0.006 contro
+  0.000 ± 0.047) (c). Smentita la previsione che fallisse a N = 10 con correlazione negativa
+  (−0.06 ± 0.06).
+- Col prior largo il rapporto rms(err_alt)/rms(err_def) **scende** con N, 1.46 / 1.37 / 1.32 / 1.21
+  (c), mentre a 0.5–6 MeV restava a 1.6–1.75: qui lo spostamento ~costante non viene da un rapporto
+  costante. Lo spostamento osservato scende da 1.00 a 0.83 σ fra N = 10 e 30 e poi resta fermo,
+  mentre Hausman col rapporto calante lo darebbe a 0.75 σ a N = 300; i due sono compatibili
+  (0.6σ, M = 50). Se resti costante a N più grande è aperto (d).
+- σ_E: lo spostamento di log σ_E col prior uniforme scende da +0.76 σ (N = 50) a +0.07 σ
+  (N = 1000) (c), più forte che a 0.5–6 MeV (0.32 σ a N = 50) e uguale al run senza troncatura:
+  dipende dal prior, non dalla calibrazione del generatore. Coverage 68% col prior uniforme sotto
+  il default di 0.01–0.05, oltre l'errore binomiale a N = 150 (0.625 contro 0.67); il pull medio
+  col prior uniforme è +0.54 / +0.27 / +0.23 / +0.07 (c).
+- **Rilancio v0.25** col generatore troncato, previsioni scritte prima. Controllo di consistenza:
+  B coincide bit per bit col run precedente, A entro 1.8·10⁻⁶ relativo (arrotondamento float32
+  dell'ottimizzazione di `loglik`, successiva al run v0.19; uguale alle cifre stampate); il Caso C
+  col prior log-uniforme coincide bit per bit con la checklist v0.21 sui 540 esperimenti (c).
+  Confermati: spostamento di μ_E < 0.05 std a ogni N, coverage di μ_E col prior uniforme uguale al
+  default a N ≥ 150, spostamento di log σ_E positivo e calante, < 0.1 std a N = 1000. Smentiti:
+  (i) a N = 50 il prior uniforme sovra-copre μ_E (0.76 contro 0.715; std 1.50 volte quella del
+  default, larghezza del pull 0.71), perché allarga σ_E e con essa l'incertezza su μ_E (c);
+  (ii) la troncatura non riduce lo spostamento di log σ_E a N = 50 (+0.757 contro +0.76). Il +0.21
+  di §5 a N = 150 è lo spostamento della **mediana**; qui si usa la media (+0.26) sugli stessi
+  posterior: la previsione confrontava due metriche diverse.
 
 ### 6.2 Spettro non gaussiano, Caso C (`scripts/stress_spettro.py`)
 
@@ -423,6 +450,7 @@ script marcati 10–20 MeV.
 | `correlazione_stadi.py` / `modo_log_sigma.py` (300 esperimenti), 10–20 MeV | ~19 min ciascuno con 3 processi | (c) |
 | `caso_C_cov68.py` (900) / `caso_C_cov90_mu.py` (600), 10–20 MeV | ~12 / ~11 min con 3 processi | (c) |
 | `caso_C_diag_omega_N50.py`, M = 200 / 600, 10–20 MeV | ~1.5 / ~4.5 min con 3 processi | (c) |
+| `robustezza_prior.py` (A, B, C), 10–20 MeV | ~11 min con 3 processi | (c) |
 
 ## 8. Limiti dichiarati
 
@@ -437,10 +465,12 @@ script marcati 10–20 MeV.
 - **Dominio di energia:** se lo spettro vero esce da [10, 20] MeV la calibrazione di μ_E e log σ_E
   si degrada con N (coverage 68% di μ_E 0.38–0.55 a N = 1000, §6.2, c). Ω_n resta calibrato.
 - **Prior sul nuisance per evento (Caso B):** il prior su E_n non viene dimenticato al crescere di N
-  (spostamento di Ω̂_n ~1 σ costante con un prior largo, c). Lo spostamento è rumore a media nulla
-  che si somma in quadratura all'errore (relazione tipo Hausman, c da N ≈ 30, §6.1): costa
-  precisione, non calibrazione. Va scelto sullo spettro fisico atteso.
-  Nel Caso C log σ_E dipende dal prior di 0.3 σ a N = 50 e di meno di 0.1 σ da N ≈ 300 (c, §6.1).
+  (spostamento di Ω̂_n ~0.75 σ a ogni N con un prior largo, c). Lo spostamento è rumore a media
+  nulla che si somma in quadratura all'errore (relazione tipo Hausman, c da N = 10, §6.1): costa
+  precisione (errore rms ×1.46 a N = 10, ×1.21 a N = 300), non calibrazione. Va scelto sullo
+  spettro fisico atteso.
+  Nel Caso C log σ_E dipende dal prior di 0.76 σ a N = 50, 0.13 σ a N = 300 e 0.07 σ a N = 1000
+  (c, §6.1).
 - **Caso C, due stadi:** chiuso come limite. La correlazione fra Ω_n e (μ_E, σ_E) trascurata dai due
   stadi costa ≤ 1.5% sulle incertezze in media (≤ 8% nel caso peggiore) a N ≥ 50 (c, §6.4).
 - **Nuisance z** (profondità d'interazione) del Caso A fuori scope: nessun osservabile definito.
