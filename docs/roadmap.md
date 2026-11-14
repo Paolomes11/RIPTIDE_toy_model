@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.24 — 2026-11-13
+v0.25 — 2026-11-14
 
 Sintesi dei risultati: `docs/resoconto.md`. Le modifiche del passaggio a 10–20 MeV sono spiegate
 nel notebook `notebooks/06_modifiche_10_20_MeV`; i notebook 01–05 sono rifatti a 10–20 MeV.
@@ -306,7 +306,9 @@ Dalla v0.19 il dominio è 10–20 MeV. I punti 1–8 sono stati chiusi o quantif
 10–20 MeV: checklist A, B, C, figura di contrazione, robustezza al prior, stress
 dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5), `n1000_extra.py` (v0.23, punto 4),
 `correlazione_stadi.py`, `asimmetria_log_sigma.py`, `modo_log_sigma.py`, `caso_C_cov68.py`,
-`caso_C_cov90_mu.py`, `caso_C_diag_omega_N50.py` (v0.24, punto 8 e `docs/resoconto.md` §5, §6.4).
+`caso_C_cov90_mu.py`, `caso_C_diag_omega_N50.py` (v0.24, punto 8 e `docs/resoconto.md` §5, §6.4),
+`robustezza_prior.py` col Caso C troncato e `prior_B_rumore.py` (v0.25, punto 5 e
+`docs/resoconto.md` §6.1).
 Da rifare a 10–20 MeV, col via: `stress_sorgente.py` (il notebook 05 §9 ne riassume le conclusioni
 a 0.5–6 MeV).
 
@@ -324,8 +326,8 @@ a 0.5–6 MeV).
    0.61 / 0.81 / 0.87 (rms 0.81 contro std dichiarata 0.66), probabile effetto del prior a N
    piccolo come alla v0.11 (d). Limite: un rivelatore reale non tronca sull'energia vera; uno
    spettro che sborda dal dominio è un errore di modello (stress test, non calibrazione). Da
-   rilanciare col generatore troncato, ognuno col via: `robustezza_prior.py` (Caso C),
-   `stress_anisotropia.py` (B e C, punto 11) e `stress_sorgente.py`.
+   rilanciare col generatore troncato, ognuno col via: `stress_anisotropia.py` (B e C, punto 11)
+   e `stress_sorgente.py` (`robustezza_prior.py` fatto, v0.25).
 10. **Prior fisico su θ_p del Caso A: chiuso (c).** Vedi Scelte di implementazione.
 11. **Pkl dello stress di isotropia: solo Caso A.** `outputs/stress_anisotropia_results.pkl` è stato
    sovrascritto dal rilancio `stress_anisotropia.py 3 A` dopo il cambio del prior su θ_p; i numeri
@@ -342,10 +344,10 @@ a 0.5–6 MeV).
    log σ_E arriva a +0.6/+1.0 per le forme a code leggere; a N = 50 l'effetto è quasi invisibile,
    quindi il danno cresce con N. Ω_n resta calibrato. Il meccanismo non è indagato: da verificare se
    pesano gli esperimenti con μ_E vicino ai bordi o σ_E grande, e la misura è a M = 40.
-14. **Prossimi passi (da riprendere, v0.24).** Rilanci col via e col tetto di memoria, in quest'ordine:
+14. **Prossimi passi (da riprendere, v0.25).** Rilanci col via e col tetto di memoria, in quest'ordine:
    (A) `n1000_extra` → `mu_N1000_diag`, fatto (v0.23, punto 4); (B) `correlazione_stadi` → `asimmetria_log_sigma`, `modo_log_sigma`,
    `caso_C_cov68` → `caso_C_cov90_mu`, `caso_C_diag_omega_N50`, fatto (v0.24, punto 8); (C) `robustezza_prior` (B e C) →
-   `prior_B_rumore`; (D) `stress_anisotropia` (B, C), `stress_sorgente`. Per ciascuno aggiornare
+   `prior_B_rumore`, fatto (v0.25, punto 5); (D) `stress_anisotropia` (B, C), `stress_sorgente`. Per ciascuno aggiornare
    `docs/resoconto.md` e il notebook 05. Poi: stress con σ_np(E) letta da ENDF/B-VIII.0 MF3/MT2; stress
    con anisotropia maggiorata (f(−1)/f(0) = 1.10 a 14 MeV); coverage di log σ_E a N = 50 con prior
    ristretto; code dei pull del Caso B a N = 10; effetto delle approssimazioni non relativistiche
@@ -385,6 +387,16 @@ a 0.5–6 MeV).
    `scripts/prior_B_rumore.py`: lo spostamento è rumore a media nulla, non bias; con il prior
    largo vale la relazione tipo Hausman da N = 30 e il rapporto delle rms degli errori
    alternativo/default è ~costante con N (1.6–1.75), da cui lo spostamento costante (c).
+   **10–20 MeV (v0.25):** A e B uguali alla v0.19 (B bit per bit, A entro 1.8·10⁻⁶ relativo per
+   l'arrotondamento float32 di `loglik`), Caso C rilanciato col generatore troncato (col prior
+   log-uniforme coincide bit per bit con la checklist v0.21). Spostamento di Ω̂_n ~0.75 σ (largo)
+   e ~0.1 σ (log-uniforme) a ogni N. Hausman col prior largo regge da N = 10; col log-uniforme il
+   test non ha potere (spostamento 0.15 σ), fuori di 3σ solo a N = 30. Il rapporto delle rms
+   **scende** con N (1.46 → 1.21), quindi lo spostamento ~costante non si spiega più con un
+   rapporto costante: compatibile con Hausman entro 0.6σ a N = 300 (M = 50), aperto (d). Caso C:
+   μ_E robusto (< 0.05 std) ma sovra-coperto col prior uniforme a N = 50 (0.76); log σ_E
+   +0.76 / +0.26 / +0.13 / +0.07 std a N = 50 / 150 / 300 / 1000, uguale al run senza troncatura
+   (c). Dettaglio e previsioni confermate/smentite in `docs/resoconto.md` §6.1.
 6. **Spettro non gaussiano, Caso C: chiuso (c).** `scripts/stress_spettro.py`. μ_E e Ω_n sono
    robusti. log σ_E è sovra-coperto per spettri a curtosi bassa (uniforme, bimodale): coverage 68%
    0.75–0.81 a N = 150–300. Con code pesanti (`"laplace"`, `"student_t"` in
@@ -422,7 +434,7 @@ a 0.5–6 MeV).
   sovra-coperto per spettri piatti, sotto-coperto per code pesanti (coverage 68% ~0.6). μ_E e Ω_n
   restano calibrati; con la Student-t μ_E ha un bias di +0.16 σ (c).
 - **Prior su E_n nel Caso B** da scegliere sullo spettro fisico atteso: non si dimentica con N (c).
-  Nel Caso C log σ_E dipende dal prior (0.3 σ a N = 50, < 0.1 σ da N ≈ 300, c).
+  Nel Caso C log σ_E dipende dal prior (0.76 σ a N = 50, 0.13 σ a N = 300, 0.07 σ a N = 1000, c).
 - **Nuisance `z` del Caso A** fuori scope (nessun osservabile); **isotropia in CM** assunta nel
   dominio 10–20 MeV, verificata contro ENDF/B-VIII.0: l'anisotropia vera non cambia la
   ricostruzione (c, bias ≤ 0.15 σ a N = 1000); **target `loglik`** per N = 1000 ridefinito a 2 s.
