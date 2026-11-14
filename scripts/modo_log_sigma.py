@@ -11,7 +11,18 @@ Sugli stessi dataset di correlazione_stadi.py (spawn_key=(N, i)) lo scarto si sc
     li' con stencil STEP_SHRINK volte piu' stretto e N_NEWTON_FINE passi;
   - resto (direzione: Omega_n marginalizzato invece che fissato a omega_0 e partenza
     gerarchica): modo convergente di joint_laplace - modo 2D.
-Tutto in unita' della std posteriore s dei due stadi.
+Tutto in unita' della std posteriore s dei due stadi; la colonna "/s" divide ancora per s,
+quindi un termine che scala come s^2 vi resta costante al variare di N.
+
+Dominio 10-20 MeV, E_n per evento dalla gaussiana troncata. Da correlazione_stadi.py: totale
+-0.35 / -0.22 / -0.16 a N = 50 / 150 / 300, con s medio 0.54 / 0.22 / 0.13.
+Previsioni (scritte prima del calcolo):
+  1. il totale riproduce questi numeri (stessi modi d'uso), ed e' uguale alla somma dei termini;
+  2. i segni sono quelli del dominio precedente: asimmetria > 0, volume di mu_E < 0, direzione
+     < 0 e termine dominante a N >= 150, numerica piccola (|.| < 0.1);
+  3. da N = 150 a 300 la colonna "/s" di ogni termine resta costante entro ~30% (scala come
+     s^2). A N = 50 no: s ~ 0.5 non e' piccolo rispetto alla larghezza del prior su log sigma_E
+     (log 3 ~ 1.1), e i bordi del prior entrano nei modi (ipotesi da testare).
 
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/modo_log_sigma.py [n_processi]

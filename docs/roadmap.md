@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.23 — 2026-11-13
+v0.24 — 2026-11-13
 
 Sintesi dei risultati: `docs/resoconto.md`. Le modifiche del passaggio a 10–20 MeV sono spiegate
 nel notebook `notebooks/06_modifiche_10_20_MeV`; i notebook 01–05 sono rifatti a 10–20 MeV.
@@ -304,10 +304,11 @@ progetto è partito (non pubblicata).
 Dalla v0.19 il dominio è 10–20 MeV. I punti 1–8 sono stati chiusi o quantificati a 0.5–6 MeV
 (v0.16–v0.18); i numeri riportati sotto sono di quel dominio salvo dove indicato. Rifatti a
 10–20 MeV: checklist A, B, C, figura di contrazione, robustezza al prior, stress
-dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5), `n1000_extra.py` (v0.23, punto 4). Da rifare a
-10–20 MeV, col via, ora che il punto 9 è chiuso: `stress_sorgente.py`,
-`correlazione_stadi.py`, `modo_log_sigma.py`, `caso_C_cov68.py`, `caso_C_cov90_mu.py`,
-`caso_C_diag_omega_N50.py` (il notebook 05 §9 ne riassume le conclusioni a 0.5–6 MeV).
+dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5), `n1000_extra.py` (v0.23, punto 4),
+`correlazione_stadi.py`, `asimmetria_log_sigma.py`, `modo_log_sigma.py`, `caso_C_cov68.py`,
+`caso_C_cov90_mu.py`, `caso_C_diag_omega_N50.py` (v0.24, punto 8 e `docs/resoconto.md` §5, §6.4).
+Da rifare a 10–20 MeV, col via: `stress_sorgente.py` (il notebook 05 §9 ne riassume le conclusioni
+a 0.5–6 MeV).
 
 9. **Calibrazione del Caso C a 10–20 MeV: chiuso (c, v0.21).** Checklist v0.19: μ_E con larghezza
    del pull 1.24–1.30 e coverage 68% 0.51–0.55 a N ≥ 300; log σ_E con pull medio da +0.10
@@ -324,7 +325,7 @@ dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5), `n1000_extra.py` (v0.23
    piccolo come alla v0.11 (d). Limite: un rivelatore reale non tronca sull'energia vera; uno
    spettro che sborda dal dominio è un errore di modello (stress test, non calibrazione). Da
    rilanciare col generatore troncato, ognuno col via: `robustezza_prior.py` (Caso C),
-   `stress_anisotropia.py` (B e C, punto 11) e gli script elencati sopra.
+   `stress_anisotropia.py` (B e C, punto 11) e `stress_sorgente.py`.
 10. **Prior fisico su θ_p del Caso A: chiuso (c).** Vedi Scelte di implementazione.
 11. **Pkl dello stress di isotropia: solo Caso A.** `outputs/stress_anisotropia_results.pkl` è stato
    sovrascritto dal rilancio `stress_anisotropia.py 3 A` dopo il cambio del prior su θ_p; i numeri
@@ -341,9 +342,9 @@ dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5), `n1000_extra.py` (v0.23
    log σ_E arriva a +0.6/+1.0 per le forme a code leggere; a N = 50 l'effetto è quasi invisibile,
    quindi il danno cresce con N. Ω_n resta calibrato. Il meccanismo non è indagato: da verificare se
    pesano gli esperimenti con μ_E vicino ai bordi o σ_E grande, e la misura è a M = 40.
-14. **Prossimi passi (da riprendere, v0.23).** Rilanci col via e col tetto di memoria, in quest'ordine:
+14. **Prossimi passi (da riprendere, v0.24).** Rilanci col via e col tetto di memoria, in quest'ordine:
    (A) `n1000_extra` → `mu_N1000_diag`, fatto (v0.23, punto 4); (B) `correlazione_stadi` → `asimmetria_log_sigma`, `modo_log_sigma`,
-   `caso_C_cov68` → `caso_C_cov90_mu`, `caso_C_diag_omega_N50`; (C) `robustezza_prior` (B e C) →
+   `caso_C_cov68` → `caso_C_cov90_mu`, `caso_C_diag_omega_N50`, fatto (v0.24, punto 8); (C) `robustezza_prior` (B e C) →
    `prior_B_rumore`; (D) `stress_anisotropia` (B, C), `stress_sorgente`. Per ciascuno aggiornare
    `docs/resoconto.md` e il notebook 05. Poi: stress con σ_np(E) letta da ENDF/B-VIII.0 MF3/MT2; stress
    con anisotropia maggiorata (f(−1)/f(0) = 1.10 a 14 MeV); coverage di log σ_E a N = 50 con prior
@@ -397,15 +398,20 @@ dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5), `n1000_extra.py` (v0.23
    verso la seconda sorgente di circa f·Δ. La coverage crolla con N: per f = 0.05 a 30° la coverage
    68% scende da 0.41 a N = 30 a 0.16 a N = 300. La diagnostica KS ha potenza al livello del falso
    allarme per Δ ≲ 30°. Resta un limite (sotto).
-8. **Due stadi contro stima congiunta, Caso C: chiuso (c).** `scripts/correlazione_stadi.py`, con
-   Laplace locale 4D (`posterior_C.joint_laplace`). La correlazione canonica fra Ω_n e (μ_E, log σ_E) ha mediana
-   0.17 / 0.10 / 0.08 a N = 50 / 150 / 300. Marginalizzare invece di fissare allarga le incertezze in
-   media dell'1.3% / 0.4% / 0.3% (massimo 6%), quindi la fattorizzazione è giustificata. Il modo
-   congiunto di log σ_E è meno centrato della media dei due stadi (pull −0.27 a N = 50). Non è
-   l'asimmetria del marginale: Pearson prevede il segno opposto (`scripts/asimmetria_log_sigma.py`).
-   `scripts/modo_log_sigma.py` scompone lo scarto. Asimmetria (+) e volume di μ_E (−) quasi si
-   cancellano; domina il termine dovuto a Ω_n lasciata libera nel massimo congiunto (−0.28 / −0.20
-   / −0.14 s), con scala ~s², come un effetto di volume (c; interpretazione d).
+8. **Due stadi contro stima congiunta, Caso C: chiuso (c), rifatto a 10–20 MeV (v0.24).**
+   `scripts/correlazione_stadi.py`, con Laplace locale 4D (`posterior_C.joint_laplace`). La
+   correlazione canonica fra Ω_n e (μ_E, log σ_E) ha mediana 0.17 / 0.10 / 0.08 a N = 50 / 150 / 300
+   (massimo 0.39 / 0.24 / 0.16). Marginalizzare invece di fissare allarga le incertezze in media
+   dell'1.5% / 0.4% / 0.3% (massimo 8%, su μ_E a N = 50), quindi la fattorizzazione è giustificata.
+   Il modo congiunto di log σ_E sta sotto la media dei due stadi di 0.35 / 0.22 / 0.16 s (pull medio
+   −0.56 contro −0.18 a N = 50). Pearson (`scripts/asimmetria_log_sigma.py`) ha ora lo stesso segno
+   ma ne spiega solo −0.04 / −0.09 / −0.05 s; la previsione di segno opposto, ereditata dal dominio
+   precedente, è smentita. `scripts/modo_log_sigma.py` scompone lo scarto (in s, N = 50 / 150 / 300):
+   asimmetria −0.05 / −0.06 / −0.04, volume di μ_E −0.17 / −0.11 / −0.08, direzione −0.18 / −0.06 /
+   −0.05, numerica +0.05 / +0.00 / +0.01. Tutti i termini fisici sono negativi e domina il volume di
+   μ_E a N ≥ 150 (previsione di segni e termine dominante smentita); fra N = 150 e 300 ogni termine
+   scala come s² entro ~30% (previsione confermata). Effetto di volume, non di correlazione (c;
+   interpretazione d).
 
 ## Limiti dichiarati (da riportare nell'articolo)
 

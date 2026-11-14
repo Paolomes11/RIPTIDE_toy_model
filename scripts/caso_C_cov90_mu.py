@@ -1,12 +1,20 @@
-"""Riga 14, report §13: coverage al 90% di mu_E a N = 300 su seed nuovi.
+"""Coverage di mu_E a N = 300 su seed nuovi: la checklist regge con M = 600?
 
 Stessa pipeline di scripts/caso_C_cov68.py (stadio 1 a prior largo, stadio 2
 su omega_0 e sulla Omega_n vera), con seed disgiunti sia dalla checklist sia
 da caso_C_cov68: spawn_key=(N, i, 90).
 
+Dominio 10-20 MeV, E_n per evento dalla gaussiana troncata. Nella checklist (M = 100) a
+N = 300 mu_E ha coverage 68% 0.68 e pull +0.18 / 0.92.
+Previsioni (scritte prima del calcolo):
+  1. [hat] coverage 68 / 90 / 95% nominale entro 2 errori binomiali (+-0.019 / 0.012 / 0.009);
+  2. pull medio |media| < 0.1 (errore ~0.04 con M = 600: il +0.18 della checklist, a ~1.8
+     errori con M = 100, e' una fluttuazione) e larghezza 1.00 +- 0.06;
+  3. [true] - [hat] entro ~0.02 sulla coverage, come in caso_C_cov68.
+
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/caso_C_cov90_mu.py [n_processi]
-     (~10.5 min con 3 processi, misurato 2026-09-26)
+     (~11 min con 3 processi, misurato 2026-11-13 a 10-20 MeV)
 Produce: outputs/caso_C_cov90_mu_results.pkl e la tabella su stdout.
 """
 import pickle
