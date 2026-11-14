@@ -1,6 +1,6 @@
 # Resoconto dei risultati — riptide-toy
 
-v0.25 — 2026-11-14
+v0.26 — 2026-11-14
 
 Questa è la sintesi dei risultati del toy model. Il dettaglio tecnico è in `docs/roadmap.md` (stato e
 scelte di implementazione) e in `docs/report_caso_C_stadio1.md` (diario del Caso C). I passaggi
@@ -304,50 +304,75 @@ nominali. Il fit integra E_n solo sul dominio, quindi questi eventi sono descrit
 
 ### 6.3 Sorgente unica, Casi B e C (`scripts/stress_sorgente.py`)
 
-> **Valori a 0.5–6 MeV (v0.18), non rifatti a 10–20 MeV.** Restano come riferimento per il
-> metodo; vanno rilanciati sul nuovo dominio, ora che la calibrazione del Caso C è chiusa (§5).
+Rifatto a 10–20 MeV (v0.26), col Caso C generato dalla gaussiana troncata. Una frazione f di
+eventi viene da una seconda sorgente puntiforme a separazione Δ (10°, 30°, 90°) o da un fondo
+isotropo; la ricostruzione resta a sorgente unica. Diagnostica: test KS fra gli angoli osservati
+delle tracce rispetto a Ω̂_n e la loro distribuzione attesa con sorgente unica, con soglia al 95°
+percentile della statistica a f = 0 (Ω̂_n viene dagli stessi dati). M = 100 per configurazione,
+200 a f = 0. Le righe a f = 0 coincidono esperimento per esperimento con le checklist B
+(N = 30, 300) e C (N = 50, 300) (c); gli aggregati differiscono di poco perché M è diverso.
 
-Una frazione f di eventi viene da una seconda sorgente puntiforme a separazione Δ (10°, 30°, 90°)
-o da un fondo isotropo; la ricostruzione resta a sorgente unica. Diagnostica: test KS fra gli
-angoli osservati delle tracce rispetto a Ω̂_n e la loro distribuzione attesa con sorgente unica,
-con soglia al 95° percentile della statistica a f = 0 (Ω̂_n viene dagli stessi dati). M = 100 per
-configurazione, 200 a f = 0.
-
-Caso B, N = 300 (σ posteriore ≈ 1.2°):
+Caso B, N = 300 (σ posteriore 0.79°, contro 1.23° a 0.5–6 MeV); fra parentesi il valore a 0.5–6 MeV:
 
 | Contaminazione | Spostamento verso la 2ª sorgente | pull rms | Coverage 68% | Potenza KS | |
 |---|---|---|---|---|---|
-| nessuna | — | 1.02 | 0.66 | 0.05 (= soglia) | (c) |
-| f = 0.05, 10° | 0.5° | 1.15 | 0.53 | 0.05 | (c) |
-| f = 0.30, 10° | 3.0° | 2.74 | 0.03 | 0.03 | (c) |
-| f = 0.05, 30° | 2.1° | 2.28 | 0.16 | 0.02 | (c) |
-| f = 0.10, 30° | 4.0° | 3.76 | 0.01 | 0.05 | (c) |
-| f = 0.05, 90° | 10.3° | 9.5 | 0.00 | 0.17 | (c) |
-| f = 0.10, 90° | 16.9° | 16.7 | 0.00 | 0.80 | (c) |
-| f = 0.05 isotropo | rms 5.0° | 4.1 | 0.03 | 0.14 | (c) |
-| f = 0.10 isotropo | rms 7.1° | 5.8 | 0.01 | 0.48 | (c) |
+| nessuna | — | 1.05 | 0.66 | 0.05 (= soglia) | (c) |
+| f = 0.05, 10° | 0.5° (0.5°) | 1.28 (1.15) | 0.44 (0.53) | 0.06 | (c) |
+| f = 0.10, 10° | 1.0° | 1.70 | 0.28 | 0.05 | (c) |
+| f = 0.30, 10° | 3.0° (3.0°) | 4.12 (2.74) | 0.00 (0.03) | 0.05 | (c) |
+| f = 0.05, 30° | 1.8° (2.1°) | 2.71 (2.28) | 0.07 (0.16) | 0.03 | (c) |
+| f = 0.10, 30° | 3.6° (4.0°) | 4.88 (3.76) | 0.00 (0.01) | 0.06 | (c) |
+| f = 0.30, 30° | 9.8° (10.1°) | 13.5 | 0.00 | 0.05 | (c) |
+| f = 0.05, 90° | 5.6° (10.3°) | 7.5 (9.5) | 0.00 (0.00) | 0.10 (0.17) | (c) |
+| f = 0.10, 90° | 10.6° (16.9°) | 14.2 (16.7) | 0.00 (0.00) | 0.62 (0.80) | (c) |
+| f = 0.30, 90° | 27.5° (33.1°) | 38.5 | 0.00 | 1.00 | (c) |
+| f = 0.05 isotropo | rms 2.6° (5.0°) | 3.2 (4.1) | 0.08 (0.03) | 0.10 (0.14) | (c) |
+| f = 0.10 isotropo | rms 3.5° (7.1°) | 4.3 (5.8) | 0.04 (0.01) | 0.40 (0.48) | (c) |
+| f = 0.30 isotropo | rms 7.0° (12.5°) | 7.9 | 0.02 | 1.00 | (c) |
 
-- Ω̂_n si sposta verso la seconda sorgente di circa f·Δ per Δ = 10°, un po' di più a 30° (4.0°
-  contro 3° a f = 0.1) e molto di più a 90° (16.9° contro 9°) (c); la
-  lettura "media pesata delle direzioni" è (d). La std posteriore non cresce, quindi a bias
-  fissato il pull cresce come √N e la coverage crolla tanto più quanto N è grande: per f = 0.05 a
-  30° la coverage 68% è 0.41 a N = 30 e 0.16 a N = 300 (c).
-- **La diagnostica KS non vede le contaminazioni vicine** (c): per Δ = 10°–30° la potenza resta
-  al livello del falso allarme (≤ 0.08) a ogni f e N, proprio dove Ω̂_n è già fuori di molte σ.
-  Diventa utile solo per Δ = 90° o fondo isotropo: con f = 0.1 e N = 300 la potenza è 0.48–0.88,
-  con f = 0.3 è 1.00. A Δ = 30° anche f = 0.3 resta invisibile (≤ 0.08).
+Caso B, N = 30 (σ posteriore 2.6°): f = 0.05 a 30° sposta Ω̂_n di 2.3°, coverage 68% 0.28 (0.41 a
+0.5–6 MeV); f = 0.05 a 90° di 7.1°, coverage 0.01; KS ≤ 0.12 fino a f = 0.1, 0.55 / 0.49 a f = 0.3
+(90° / isotropo) (c).
+
+Previsioni scritte prima del run (docstring dello script), confrontate col risultato:
+
+- **Consistenza: confermata (c).** Righe a f = 0 identiche bit per bit alle checklist.
+- **Meccanismo invariato in gradi: confermato a 10° e 30°, smentito a 90° e col fondo isotropo (c).**
+  Lo spostamento è ≈ f·Δ a 10° (0.5° / 1.0° / 3.0°) e un po' di più a 30° (1.8° / 3.6° / 9.8°,
+  leggermente meno che a 0.5–6 MeV). A 90° e col fondo isotropo è invece molto più piccolo che a
+  0.5–6 MeV: 5.6° contro 10.3° a f = 0.05, rms del fondo isotropo 2.6° contro 5.0°. Ipotesi (d): a
+  10–20 MeV l'intervallo relativo di E_n è più stretto (fattore 2 contro 12), quindi un evento da
+  una direzione molto diversa è meno compatibile con l'asse ricostruito e pesa meno nella media.
+- **σ più piccola ⇒ pull più grandi e coverage più bassa: confermata a 10° e 30° (c).** f = 0.05 a 30°
+  porta la coverage 68% a 0.07 (prevista sotto 0.16). A 90° i pull sono più piccoli che a 0.5–6 MeV,
+  perché lo spostamento cala più della σ.
+- **KS cieco per Δ ≤ 30°: confermata (c).** Potenza ≤ 0.09 nel Caso B a ogni f e N; nel Caso C
+  0.11 a N = 50 con f = 0.3 a 30° (al margine, errore binomiale ±0.03). A 90° f = 0.05 resta
+  invisibile (0.07–0.10); la potenza diventa utile da f = 0.1 a N = 300 (0.52–0.62) e a f = 0.3.
   Il motivo proposto (d) è che la distribuzione degli angoli delle tracce è larga (θ_p fino a
   90°): spostare l'asse di pochi gradi la cambia poco.
-- Caso C: anche (μ_E, σ_E) ne risentono (c). σ_E è il più sensibile: a N = 300 con f = 0.05 a 30°,
-  pull di log σ_E +3.95 e coverage 68% 0.06. μ_E si sposta verso l'alto: poco per Δ ≤ 30° con
-  f ≤ 0.1 (pull ≤ +0.8), molto per Δ = 90° o fondo isotropo (+0.32 MeV a f = 0.05 e 90°,
-  +0.36 MeV a f = 0.10 isotropo; pull +2.5 / +3.0). Gli eventi da un'altra direzione vengono
-  ricostruiti con l'angolo sbagliato, quindi con energie disperse e in media più alte (d). Un σ_E
-  inatteso è un sintomo utile solo se si ha un'aspettativa indipendente sulla larghezza dello
-  spettro (d).
+- **Caso C, σ_E il più sensibile e μ_E spinto in alto: confermata (c), con un effetto nuovo.**
+  A N = 300 con f = 0.05 a 30°: bias di log σ_E +0.42, pull +2.88, coverage 68% 0.05 (prima +3.95 /
+  0.06); Ω_n coverage 0.04; μ_E +0.11 MeV (pull +0.49). A 10° μ_E quasi non si muove (≤ +0.05 MeV).
+  Per Δ = 90° e fondo isotropo μ_E sale più che a 0.5–6 MeV: +0.82 MeV a f = 0.05 e 90° (prima
+  +0.32), +1.14 MeV a f = 0.10 isotropo (prima +0.36), coverage 68% 0.26; +3.9 / +3.7 MeV a f = 0.3.
+  A N = 50 lo stesso andamento con numeri più piccoli: log σ_E +0.55 a f = 0.05 e 30° (coverage
+  0.39), μ_E +0.56 MeV a f = 0.05 e 90°. Gli eventi da un'altra direzione vengono ricostruiti con
+  l'angolo sbagliato, quindi con energie disperse e in media più alte (d). Un σ_E inatteso è un
+  sintomo utile solo se si ha un'aspettativa indipendente sulla larghezza dello spettro (d).
+- **Effetto nuovo, collasso al bordo del dominio (c, causa d).** Con contaminazione forte μ_E viene
+  spinto verso il bordo superiore, 20 MeV (μ̂_E > 19.5 MeV in 60 esperimenti su 100 a N = 300 con
+  f = 0.3 a 90° o isotropo). In 12 esperimenti su 2800 del Caso C il posterior collassa sullo
+  spigolo della griglia (μ_E = 20 MeV, σ_E = 0.01 MeV) con std ~10⁻⁹–10⁻⁴ MeV: 6 a N = 300 e 4 a
+  N = 50 col fondo isotropo a f = 0.3, 2 a N = 50 con Δ = 90°. Quei pochi rendono privi di senso
+  la media e la larghezza del pull stampate (fino a 10⁸), mentre la coverage resta valida. Il pull
+  mediano di μ_E è 0.37 / 0.75 / 1.06 / 12.4 a (N = 50, f = 0.1, 90°) / (50, 0.3, 90°) /
+  (50, 0.3, isotropo) / (300, 0.3, isotropo). A 0.5–6 MeV non c'erano collassi: il dominio
+  stretto accumula al bordo le energie alte delle tracce ricostruite male (d).
 - Conclusione: l'assunzione 1 resta necessaria e, per separazioni ≲ 30°, non è verificabile con
-  questa diagnostica. Un modello a mistura che stimi f è il passo naturale successivo (fuori
-  scope).
+  questa diagnostica. A 10–20 MeV il danno a pari f e Δ ≤ 30° è maggiore in σ (σ più piccola),
+  minore per sorgenti lontane. Un modello a mistura che stimi f è il passo naturale successivo
+  (fuori scope).
 
 ### 6.4 Due stadi contro stima congiunta, Caso C (`scripts/correlazione_stadi.py`)
 
@@ -420,19 +445,21 @@ coverage resta nei limiti binomiali.
 |---|---|---|---|
 | A, E_n | 0.01 / 0.04 / 0.12 (N = 10 / 100 / 1000) | nessuno (pull −0.00 → +0.11 a N = 1000, larghezza 0.97) | (c) |
 | B, Ω_n | — (simmetria azimutale) | pull rms e coverage invariati a ogni N | (c) |
-| C, μ_E | 0.02 / 0.04 / 0.07 / 0.15 (N = 50 / 150 / 300 / 1000) | invariati entro gli errori | (c) |
-| C, log σ_E | ≤ 0.02 | invariati | (c) |
+| C, μ_E | 0.02 / 0.04 / 0.08 / 0.15 (N = 50 / 150 / 300 / 1000) | invariati entro gli errori | (c) |
+| C, log σ_E | 0.02 / 0.00 / 0.00 / 0.01 | invariati | (c) |
 | C, Ω_n | — | invariati | (c) |
 
 Verdetto: l'anisotropia vera a 10–20 MeV non cambia la ricostruzione al livello del toy (c), e il
 modello resta isotropo. Il bias su μ_E cresce con N (0.15 σ a N = 1000, vicino alla soglia): oltre
-N ≈ 1000 va ricontrollato o messo nella verosimiglianza. Le righe del Caso C vengono dal generatore
-senza troncatura (v0.19): la calibrazione mancata era la stessa con le due generazioni, quindi non
-veniva dall'isotropia (§5); vanno rilanciate col generatore troncato.
+N ≈ 1000 va ricontrollato o messo nella verosimiglianza (a N = 1000 il bias aggiunto è
+0.0128 ± 0.0008 MeV).
 
-Nota: il pkl in `outputs/` contiene oggi solo il Caso A, rilanciato dopo il cambio del prior su
-θ_p (`stress_anisotropia.py 3 A`); le righe B e C della tabella vengono dal run precedente con i
-tre casi e non sono rilette dal notebook 06.
+Rilancio v0.26 con i tre casi e il Caso C generato dalla gaussiana troncata; le previsioni scritte
+prima (docstring dello script) sono tutte confermate (c). Il Caso A riproduce il run precedente
+entro 10⁻⁶ MeV; le righe isotrope di B e C coincidono bit per bit con le checklist (stessi seed),
+quindi la ricostruzione isotropa resta calibrata e la differenza appaiata isola l'anisotropia.
+Il bias aggiunto su μ_E (0.08 σ a N = 300 contro 0.07 previsto) è quello del run col generatore
+non troncato: la troncatura non interagisce con l'anisotropia.
 
 ## 7. Prestazioni
 
@@ -451,13 +478,16 @@ script marcati 10–20 MeV.
 | `caso_C_cov68.py` (900) / `caso_C_cov90_mu.py` (600), 10–20 MeV | ~12 / ~11 min con 3 processi | (c) |
 | `caso_C_diag_omega_N50.py`, M = 200 / 600, 10–20 MeV | ~1.5 / ~4.5 min con 3 processi | (c) |
 | `robustezza_prior.py` (A, B, C), 10–20 MeV | ~11 min con 3 processi | (c) |
+| `stress_anisotropia.py` (A, B, C, esperimenti appaiati), 10–20 MeV | ~18 min con 3 processi | (c) |
+| `stress_sorgente.py` (B e C, 5600 esperimenti), 10–20 MeV | ~40 min con 3 processi | (c) |
 
 ## 8. Limiti dichiarati
 
 - **Assunzione 1 (sorgente unica): necessaria e non verificabile per sorgenti vicine (c).** Una
-  contaminazione del 5% a 30° porta la coverage 68% di Ω_n da 0.66 a 0.16 a N = 300 e peggiora con
-  N; la diagnostica KS sugli angoli delle tracce non la vede per Δ ≲ 30° (§6.3). Un modello a
-  mistura è fuori scope.
+  contaminazione del 5% a 30° porta la coverage 68% di Ω_n da 0.66 a 0.07 a N = 300 e peggiora con
+  N; la diagnostica KS sugli angoli delle tracce non la vede per Δ ≲ 30° (§6.3). Nel Caso C una
+  contaminazione forte spinge μ_E al bordo superiore del dominio, fino al collasso del posterior
+  sullo spigolo della griglia (12 esperimenti su 2800, c). Un modello a mistura è fuori scope.
 - **Assunzione 3 (spettro gaussiano):** μ_E e Ω_n robusti alla forma (c); la coverage di log σ_E
   dipende dalla curtosi κ dello spettro (c, κ da 1.7 a 9, §6.2): sovra-coperto per κ < 3,
   sotto-coperto per code pesanti (coverage 68% 0.55–0.67, larghezza del pull fino a 1.24 a
@@ -482,6 +512,5 @@ script marcati 10–20 MeV.
   errore di modello che sposta log σ_E verso l'alto, crescente con N (c, §5).
 - **Fuori scope:** sezione d'urto n–p decrescente con E_n (spettro rivelato ≠ spettro incidente),
   soglia su E_p basse.
-- Il limite sull'assunzione 1 è quantificato a 0.5–6 MeV (§6.3); assunzione 3 e due stadi a
-  10–20 MeV (§6.2, §6.4).
+- I limiti sulle assunzioni 1 e 3 e sui due stadi sono quantificati a 10–20 MeV (§6.2–§6.4).
 - **Target di prestazione** di `loglik` per N = 1000 ridefinito da 50 ms a 2 s: il limite è il numpy denso.

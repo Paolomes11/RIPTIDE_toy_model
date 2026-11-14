@@ -15,6 +15,21 @@ riottengono i loro dataset); geometria della contaminazione da un generatore a p
 spawn_key=(CONTAMINATION_TAG, N, i), quindi a parita' di (N, i) verita' ed energie
 sono le stesse per ogni configurazione e cambia solo la contaminazione.
 
+Rilancio a 10-20 MeV (prima fatto solo a 0.5-6 MeV), Caso C con la gaussiana troncata al
+dominio. Previsioni (scritte prima del calcolo):
+  1. consistenza: le righe a f = 0 riproducono le checklist, B a N = 30 e 300 (rms 2.60 e
+     0.84 gradi, coverage 68% 0.67 e 0.63), C a N = 50 e 300;
+  2. meccanismo invariato: spostamento verso la seconda sorgente ~ f * Delta a 10 gradi, piu'
+     grande a 30 e soprattutto a 90 gradi, in gradi come a 0.5-6 MeV (la mistura di direzioni
+     non dipende dall'energia);
+  3. la sigma posteriore di Omega_n e' piu' piccola (B a N = 300: 0.79 contro 1.23 gradi),
+     quindi a parita' di spostamento pull rms piu' grandi e coverage piu' basse che a 0.5-6 MeV
+     (es. f = 0.05 a 30 gradi, N = 300: coverage 68% sotto 0.16);
+  4. KS cieco per Delta <= 30 gradi (potenza <= 0.10 a ogni f e N); utile solo a 90 gradi e
+     col fondo isotropo;
+  5. Caso C: log sigma_E il parametro piu' sensibile; mu_E spinto verso l'alto a 90 gradi e
+     col fondo isotropo (tracce ricostruite con l'angolo sbagliato).
+
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/stress_sorgente.py [n_processi]
 Produce: outputs/stress_sorgente_results.pkl e le tabelle su stdout.
