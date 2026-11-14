@@ -6,7 +6,7 @@ Casi A/B/C. Progetto satellite di un articolo, separato dalla tesi.
 Dominio di energia 10–20 MeV, cinematica n–p relativistica esatta, scattering isotropo in CM
 (verificato contro la distribuzione angolare anisotropa di ENDF/B-VIII.0: effetto trascurabile).
 Stato: Casi A, B e C calibrati a 10–20 MeV (Caso C a N ≥ 150; a N = 50 la coverage di σ_E è
-un po' bassa). Alcuni stress test sono ancora da rifare sul nuovo dominio (vedi `docs/roadmap.md`).
+un po' bassa). Tutti gli stress test sono rifatti sul nuovo dominio (v0.26, vedi `docs/roadmap.md`).
 
 - **Risultati in sintesi**: `docs/resoconto.md`
 - **Stato riga per riga e scelte di implementazione**: `docs/roadmap.md`

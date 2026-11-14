@@ -1,6 +1,6 @@
 # Roadmap — riptide-toy
 
-v0.25 — 2026-11-14
+v0.26 — 2026-11-14
 
 Sintesi dei risultati: `docs/resoconto.md`. Le modifiche del passaggio a 10–20 MeV sono spiegate
 nel notebook `notebooks/06_modifiche_10_20_MeV`; i notebook 01–05 sono rifatti a 10–20 MeV.
@@ -299,7 +299,7 @@ progetto è partito (non pubblicata).
   `prior_B_rumore.py`, `mu_N1000_diag.py`, `curtosi_log_sigma.py`, `asimmetria_log_sigma.py`,
   `modo_log_sigma.py`.
 
-## Punti aperti (v0.21, 2026-10-13)
+## Punti aperti (v0.26, 2026-11-14)
 
 Dalla v0.19 il dominio è 10–20 MeV. I punti 1–8 sono stati chiusi o quantificati a 0.5–6 MeV
 (v0.16–v0.18); i numeri riportati sotto sono di quel dominio salvo dove indicato. Rifatti a
@@ -308,9 +308,8 @@ dell'isotropia (`docs/resoconto.md` §3–§6.1, §6.5), `n1000_extra.py` (v0.23
 `correlazione_stadi.py`, `asimmetria_log_sigma.py`, `modo_log_sigma.py`, `caso_C_cov68.py`,
 `caso_C_cov90_mu.py`, `caso_C_diag_omega_N50.py` (v0.24, punto 8 e `docs/resoconto.md` §5, §6.4),
 `robustezza_prior.py` col Caso C troncato e `prior_B_rumore.py` (v0.25, punto 5 e
-`docs/resoconto.md` §6.1).
-Da rifare a 10–20 MeV, col via: `stress_sorgente.py` (il notebook 05 §9 ne riassume le conclusioni
-a 0.5–6 MeV).
+`docs/resoconto.md` §6.1), `stress_anisotropia.py` con i tre casi e `stress_sorgente.py` (v0.26,
+punti 7 e 11, `docs/resoconto.md` §6.3, §6.5). Nessuno script resta da rifare a 10–20 MeV.
 
 9. **Calibrazione del Caso C a 10–20 MeV: chiuso (c, v0.21).** Checklist v0.19: μ_E con larghezza
    del pull 1.24–1.30 e coverage 68% 0.51–0.55 a N ≥ 300; log σ_E con pull medio da +0.10
@@ -325,14 +324,15 @@ a 0.5–6 MeV).
    N ≥ 150 (`docs/resoconto.md` §5) (c). Residuo minore: a N = 50 la coverage di log σ_E è
    0.61 / 0.81 / 0.87 (rms 0.81 contro std dichiarata 0.66), probabile effetto del prior a N
    piccolo come alla v0.11 (d). Limite: un rivelatore reale non tronca sull'energia vera; uno
-   spettro che sborda dal dominio è un errore di modello (stress test, non calibrazione). Da
-   rilanciare col generatore troncato, ognuno col via: `stress_anisotropia.py` (B e C, punto 11)
-   e `stress_sorgente.py` (`robustezza_prior.py` fatto, v0.25).
+   spettro che sborda dal dominio è un errore di modello (stress test, non calibrazione). Rilanciati
+   col generatore troncato: `robustezza_prior.py` (v0.25), `stress_anisotropia.py` e
+   `stress_sorgente.py` (v0.26).
 10. **Prior fisico su θ_p del Caso A: chiuso (c).** Vedi Scelte di implementazione.
-11. **Pkl dello stress di isotropia: solo Caso A.** `outputs/stress_anisotropia_results.pkl` è stato
-   sovrascritto dal rilancio `stress_anisotropia.py 3 A` dopo il cambio del prior su θ_p; i numeri
-   di B e C in `docs/resoconto.md` §6.5 vengono dal run precedente. Da rilanciare per B e C col
-   generatore troncato (punto 9).
+11. **Stress di isotropia con i tre casi: chiuso (c, v0.26).** `stress_anisotropia.py 3 ABC` col
+   Caso C troncato; il pkl contiene di nuovo A, B e C. Il Caso A riproduce il run precedente entro
+   10⁻⁶ MeV, le righe isotrope di B e C coincidono bit per bit con le checklist. Bias aggiunto su
+   μ_E 0.02 / 0.04 / 0.08 / 0.15 std a N = 50 / 150 / 300 / 1000, su log σ_E ≤ 0.02, Ω_n invariato:
+   previsioni confermate, verdetto "trascurabile" (`docs/resoconto.md` §6.5).
 12. **Spettro fuori dominio: forme chiuse (v0.22), sconfinamento aperto.** `feat/spettro-troncato`:
    tutte le forme di `sample_energy_spectrum` sono troncate a [10, 20] MeV (ramo `"gauss"` invariato,
    `truncate=False` per la forma libera); bersaglio = pseudo-vero (`truncated_normal_pseudo_true`, media e
@@ -344,10 +344,10 @@ a 0.5–6 MeV).
    log σ_E arriva a +0.6/+1.0 per le forme a code leggere; a N = 50 l'effetto è quasi invisibile,
    quindi il danno cresce con N. Ω_n resta calibrato. Il meccanismo non è indagato: da verificare se
    pesano gli esperimenti con μ_E vicino ai bordi o σ_E grande, e la misura è a M = 40.
-14. **Prossimi passi (da riprendere, v0.25).** Rilanci col via e col tetto di memoria, in quest'ordine:
+14. **Prossimi passi (da riprendere, v0.26).** Rilanci col via e col tetto di memoria, in quest'ordine:
    (A) `n1000_extra` → `mu_N1000_diag`, fatto (v0.23, punto 4); (B) `correlazione_stadi` → `asimmetria_log_sigma`, `modo_log_sigma`,
    `caso_C_cov68` → `caso_C_cov90_mu`, `caso_C_diag_omega_N50`, fatto (v0.24, punto 8); (C) `robustezza_prior` (B e C) →
-   `prior_B_rumore`, fatto (v0.25, punto 5); (D) `stress_anisotropia` (B, C), `stress_sorgente`. Per ciascuno aggiornare
+   `prior_B_rumore`, fatto (v0.25, punto 5); (D) `stress_anisotropia` (A, B, C), `stress_sorgente`, fatto (v0.26, punti 7 e 11). Per ciascuno aggiornare
    `docs/resoconto.md` e il notebook 05. Poi: stress con σ_np(E) letta da ENDF/B-VIII.0 MF3/MT2; stress
    con anisotropia maggiorata (f(−1)/f(0) = 1.10 a 14 MeV); coverage di log σ_E a N = 50 con prior
    ristretto; code dei pull del Caso B a N = 10; effetto delle approssimazioni non relativistiche
@@ -406,10 +406,17 @@ a 0.5–6 MeV).
    regge fino a N = 300 (c); a N = 1000 l'osservato è più largo di ~2.3σ (M = 40, d). Con la
    Student-t μ_E ha pull medio +0.16 ± 0.04 (c, causa non indagata). A 10–20 MeV con forme troncate
    il pull non si ripresenta: punto 12 e `docs/resoconto.md` §6.2.
-7. **Sorgente unica, Casi B e C: quantificato (c).** `scripts/stress_sorgente.py`. Ω̂_n si sposta
-   verso la seconda sorgente di circa f·Δ. La coverage crolla con N: per f = 0.05 a 30° la coverage
-   68% scende da 0.41 a N = 30 a 0.16 a N = 300. La diagnostica KS ha potenza al livello del falso
-   allarme per Δ ≲ 30°. Resta un limite (sotto).
+7. **Sorgente unica, Casi B e C: quantificato (c), rifatto a 10–20 MeV (v0.26).**
+   `scripts/stress_sorgente.py`. Ω̂_n si sposta verso la seconda sorgente di circa f·Δ a 10° e 30°;
+   a 90° e col fondo isotropo molto meno che a 0.5–6 MeV (5.6° contro 10.3° a f = 0.05, N = 300):
+   previsione "meccanismo invariato in gradi" smentita lì, causa proposta l'intervallo relativo di
+   E_n più stretto (d). La coverage crolla con N: per f = 0.05 a 30° la coverage 68% scende da 0.28
+   a N = 30 a 0.07 a N = 300 (prima 0.41 / 0.16), perché la σ posteriore è più piccola. KS al
+   livello del falso allarme per Δ ≤ 30° (≤ 0.09 nel Caso B). Nel Caso C log σ_E è il più
+   sensibile e μ_E sale più che a 0.5–6 MeV (+0.82 MeV a f = 0.05 e 90°, N = 300); con
+   contaminazione forte μ_E finisce al bordo di 20 MeV e in 12 esperimenti su 2800 il posterior
+   collassa sullo spigolo della griglia (σ_E = 0.01 MeV), rendendo inutili media e larghezza del
+   pull; la coverage resta valida (`docs/resoconto.md` §6.3). Resta un limite (sotto).
 8. **Due stadi contro stima congiunta, Caso C: chiuso (c), rifatto a 10–20 MeV (v0.24).**
    `scripts/correlazione_stadi.py`, con Laplace locale 4D (`posterior_C.joint_laplace`). La
    correlazione canonica fra Ω_n e (μ_E, log σ_E) ha mediana 0.17 / 0.10 / 0.08 a N = 50 / 150 / 300
@@ -428,8 +435,8 @@ a 0.5–6 MeV).
 ## Limiti dichiarati (da riportare nell'articolo)
 
 - **Assunzione 1 necessaria e non verificabile per sorgenti vicine (c).** Basta una contaminazione
-  di pochi per cento a Δ ≲ 30° per perdere la calibrazione di Ω_n e σ_E a N grande, senza che la
-  diagnostica KS se ne accorga. Un modello a mistura che stimi f è sviluppo futuro.
+  di pochi per cento a Δ ≲ 30° per perdere la calibrazione di Ω_n e σ_E a N grande (coverage 68%
+  di Ω_n 0.07 con f = 0.05 a 30°, N = 300), senza che la diagnostica KS se ne accorga. Un modello a mistura che stimi f è sviluppo futuro.
 - **Assunzione 3:** la coverage di log σ_E dipende dalla curtosi dello spettro (c, κ da 1.7 a 9):
   sovra-coperto per spettri piatti, sotto-coperto per code pesanti (coverage 68% ~0.6). μ_E e Ω_n
   restano calibrati; con la Student-t μ_E ha un bias di +0.16 σ (c).
