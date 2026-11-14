@@ -14,6 +14,17 @@ di B e C coincidono con i dataset delle rispettive checklist.
 Criterio: anisotropia trascurabile se, al N massimo, |bias aniso - bias iso| < 0.2 volte
 la deviazione standard media del posterior e la coverage resta nei limiti binomiali.
 
+Rilancio dei tre casi a 10-20 MeV col Caso C generato dalla gaussiana troncata al dominio
+(il run precedente di B e C usava la gaussiana intera; il Caso A era gia' stato rifatto
+dopo il cambio del prior su theta_p). Previsioni (scritte prima del calcolo):
+  1. consistenza: Caso A identico al run precedente (stessi seed, codice invariato); righe
+     isotrope di B e C uguali alle checklist dei due casi a parita' di (N, i);
+  2. B: Omega_n invariato, per simmetria azimutale dell'anisotropia attorno a Omega_n;
+  3. C, mu_E: bias aggiunto che cresce con N come nel run non troncato (0.02 / 0.04 / 0.07 /
+     0.15 std a N = 50 / 150 / 300 / 1000), sotto la soglia di 0.2 a N = 1000, quindi
+     "trascurabile": la troncatura agisce sull'energia vera, non sul legame E_p-E_n;
+  4. C, log sigma_E: bias aggiunto <= 0.05 std; Omega_n invariato.
+
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/stress_anisotropia.py [n_processi] [casi, es. ABC]
      (picco ~0.6 GB per processo a N=1000 nel Caso C, come la sua checklist)
