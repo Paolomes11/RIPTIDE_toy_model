@@ -18,6 +18,17 @@ Previsioni (scritte prima del calcolo), per i prior "piatto largo" e "logU":
 La stima puntuale e' il MAP sulla calotta, non la media: l'ortogonalita' e' attesa solo
 approssimata.
 
+Dominio 10-20 MeV (il Caso B non dipende dalla troncatura del Caso C). A 0.5-6 MeV la
+relazione reggeva da N = 30 col prior largo, non col logU (spostamento piccolo, dominato dalla
+correlazione negativa con err_def), e il rapporto delle rms era 1.6-1.75. A 10-20 MeV le rms
+degli errori sono gia' note dalla tabella della robustezza: 7.1 contro 4.8 gradi a N = 10, 1.05
+contro 0.87 a N = 300, cioe' rapporto da ~1.5 a ~1.2. Previsioni (scritte prima del calcolo):
+  1. come sopra, invariata;
+  2. col prior largo corr ~ 0 e Hausman entro l'errore da N = 30; col logU no a N = 10
+     (corr < 0), come a 0.5-6 MeV;
+  3. smentita in partenza: il rapporto scende con N (~1.5 -> ~1.2). Lo spostamento resta
+     ~costante (0.72-0.78 sigma) perche' rms(err_def)/sigma cresce con N? Da verificare (d).
+
 Solo lettura: outputs/robustezza_prior_results.pkl (Caso B). La verita' Omega_n si rigenera
 dai seed (primi due numeri del flusso spawn_key=(N, i), come in robustezza_prior.py).
 

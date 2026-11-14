@@ -11,9 +11,24 @@ col prior alternativo (verita' estratta dai generatori di default). Attesa: spos
 I seed di B e C sono quelli delle checklist (spawn_key=(N, i)): col prior di default si
 ritrovano i loro numeri (controllo di consistenza).
 
+Dominio 10-20 MeV; nel Caso C E_n per evento dalla gaussiana troncata al dominio. Il run
+precedente a 10-20 MeV aveva il Caso C generato senza troncatura (calibrazione mancata).
+Previsioni (scritte prima del calcolo):
+  1. A e B identici, esperimento per esperimento, al run precedente: codice e seed invariati,
+     generatori di A e B non toccati dalla troncatura;
+  2. C, prior logU: stessi numeri della checklist del Caso C (stessi seed, stadio 2 su
+     omega_0): coverage 68% di mu_E 0.72 / 0.68 / 0.68 / 0.55, di log sigma_E
+     0.61 / 0.67 / 0.69 / 0.65 a N = 50 / 150 / 300 / 1000;
+  3. C, mu_E col prior U: spostamento medio |.| < 0.05 std a ogni N, coverage uguale a logU
+     entro l'errore binomiale (+-0.03 / 0.03 / 0.05 / 0.07 al 68%);
+  4. C, log sigma_E col prior U: spostamento medio positivo (il prior uniforme in sigma_E pesa
+     i sigma_E grandi) che scende con N, sotto il +0.76 del run senza troncatura a N = 50 e
+     vicino al +0.21 della checklist a N = 150; < 0.1 std a N = 1000.
+
 Uso: OMP_NUM_THREADS=1 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
          python scripts/robustezza_prior.py [n_processi]
-     (~0.5 GB per processo; ~15 min con 3 processi, stima da un esperimento per caso, 2026-10-02)
+     (~0.5 GB per processo; ~15 min con 3 processi, stima a 0.5-6 MeV da un esperimento per
+     caso, 2026-10-02)
 Produce: outputs/robustezza_prior_results.pkl e le tabelle su stdout.
 """
 import pickle
